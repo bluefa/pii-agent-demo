@@ -357,6 +357,27 @@ describe('CurrentPipelineCard — meta line', () => {
   });
 });
 
+describe('CurrentPipelineCard — 수행 담당자', () => {
+  it('names the account the BFF recorded as the requester', () => {
+    renderCard(makeDetail(['APPLY'], { requested_by: '관리자' }));
+
+    expect(document.body.textContent).toContain('수행 담당자 관리자');
+  });
+
+  it('prints 시스템 for a run the BFF started itself, never the raw sentinel', () => {
+    renderCard(makeDetail(['APPLY'], { requested_by: 'SYSTEM' }));
+
+    expect(document.body.textContent).toContain('수행 담당자 시스템');
+    expect(document.body.textContent).not.toContain('SYSTEM');
+  });
+
+  it('says nothing about a requester the backend never recorded', () => {
+    renderCard(makeDetail(['APPLY']));
+
+    expect(document.body.textContent).not.toContain('수행 담당자');
+  });
+});
+
 describe('CurrentPipelineCard — stage tag', () => {
   /** The Task 실행 흐름 line: label left, stage phrase right. */
   const flowRow = (): string =>

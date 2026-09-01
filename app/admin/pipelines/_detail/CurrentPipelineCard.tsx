@@ -54,6 +54,7 @@ import {
   progressPhrase,
   recipeDisplayName,
   recipeLabel,
+  requesterLabel,
   taskInfraSide,
 } from '@/lib/pipeline/format';
 import {
@@ -128,6 +129,9 @@ export function CurrentPipelineCard({
   // so that branch offers only 새 작업 시작 (restart-design §8.1, decision 5).
   const resumable = detail.status === 'FAILED' || detail.status === 'CANCELLED';
   const label = recipeLabel(detail.recipe_definition);
+  // 시스템 for a run the BFF started on entering 4단계, the account otherwise;
+  // null on a backend that records no requester, and then the line says nothing.
+  const requester = requesterLabel(detail.requested_by);
   const title =
     detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
   const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
@@ -222,6 +226,7 @@ export function CurrentPipelineCard({
               <Icon name="clock" size="sm" className="flex-none" />
               시작 {fmtDateTimeShortSec(detail.created_at)} · 경과{' '}
               {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}
+              {requester && <> · 수행 담당자 {requester}</>}
             </p>
           </div>
           <div className="flex flex-none flex-col items-end gap-2 pt-0.5">

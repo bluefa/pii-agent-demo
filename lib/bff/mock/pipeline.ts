@@ -19,7 +19,8 @@
  *  - Fixture timestamps are anchored relative to module-load NOW so the 1h/1d/7d
  *    period windows never rot.
  */
-import { getProjectByTargetSourceId } from '@/lib/mock-data';
+import { getCurrentUser, getProjectByTargetSourceId } from '@/lib/mock-data';
+import { SYSTEM_REQUESTER } from '@/lib/pipeline/types';
 import type {
   CloudProvider,
   ErrorCode,
@@ -418,6 +419,11 @@ interface MockPipeline {
   cancel_requested: boolean;
   due_lag_millis: number;
   tasks: MockTask[];
+  /** Request context — who asked for the run (SYSTEM_REQUESTER for the BFF's own
+   *  auto-installs) and the note they left. Absent on rows seeded before the
+   *  feature, exactly like a pre-#52 upstream row. */
+  requested_by?: string | null;
+  request_note?: string | null;
   /** Restart provenance (write-once display metadata) — the origin pipeline. */
   origin_pipeline_id?: number;
 }
@@ -637,6 +643,7 @@ function seedPipelines(): MockPipeline[] {
     {
       pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
+      requested_by: '관리자', request_note: null,
       created_at: ago(30), last_activity_at: ago(2), next_due_at: ahead(6), leased: true,
       cancel_requested: false, due_lag_millis: 0,
       tasks: [
@@ -780,6 +787,9 @@ function seedPipelines(): MockPipeline[] {
     {
       pipeline_id: 124, type: 'INSTALL', target_source_id: '1003', ...resolveService('1003'), cloud_provider: 'AZURE',
       recipe_definition: 'AZURE_INSTALL_V1', status: 'FAILED',
+      // The BFF's own run — Azure auto-installs on entering 4단계, so the card
+      // must print 시스템 here, not an account.
+      requested_by: SYSTEM_REQUESTER, request_note: '4단계 진입 자동 설치',
       created_at: ago(3 * 60), last_activity_at: ago(3 * 60 - 30), next_due_at: null,
       leased: false, cancel_requested: false, due_lag_millis: 0,
       tasks: [
@@ -973,6 +983,8 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     leased: p.leased,
     cancel_requested: p.cancel_requested,
     due_lag_millis: p.due_lag_millis,
+    requested_by: p.requested_by ?? null,
+    request_note: p.request_note ?? null,
     current_task_sequence: current ? current.sequence : null,
     final_task_sequence: finalSeq,
     current_fail_count: current ? current.fail_count : null,
@@ -1226,6 +1238,13 @@ const hasActiveRun = (targetSourceId: string): boolean =>
   );
 
 const nextPipelineId = (): number => store().reduce((max, p) => Math.max(max, p.pipeline_id), 0) + 1;
+
+/**
+ * What the real BFF injects into `requested_by` from its verified session — the
+ * console never sends it. The mock stands in with its current user, so a run
+ * started from the console names the operator the TopNav chip shows.
+ */
+const currentRequester = (): string | null => getCurrentUser()?.name ?? null;
 
 const parseIntParam = (value: string | null, fallback: number): number => {
   if (value === null) return fallback;
@@ -1841,7 +1860,9 @@ export const mockPipeline = {
     if (hasActiveRun(targetSourceId)) {
       return err(409, 'PIPELINE_ALREADY_ACTIVE', `target '${targetSourceId}' already has an active run`, path);
     }
-    const created = buildPendingPipeline(targetSourceId, provider, type, recipe.name, recipe.steps);
+    const created = buildPendingPipeline(
+      targetSourceId, provider, type, recipe.name, recipe.steps, currentRequester(),
+    );
     store().push(created);
     return ok(toDetail(created));
   },
@@ -1915,6 +1936,8 @@ export const mockPipeline = {
       cloud_provider: provider,
       recipe_definition: null,
       status: 'PENDING',
+      requested_by: currentRequester(),
+      request_note: null,
       created_at: now,
       last_activity_at: now,
       next_due_at: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -2028,6 +2051,9 @@ export const mockPipeline = {
       attempts: [],
       origin_task_id: t.task_id,
     }));
+    // Upstream RequestContext.orInheritFrom: a restart that carries its own
+    // requester is a new request; one that carries none inherits the origin's.
+    const requester = currentRequester();
     const created: MockPipeline = {
       pipeline_id: newId,
       type: origin.type,
@@ -2043,6 +2069,8 @@ export const mockPipeline = {
       cancel_requested: false,
       due_lag_millis: 0,
       tasks,
+      requested_by: requester ?? origin.requested_by ?? null,
+      request_note: requester == null ? origin.request_note ?? null : null,
       origin_pipeline_id: origin.pipeline_id,
     };
     store().push(created);
@@ -2056,6 +2084,7 @@ function buildPendingPipeline(
   type: PipelineType,
   recipeName: string,
   steps: string[],
+  requestedBy: string | null,
 ): MockPipeline {
   const pipelineId = nextPipelineId();
   const now = new Date().toISOString();
@@ -2092,5 +2121,7 @@ function buildPendingPipeline(
     cancel_requested: false,
     due_lag_millis: 0,
     tasks,
+    requested_by: requestedBy,
+    request_note: null,
   };
 }

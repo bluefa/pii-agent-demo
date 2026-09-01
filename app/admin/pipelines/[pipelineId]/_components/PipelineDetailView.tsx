@@ -56,6 +56,7 @@ import {
   progressPhrase,
   providerLabel,
   recipeLabel,
+  requesterLabel,
   runWindow,
   statusKo,
   taskMetaLine,
@@ -361,6 +362,7 @@ export function PipelineDetailView(): ReactElement {
   // concern, not an orchestrator provider.
   const provider = displayProvider(detail.cloud_provider, detail.is_sdu_type);
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
+  const requester = requesterLabel(detail.requested_by);
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const cancellable = canCancel(detail.status, detail.cancel_requested);
   const { done, total } = progressCount(detail.tasks);
@@ -508,6 +510,7 @@ export function PipelineDetailView(): ReactElement {
               <span className="whitespace-nowrap tabular-nums">
                 작업 등록 {fmtDateTime(detail.created_at)}
               </span>
+              {requester && <span className="whitespace-nowrap">수행 담당자 {requester}</span>}
               {detail.restarted_by_pipeline_id != null && (
                 <Link
                   href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}

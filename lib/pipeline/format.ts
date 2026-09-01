@@ -12,6 +12,7 @@
  *    upstream has no TTL field; retry budget bounds it).
  *  - RECIPE_LABELS mirror pipeline-orchestrator RecipeDefinition.java verbatim.
  */
+import { SYSTEM_REQUESTER } from '@/lib/pipeline/types';
 import type {
   CloudProvider,
   PipelineStatus,
@@ -362,6 +363,16 @@ export function taskInfraSide(definitionName: string | null | undefined): InfraS
   if (tokens.includes('BDC') || tokens.includes('BDP')) return 'BDC';
   if (tokens.includes('SERVICE') || tokens.includes('CX')) return 'SERVICE';
   return null;
+}
+
+/**
+ * The 수행 담당자 a run prints: 시스템 for a run the BFF started itself, the
+ * verified account id otherwise, null when the backend recorded no requester
+ * (pre-#52 rows) — the caller prints nothing rather than a dash.
+ */
+export function requesterLabel(requestedBy: string | null | undefined): string | null {
+  if (requestedBy == null || requestedBy === '') return null;
+  return requestedBy === SYSTEM_REQUESTER ? '시스템' : requestedBy;
 }
 
 // ---------------------------------------------------------------------------

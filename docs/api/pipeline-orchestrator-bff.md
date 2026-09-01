@@ -177,3 +177,11 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
   204를 "이력 없음"으로 처리.
 - `TaskDetail.definition`은 nullable, CONDITION_CHECK 카탈로그 항목은 `dispatch_api`/`result_api`
   **키 자체가 생략**(NON_NULL). `effective_execution_timeout`은 CONDITION_CHECK에서 null.
+- **요청 맥락 `requested_by`(≤64) · `request_note`(≤200)** — 생성(#10)·custom(#11)·재시작 본문에
+  선택으로 실리고 `PipelineDetail`에만 노출된다(`PipelineSummary` #3/#7/#8에는 없음 — 자유 텍스트를
+  목록으로 퍼뜨리지 않는 업스트림 결정). 두 값은 **BFF가 검증된 세션 계정에서 주입**한다 — 콘솔은 본문에
+  넣지 않는다(클라이언트가 보낸 identity는 신뢰하지 않음). infra install worker가 4단계 진입을 받아
+  스스로 여는 자동 설치는 `requested_by: "SYSTEM"`(예약값, `SYSTEM_REQUESTER`)을 넣고 이유는
+  `request_note`에 적는다. 콘솔은 상세에서 「수행 담당자 {계정}」/「수행 담당자 시스템」으로 그리고,
+  값이 없는 행(기능 이전 실행)은 그 항목을 생략한다. 재시작은 자기 요청자를 실으면 그 사람이 새 요청자,
+  안 실으면 원본의 맥락을 승계한다.
