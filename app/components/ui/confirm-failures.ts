@@ -8,7 +8,10 @@ import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
  * (ADR-008 개정 2026-04-27 / ADR-013 §D2), 그대로 렌더하면 BFF 가 쓴 문구가 그대로 UI
  * 카피가 된다. 코드는 fetchJson 이 좁은 allowlist 로 정규화한 값이라 — 서버의
  * CONFLICT_REQUEST_PENDING 같은 도메인 코드는 status 로 접혀 CONFLICT 로 온다 — 여기
- * 나열된 것이 승인 요청 화면에 실제로 도달할 수 있는 전부다.
+ * 나열된 것이 승인 요청 화면에 실제로 도달할 수 있는 전부다. `CONFLICT_STALE_TARGET_LIST`
+ * 만은 상류가 아니라 Next 라우트가 직접 발행하고(`app/api/_lib/approval-input.ts` 의 409),
+ * 바로 그 접힘을 피하려고 allowlist 에 올려 둔 코드다 — CONFLICT 로 접히면 "이미 진행 중"
+ * 이라는 틀린 문장과 함께 같은 본문을 다시 보내는 버튼이 붙는다.
  *
  * `retry` 는 AppError.retriable 이 아니다. 그쪽은 전송 계층의 재시도 가능성이라 409 를
  * false 로 준다. 하지만 이 확인 모달의 다시 요청하기는 재요청 전에 진행 상태를 다시 읽으므로
@@ -28,6 +31,10 @@ type FailureTable = Partial<Record<AppErrorCode, FailureCopy>>;
 
 const FAILURES: FailureTable = {
   CONFLICT: { reason: '이미 진행 중인 승인 요청이 있어요.', retry: true },
+  CONFLICT_STALE_TARGET_LIST: {
+    reason: '연동 대상 목록이 바뀌었어요. 새로고침한 뒤 다시 선택해 주세요.',
+    retry: false,
+  },
   INTERNAL_ERROR: { reason: '서버에서 오류가 발생했어요.', retry: true },
   RATE_LIMITED: { reason: '요청이 잠시 몰렸어요. 잠시 후 다시 요청해 주세요.', retry: true },
   NETWORK: { reason: '네트워크 연결을 확인해 주세요.', retry: true },
@@ -48,6 +55,10 @@ const UNKNOWN_FAILURE: FailureCopy = { reason: '알 수 없는 오류가 발생�
  */
 const FAILURES_EN: FailureTable = {
   CONFLICT: { reason: 'An approval request is already in progress.', retry: true },
+  CONFLICT_STALE_TARGET_LIST: {
+    reason: 'The target list has changed. Refresh the page and select again.',
+    retry: false,
+  },
   INTERNAL_ERROR: { reason: 'The server hit an error.', retry: true },
   RATE_LIMITED: { reason: 'Requests are piling up. Try again in a moment.', retry: true },
   NETWORK: { reason: 'Check your network connection.', retry: true },

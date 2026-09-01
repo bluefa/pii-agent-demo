@@ -21,6 +21,7 @@ export type AppErrorCode =
   // 도메인 에러 (서버 KnownErrorCode와 1:1 대응)
   | 'APPROVED_INTEGRATION_NOT_FOUND'
   | 'CONFIRMED_INTEGRATION_NOT_FOUND'
+  | 'CONFLICT_STALE_TARGET_LIST'
   // 클라이언트 전용 codes
   | 'NETWORK'
   | 'TIMEOUT'
@@ -39,6 +40,7 @@ export const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set<string>([
   'INTERNAL_ERROR',
   'APPROVED_INTEGRATION_NOT_FOUND',
   'CONFIRMED_INTEGRATION_NOT_FOUND',
+  'CONFLICT_STALE_TARGET_LIST',
 ]);
 
 export function isKnownErrorCode(s: string): s is AppErrorCode {

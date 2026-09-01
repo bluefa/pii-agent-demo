@@ -128,9 +128,11 @@ describe('오래된 화면 · 모양 위반 — 목 BFF 에 닿기 전에 끝난
     });
 
     expect(status).toBe(409);
-    // title 이 리졸버의 것이면 목 BFF 가 아니라 우리가 판정한 것이다.
-    expect(body.title).toBe('연동 대상을 확인하지 못했습니다.');
     expect(body.detail).toBe('연동 대상 목록이 변경되었습니다. 화면을 새로 읽고 다시 선택해 주세요.');
+    // 제 코드를 달고 나가야 확인 모달이 "새로고침" 을 말한다 — 코드가 없으면 `fetchJson` 이
+    // status 로 접어 CONFLICT("이미 진행 중") + 다시 요청하기가 된다.
+    expect(body.code).toBe('CONFLICT_STALE_TARGET_LIST');
+    expect(body.retriable).toBe(false);
     expect(upstream).not.toHaveBeenCalled();
   });
 

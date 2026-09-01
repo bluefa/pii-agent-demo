@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
-import { problemResponse } from '@/app/api/_lib/problem';
+import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 import { ApprovalSelectionInput, resolveApprovalInput } from '@/app/api/_lib/approval-input';
 import { schemas } from '@/lib/generated/install-v1';
 
@@ -40,6 +40,15 @@ export const POST = withV1(async (request, { requestId, params }) => {
     selection.data,
   );
   if (!resolved.ok) {
+    // 확인 모달은 문장을 에러 **코드**로 고른다(ADR-008). 코드 없이 409 만 주면
+    // `fetchJson` 이 status 로 접어 CONFLICT 로 만들고, 화면은 "이미 진행 중인 승인 요청이
+    // 있어요" + 다시 요청하기를 낸다 — 같은 본문을 다시 보내 같은 409 를 받는 고리다.
+    // 이 409 는 새로고침이 고치는 실패라 제 코드를 달아 보낸다.
+    if (resolved.failure.status === 409) {
+      return problemResponse(
+        createProblem('CONFLICT_STALE_TARGET_LIST', resolved.failure.message, requestId),
+      );
+    }
     return NextResponse.json(
       {
         type: 'about:blank',

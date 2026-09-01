@@ -131,6 +131,17 @@ describe('fetchJson — ProblemDetails 에러', () => {
     );
   });
 
+  // 이 코드는 상류가 아니라 우리 라우트가 낸다. allowlist 에서 빠지면 status 로 접혀
+  // CONFLICT 가 되고, 확인 모달이 "이미 진행 중" + 다시 요청하기를 내놓는다.
+  it('CONFLICT_STALE_TARGET_LIST 는 아는 code 라 status 로 접히지 않는다', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFetch(409, { code: 'CONFLICT_STALE_TARGET_LIST', detail: '연동 대상 목록이 변경되었습니다.' });
+
+    const err = await expectAppError('/api/v1/test');
+    expect(err.code).toBe('CONFLICT_STALE_TARGET_LIST');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('아는 code 면 둘이 같은 값이고, code 가 없으면 rawCode 도 없다', async () => {
     mockFetch(404, { code: 'NOT_FOUND', detail: '없습니다.' });
     const known = await expectAppError('/api/v1/test');
