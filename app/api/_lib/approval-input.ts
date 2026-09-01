@@ -105,7 +105,8 @@ const rdsSelection = (
   candidates: readonly RdsCandidate[],
 ): { ok: true; fields: Metadata } | { ok: false } => {
   if (!row.selected_rds_instance_resource_id) return { ok: true, fields: {} };
-  const chosen = candidates.find(
+  // 행과 마찬가지로 후보 원소 자체가 null 일 수 있다 — 훑기 전에 떨군다.
+  const chosen = candidates.filter(Boolean).find(
     (candidate) => candidate.resource_id === row.selected_rds_instance_resource_id,
   );
   if (!chosen) return { ok: false };

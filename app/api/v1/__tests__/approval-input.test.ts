@@ -273,6 +273,46 @@ describe('RDS 멤버 선택 — 고를 수는 있어도 지어낼 수는 없다'
     if (!result.ok) return;
     expect(result.value.resources?.[0].metadata?.selected_rds_instance_role).toBe('READER');
   });
+
+  // BFF 모드의 재조회는 파싱하지 않은 와이어다(`lib/bff/http.ts` 의 `getSnakeRaw`) — 상류가
+  // 흘린 null 원소가 타입에는 없는 채로 여기까지 온다. 행 단위 느슨함은 이미 막고 있다.
+  const candidatesFromWire = (candidates: unknown) =>
+    ({
+      resources: [
+        { ...scanned, metadata: { ...scanned.metadata, rds_instance_candidates: candidates } },
+      ],
+      total_count: 1,
+    }) as unknown as Awaited<ReturnType<typeof bff.confirm.getResources>>;
+
+  it('후보 목록에 null 원소가 섞여 있어도 고른 멤버를 찾아 역할을 붙인다', async () => {
+    getResources.mockResolvedValue(
+      candidatesFromWire([null, { resource_id: 'inst-b', cluster_member_role: 'READER' }]),
+    );
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        { resource_id: 'db-1', selected: true, selected_rds_instance_resource_id: 'inst-b' },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources?.[0].metadata?.selected_rds_instance_role).toBe('READER');
+  });
+
+  it('후보가 null 뿐이면 500 이 아니라 409 다 — 목록에 없는 멤버와 같은 결말이다', async () => {
+    getResources.mockResolvedValue(candidatesFromWire([null]));
+
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        { resource_id: 'db-1', selected: true, selected_rds_instance_resource_id: 'inst-a' },
+      ],
+    }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.status).toBe(409);
+  });
 });
 
 describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', () => {
@@ -389,6 +429,29 @@ describe('VM — 표시가 갈래를 고르고, 진위는 BFF 가 막는다', ()
     expect(rejected.success ? '' : rejected.error.issues[0]?.message).toMatch(
       /지원하지 않는 데이터베이스 타입입니다: sqlite/,
     );
+  });
+
+  // 이 둘은 폼이 짓지 않는다: 이름은 EC2 검색 와이어가 주고(추가 모달에 이름 칸이 없다),
+  // SID 는 이전 요청이 되싣는다. 계약에도 길이 제한이 없으므로 서버가 다시 재지 않는다.
+  it('되싣은 이름·SID 가 길어도 통과한다 — 폼이 아니라 와이어가 정하는 값이다', async () => {
+    const result = await resolveApprovalInput(1, 'AWS', parse({
+      resources: [
+        {
+          resource_id: 'i-abc123',
+          selected: true,
+          manual_ec2: {
+            resource_name: 'n'.repeat(300),
+            oracle_service_id: 's'.repeat(200),
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [row] = result.value.resources ?? [];
+    expect(row.resource_name).toHaveLength(300);
+    expect(row.metadata?.oracle_service_id).toHaveLength(200);
   });
 });
 
@@ -509,7 +572,7 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
 
   // 이 값들은 프론트가 짓지 않는다 — 이전 요청이 되싣고, 스캔이 준다. 상한을 다시 걸면
   // 새로고침으로 고칠 수 없는 거부가 생기므로, 그때 이 테스트가 먼저 깨져야 한다.
-  it('이전 요청 왕복 값에는 상한이 없다 — 33개 IP · 긴 credential_id · 긴 database_type · 긴 resource_id 도 통과한다', async () => {
+  it('이전 요청 왕복 값에는 상한이 없다 — 33개 IP · 긴 credential_id · database_type · resource_id, 폼 상한을 넘는 SID·제외 사유도 통과한다', async () => {
     const hosts = Array.from({ length: 33 }, (_, index) => `10.0.0.${index + 1}`);
 
     const result = await resolveApprovalInput(1, 'IDC', parse({
@@ -522,7 +585,16 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
             hosts,
             database_type: 'd'.repeat(80),
             credential_id: 'c'.repeat(300),
+            // 폼 input 의 maxLength(128)를 넘는다. 상류가 그 길이로 저장했으면 되싣는 것도 그 길이다.
+            oracle_service_id: 's'.repeat(200),
           },
+        },
+        {
+          resource_id: 'idc-2',
+          selected: false,
+          // 폼 textarea 의 maxLength(1000)를 넘는다 — 이전 요청이 그대로 되싣는 값이다.
+          exclusion_reason: '가'.repeat(2000),
+          idc: { host_format: 'IP', hosts: ['10.0.1.1'] },
         },
       ],
     }));
@@ -530,9 +602,14 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.resources?.[0]?.metadata?.idc_ips).toHaveLength(33);
+    expect(result.value.resources?.[0]?.metadata?.oracle_service_id).toHaveLength(200);
+    expect(result.value.resources?.[1]?.exclusion_reason).toHaveLength(2000);
   });
 
-  it('Oracle SID 상한은 모달 input 과 같은 상수다', () => {
+  // 상한은 폼(`IdcTargetFormModal` input 의 maxLength)에만 남는다. 서버가 같은 숫자를 들고
+  // 있으면 상류가 그보다 길게 저장한 값을 되싣는 순간 새로고침으로 못 고치는 400 이 된다 —
+  // 계약(`docs/swagger/install-v1.yaml`)도 이 필드의 길이를 규정하지 않는다.
+  it('Oracle SID 상한은 폼에만 있다 — 서버는 되싣은 길이를 다시 재지 않는다', () => {
     const at = (n: number) => ApprovalSelectionInput.safeParse({
       resources: [{
         resource_id: 'r',
@@ -541,6 +618,8 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
       }],
     }).success;
     expect(at(IDC_SID_MAXLEN)).toBe(true);
-    expect(at(IDC_SID_MAXLEN + 1)).toBe(false);
+    expect(at(IDC_SID_MAXLEN + 1)).toBe(true);
+    // 빈 값은 여전히 거부다 — 키를 붙였으면 값이 있어야 한다.
+    expect(at(0)).toBe(false);
   });
 });

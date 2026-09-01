@@ -191,6 +191,8 @@ describe('app/lib/api/index', () => {
     const resources = await getConfirmResources(1001);
 
     expect(resources.resources.map((item) => item.resourceId)).toEqual(['db-1']);
+    // 떨군 행을 개수만 세고 있으면 목록과 개수가 어긋난다 — 와이어의 total_count 는 2 다.
+    expect(resources.totalCount).toBe(1);
   });
 
   it('updateResourceCredential은 Issue #222 PUT 계약으로 호출한다', async () => {

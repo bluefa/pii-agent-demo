@@ -13,15 +13,14 @@
  * 길이·개수 상한이 없는 자리는 일부러 없다. 프론트가 짓지 않는 값(스캔이 준 id, 이전 요청이
  * 되싣는 접속 정보)에 상한을 걸어 막을 수 있는 것은 없고 — 본문은 `request.json()` 이 이미
  * 다 읽었고, 리졸버는 Map 하나를 훑다가 모르는 id 에서 멈춘다 — 남는 것은 화면이 고칠 수
- * 없는 거부뿐이다. 여기 남은 규칙은 둘 중 하나다: **폼과 같은 상수**
- * (`EXCLUSION_REASON_MAXLEN`·`IDC_SID_MAXLEN`·포트 범위·`VM_DATABASE_TYPES`)이거나,
- * **값의 형식**(DNS 253자·IPv4·호스트명)이다.
+ * 없는 거부뿐이다. 여기 남은 규칙은 둘 중 하나다: **폼과 같은 상수**(포트 범위·
+ * `VM_DATABASE_TYPES`)이거나, **값의 형식**(DNS 253자·IPv4·호스트명)이다. 텍스트 길이
+ * 상한은 여기 없다 — 사유·SID·이름의 `maxLength` 는 폼만 든다.
  */
 import { z } from 'zod';
 // IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
 // 보내면 그 자리가 곧 false positive 다.
-import { EXCLUSION_REASON_MAXLEN } from '@/lib/constants/approval';
-import { IDC_SID_MAXLEN, isValidIdcIp } from '@/lib/constants/idc';
+import { isValidIdcIp } from '@/lib/constants/idc';
 import { VM_DATABASE_TYPES } from '@/lib/constants/vm-database';
 import { toWireDatabaseType } from '@/lib/types';
 
@@ -44,16 +43,18 @@ const MANUAL_EC2_DATABASE_TYPES = new Set(
  * 받은 값이고, 서버가 다시 확인하지 않는다 — 이 경로의 진위는 BFF 가 막는다.
  *
  * 클라우드 갈래에서 클라이언트가 접속 정보를 저작하는 자리는 여기 하나다. 폼은
- * `Ec2AddModal`(host 는 검색 결과의 private IP, SID `ORACLE_SID_MAXLEN`=100 ≤ 128)이고,
- * 서버가 보는 것은 폼이 이미 보는 것과 같다 — 포트는 정수 1..65535, DB 타입은 추가 모달
- * select 목록, host·SID·이름은 형식과 길이. 진위(그 인스턴스가 실재하는가, 그 주소가
- * 맞는가)는 여전히 BFF 가 막는다.
+ * `Ec2AddModal`(host 는 검색 결과의 private IP)이고, 서버가 보는 것은 폼이 이미 보는 것과
+ * 같다 — 포트는 정수 1..65535, DB 타입은 추가 모달 select 목록, host 는 DNS 형식·길이.
+ * 이름과 SID 는 길이를 재지 않는다: 이름은 폼에 칸이 아예 없고(검색 와이어가 준다), SID 는
+ * 폼 `ORACLE_SID_MAXLEN`(100)이 먼저 막고 이전 요청은 그 밖의 값을 되싣는다. 진위(그
+ * 인스턴스가 실재하는가, 그 주소가 맞는가)는 여전히 BFF 가 막는다.
  */
 const ManualEc2Input = z
   .object({
     // 빈 문자열도 받는다: EC2 검색 와이어가 private DNS 이름 없이 돌아오면 매퍼가
-    // `''` 를 싣는다(`app/lib/api/ec2.ts`). 없던 거부를 만들지 않는다.
-    resource_name: z.string().max(253).optional(),
+    // `''` 를 싣는다(`app/lib/api/ec2.ts`). 없던 거부를 만들지 않는다. 길이도 재지
+    // 않는다 — 표시용 이름이지 호스트명이 아니고, 값은 폼이 아니라 와이어가 정한다.
+    resource_name: z.string().optional(),
     host: z.string().min(1).max(253).optional(),
     // 추가 모달과 같은 범위다(`portOk`: 정수 1..65535).
     port: z.number().int().min(1).max(65535).optional(),
@@ -64,7 +65,9 @@ const ManualEc2Input = z
         (value) => ({ message: `지원하지 않는 데이터베이스 타입입니다: ${value}` }),
       )
       .optional(),
-    oracle_service_id: z.string().min(1).max(128).optional(),
+    // 길이 상한 없음 — 폼이 먼저 막고(`ORACLE_SID_MAXLEN`), 계약도 이 필드의 길이를
+    // 규정하지 않는다. 되싣는 값에 상한을 걸면 화면이 고칠 수 없는 400 이 된다.
+    oracle_service_id: z.string().min(1).optional(),
   })
   .strict();
 
@@ -83,8 +86,9 @@ const IdcInput = z
     // 되싣는다. enum 으로도 길이로도 좁히지 않는다 — 그 왕복이 깨진다.
     database_type: z.string().min(1).optional(),
     port: z.number().int().min(1).max(65535).optional(),
-    // 모달 input 의 `maxLength` 가 읽는 바로 그 상수다.
-    oracle_service_id: z.string().min(1).max(IDC_SID_MAXLEN).optional(),
+    // 상한은 모달 input 의 `maxLength`(`IDC_SID_MAXLEN`)에만 있다. 이전 요청은 폼을
+    // 거치지 않은 값을 되싣고, 계약도 이 필드의 길이를 규정하지 않는다.
+    oracle_service_id: z.string().min(1).optional(),
     // 와이어가 발급한 id 이고 형식도 길이도 프론트가 모른다. 폼은 이 값을 만들지 않는다 —
     // 이전 요청 불러오기만 싣는다.
     credential_id: z.string().min(1).optional(),
@@ -118,8 +122,12 @@ export const ApprovalSelectionInput = z
             // 떨군다. 길이는 스캔이 정하는 값이라 상한을 두지 않는다.
             resource_id: z.string(),
             selected: z.boolean(),
-            /** 사용자가 적은 제외 사유. 스캔 판정(recommend_fail_reason)은 서버가 붙인다. */
-            exclusion_reason: z.string().max(EXCLUSION_REASON_MAXLEN).optional(),
+            /**
+             * 사용자가 적은 제외 사유. 스캔 판정(recommend_fail_reason)은 서버가 붙인다.
+             * 상한은 폼 textarea 의 `maxLength`(`EXCLUSION_REASON_MAXLEN`)에만 있다 —
+             * 이전 요청이 그보다 긴 사유를 되싣으면 서버 상한은 막다른 400 이 된다.
+             */
+            exclusion_reason: z.string().optional(),
             /** RDS 클러스터에서 고른 멤버. 서버가 후보 목록 안에 있는지 확인한다. */
             selected_rds_instance_resource_id: z.string().min(1).optional(),
             /**
