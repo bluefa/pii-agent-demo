@@ -173,6 +173,26 @@ describe('app/lib/api/index', () => {
     });
   });
 
+  // id 없는 행은 고를 수 있으면 안 된다: CTA 는 세는데 매퍼가 떨궈 빈 승인 요청이 나간다.
+  it('getConfirmResources는 resource_id 없는 행을 목록에서 떨군다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          resources: [
+            { resource_name: 'id 없는 행', resource_type: 'RDS', selected: true, metadata: {} },
+            { resource_id: 'db-1', resource_name: 'db-1', resource_type: 'RDS', metadata: {} },
+          ],
+          total_count: 2,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    const resources = await getConfirmResources(1001);
+
+    expect(resources.resources.map((item) => item.resourceId)).toEqual(['db-1']);
+  });
+
   it('updateResourceCredential은 Issue #222 PUT 계약으로 호출한다', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

@@ -34,7 +34,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import { ProcessStatus } from '@/lib/types';
-import { EXCLUSION_REASON_MAXLEN } from '@/lib/approval-selection';
+import { EXCLUSION_REASON_MAXLEN } from '@/lib/constants/approval';
 import type { CloudProvider } from '@/lib/types';
 import type { CandidateDraftState, CandidateResource, EndpointConfigDraft } from '@/lib/types/resources';
 import { CardActionBar } from '@/app/target-sources/[targetSourceId]/_components/common';

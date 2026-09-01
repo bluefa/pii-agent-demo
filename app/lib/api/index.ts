@@ -439,7 +439,11 @@ export const getConfirmResources = async (
   );
   const items = Array.isArray(raw.resources) ? raw.resources as Record<string, unknown>[] : [];
   return {
-    resources: items.map(toConfirmResourceItem),
+    // id 없는 와이어 행은 연동 대상이 될 수 없다(`ec2.ts` 의 검색 결과·승인 매퍼와 같은
+    // 규칙). 목록에 올리면 고를 수 있고, `selected: true` 로 오면 CTA 가 세는데, 매퍼는
+    // 그 행을 떨구므로 빈 본문이 나가 400 이 된다 — 사용자가 화면에서 고칠 방법이 없다.
+    // 어댑터는 모든 소비자가 공유하는 한 자리라 여기서 떨군다.
+    resources: items.map(toConfirmResourceItem).filter((item) => item.id !== ''),
     totalCount: typeof raw.total_count === 'number' ? raw.total_count : items.length,
   };
 };

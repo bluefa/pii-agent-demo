@@ -507,6 +507,31 @@ describe('IDC — 대조할 집합이 없으므로 형식만 본다', () => {
     expect(result.ok).toBe(false);
   });
 
+  // 이 값들은 프론트가 짓지 않는다 — 이전 요청이 되싣고, 스캔이 준다. 상한을 다시 걸면
+  // 새로고침으로 고칠 수 없는 거부가 생기므로, 그때 이 테스트가 먼저 깨져야 한다.
+  it('이전 요청 왕복 값에는 상한이 없다 — 33개 IP · 긴 credential_id · 긴 database_type · 긴 resource_id 도 통과한다', async () => {
+    const hosts = Array.from({ length: 33 }, (_, index) => `10.0.0.${index + 1}`);
+
+    const result = await resolveApprovalInput(1, 'IDC', parse({
+      resources: [
+        {
+          resource_id: 'r'.repeat(2000),
+          selected: true,
+          idc: {
+            host_format: 'IP',
+            hosts,
+            database_type: 'd'.repeat(80),
+            credential_id: 'c'.repeat(300),
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.resources?.[0]?.metadata?.idc_ips).toHaveLength(33);
+  });
+
   it('Oracle SID 상한은 모달 input 과 같은 상수다', () => {
     const at = (n: number) => ApprovalSelectionInput.safeParse({
       resources: [{

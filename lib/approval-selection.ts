@@ -9,26 +9,22 @@
  * 어느 RDS 멤버인가. 접속 정보(host·port·database_type·oracle_service_id)는 `manual_ec2`
  * 와 `idc` 안에만 있다. 스캔 행에는 그 값을 실을 자리가 없고, 그래서 "스캔 행의 metadata 는
  * 전부 서버가 채운다"가 타입 게이트가 아니라 모양으로 참이 된다.
+ *
+ * 길이·개수 상한이 없는 자리는 일부러 없다. 프론트가 짓지 않는 값(스캔이 준 id, 이전 요청이
+ * 되싣는 접속 정보)에 상한을 걸어 막을 수 있는 것은 없고 — 본문은 `request.json()` 이 이미
+ * 다 읽었고, 리졸버는 Map 하나를 훑다가 모르는 id 에서 멈춘다 — 남는 것은 화면이 고칠 수
+ * 없는 거부뿐이다. 여기 남은 규칙은 둘 중 하나다: **폼과 같은 상수**
+ * (`EXCLUSION_REASON_MAXLEN`·`IDC_SID_MAXLEN`·포트 범위·`VM_DATABASE_TYPES`)이거나,
+ * **값의 형식**(DNS 253자·IPv4·호스트명)이다.
  */
 import { z } from 'zod';
 // IP 판정은 입력 모달과 같은 주인을 쓴다 — 폼이 통과시킨 값을 서버가 되돌려
 // 보내면 그 자리가 곧 false positive 다.
+import { EXCLUSION_REASON_MAXLEN } from '@/lib/constants/approval';
 import { IDC_SID_MAXLEN, isValidIdcIp } from '@/lib/constants/idc';
 import { VM_DATABASE_TYPES } from '@/lib/constants/vm-database';
 import { toWireDatabaseType } from '@/lib/types';
 
-/**
- * 한 요청이 실을 수 있는 행 수. 화면은 후보 **전부**(선택·제외·연동 불가)를 싣고 제 상한이
- * 없다 — 그러니 이 숫자는 정책이 아니라 화면이 닿을 수 없어야 하는 sanity 상한이다.
- */
-const MAX_RESOURCES = 10000;
-/**
- * 제외 사유 길이. 입력 폼(`CandidateResourceSection`)이 쓰는 값과 **같은 상수**여야
- * 한다 — 폼이 받아 준 글자를 서버가 되돌려 보내면 그 자리가 곧 false positive 다.
- */
-export const EXCLUSION_REASON_MAXLEN = 1000;
-/** IDC 한 행이 묶을 수 있는 IP 수. MULTIPLE_IP 실사용은 한 자릿수다. */
-const MAX_IDC_HOSTS = 32;
 // 호스트명은 폼(`IDC_DOMAIN_RE`)보다 한 칸 넓게 본다: 점 없는 이름·밑줄까지 받는다.
 // 이전 요청 왕복이 폼을 거치지 않은 값을 되싣기 때문이고, 서버가 폼보다 엄격해지는
 // 순간 그 차이가 전부 false positive 가 된다.
@@ -80,16 +76,18 @@ const IdcInput = z
     // (`app/lib/api/idc.ts` toIdcResourceView), 좁히기 전에도 그 행은 주소 필드 없이
     // 통과했다 — 없던 거부를 새로 만들면 그 자리에서 FP 가 된다. 한 행이 전체 제출을
     // 죽이는 자리라 더욱 그렇다.
-    hosts: z.array(z.string().min(1).max(253)).max(MAX_IDC_HOSTS),
+    // 개수 상한도 없다: 폼은 6개까지만 만들지만 이전 요청은 그때 저장된 만큼을 되싣고,
+    // 그 수를 프론트가 정한 적이 없다. 각 원소는 DNS 길이·형식만 본다.
+    hosts: z.array(z.string().min(1).max(253)),
     // `database_type` 은 계약상 평문 문자열이고, 이전 요청 불러오기가 enum 밖 값을
-    // 되싣는다. enum 으로 좁히면 그 왕복이 깨지므로 길이만 본다.
-    database_type: z.string().min(1).max(64).optional(),
+    // 되싣는다. enum 으로도 길이로도 좁히지 않는다 — 그 왕복이 깨진다.
+    database_type: z.string().min(1).optional(),
     port: z.number().int().min(1).max(65535).optional(),
     // 모달 input 의 `maxLength` 가 읽는 바로 그 상수다.
     oracle_service_id: z.string().min(1).max(IDC_SID_MAXLEN).optional(),
-    // 와이어가 발급한 id 이고 형식은 프론트가 모른다. 폼은 이 값을 만들지 않는다 —
-    // 이전 요청 불러오기만 싣는다. sanity 상한이다.
-    credential_id: z.string().min(1).max(256).optional(),
+    // 와이어가 발급한 id 이고 형식도 길이도 프론트가 모른다. 폼은 이 값을 만들지 않는다 —
+    // 이전 요청 불러오기만 싣는다.
+    credential_id: z.string().min(1).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -116,14 +114,14 @@ export const ApprovalSelectionInput = z
         z
           .object({
             // 빈 문자열도 받는다: 와이어가 resource_id 없이 준 행을 어댑터가 `''` 로
-            // 싣는다(`app/lib/api/index.ts`). 리졸버가 교집합에서 걸러 낸다. 프론트가
-            // 짓지 않는 와이어 값을 가리키는 포인터라 상한은 sanity 일 뿐이다.
-            resource_id: z.string().max(1024),
+            // 싣는다(`app/lib/api/index.ts`). 어댑터가 목록에서 먼저 떨구고, 리졸버도
+            // 떨군다. 길이는 스캔이 정하는 값이라 상한을 두지 않는다.
+            resource_id: z.string(),
             selected: z.boolean(),
             /** 사용자가 적은 제외 사유. 스캔 판정(recommend_fail_reason)은 서버가 붙인다. */
             exclusion_reason: z.string().max(EXCLUSION_REASON_MAXLEN).optional(),
             /** RDS 클러스터에서 고른 멤버. 서버가 후보 목록 안에 있는지 확인한다. */
-            selected_rds_instance_resource_id: z.string().min(1).max(1024).optional(),
+            selected_rds_instance_resource_id: z.string().min(1).optional(),
             /**
              * 검색해서 손으로 추가한 EC2 행이라는 표시. 스캔 목록에 없는 id 가
              * "오래된 화면"인지 "방금 추가한 인스턴스"인지는 서버가 구별할 수 없다 —
@@ -136,8 +134,9 @@ export const ApprovalSelectionInput = z
           })
           .strict(),
       )
-      .min(1)
-      .max(MAX_RESOURCES),
+      // 상한이 없다: 화면은 후보 **전부**(선택·제외·연동 불가)를 싣고 제 상한이 없으므로,
+      // 여기 숫자를 적으면 그보다 큰 스캔은 새로고침해도 영영 제출할 수 없다.
+      .min(1),
   })
   .strict();
 
