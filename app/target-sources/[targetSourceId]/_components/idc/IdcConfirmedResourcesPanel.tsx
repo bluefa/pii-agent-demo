@@ -55,6 +55,16 @@ interface IdcConfirmedResourcesPanelProps {
   connectionLoading?: boolean;
   /** `connectionStatus` 와 짝 — 보고가 없는 행이 '미보고'인지 '미실행'인지 가른다. */
   connectionHasRun?: boolean | null;
+  /**
+   * Step 5 only — 지금 실행의 회차(`test_connection_version`). 바뀌면 그 회차의 건수를
+   * 다시 읽는다. 스텝 6·7 은 넘기지 않는다 — 그 화면의 회차는 다시 바뀌지 않는다.
+   */
+  runVersion?: number | null;
+  /**
+   * `runVersion` 과 짝 — 실행이 도는 동안에는 이번 회차의 건수가 아직 없어서, 그때 읽으면
+   * 표 전체가 `—` 로 비었다가 정착 시점에 되돌아온다.
+   */
+  countsPaused?: boolean;
 }
 
 /**
@@ -73,6 +83,8 @@ export const IdcConfirmedResourcesPanel = ({
   connectionStatus,
   connectionLoading = false,
   connectionHasRun = false,
+  runVersion,
+  countsPaused = false,
 }: IdcConfirmedResourcesPanelProps) => {
   const t = IDC_COPY[useLocale().locale];
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
@@ -81,6 +93,7 @@ export const IdcConfirmedResourcesPanel = ({
     counts: EMPTY_COUNTS,
   });
   useEffect(() => {
+    if (countsPaused) return;
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, scope, {
       signal: controller.signal,
@@ -93,7 +106,7 @@ export const IdcConfirmedResourcesPanel = ({
         // No summaries available → leave the map empty so cells render "—".
       });
     return () => controller.abort();
-  }, [targetSourceId, scope]);
+  }, [targetSourceId, scope, runVersion, countsPaused]);
   // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
   // counts land. Resource ids can repeat across target sources — a stale map would silently
   // attribute one target's counts to another's rows.

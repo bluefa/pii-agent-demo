@@ -76,3 +76,69 @@ describe('IdcConfirmedResourcesPanel — who gets the 관리 door', () => {
     expect(logicalGroupHeader().getAttribute('colspan')).toBe('3');
   });
 });
+
+/**
+ * 건수는 회차에 매인다. Step 5 는 실행이 살아 있는 화면이라 같은 대상·같은 scope 위에서
+ * 회차만 바뀐다 — 그때 다시 읽지 않으면 재실행으로 실패 → 성공이 된 행이 화면을 떠났다
+ * 돌아올 때까지 `—` 로 남는다. 스텝 6·7 의 회차는 다시 바뀌지 않으므로 그 화면은 마운트
+ * 한 번이 정답이고, 여기서 그 모양이 그대로인지도 함께 지킨다.
+ */
+describe('IdcConfirmedResourcesPanel — when the logical-DB counts are re-read', () => {
+  beforeEach(() => {
+    getSummariesMock.mockReset();
+    getSummariesMock.mockResolvedValue([]);
+  });
+
+  it('re-reads the counts when the settled run version changes', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(getSummariesMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={8}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(getSummariesMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not read the counts while the run is in flight', async () => {
+    render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={8}
+        countsPaused
+      />,
+    );
+
+    await waitFor(() => expect(logicalGroupHeader()).toBeTruthy());
+    expect(getSummariesMock).not.toHaveBeenCalled();
+  });
+
+  it('leaves the steps 6·7 shape at one read on mount', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel targetSourceId={42} state={state} scope="latestSuccess" />,
+    );
+    await waitFor(() => expect(getSummariesMock).toHaveBeenCalledTimes(1));
+
+    // 무관한 리렌더 — 스텝 6·7 은 새 prop 을 넘기지 않으므로 읽기도 늘지 않는다.
+    rerender(
+      <IdcConfirmedResourcesPanel targetSourceId={42} state={state} scope="latestSuccess" />,
+    );
+    await waitFor(() => expect(logicalGroupHeader()).toBeTruthy());
+    expect(getSummariesMock).toHaveBeenCalledTimes(1);
+  });
+});
