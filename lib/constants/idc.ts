@@ -15,9 +15,10 @@ export const IDC_MAX_IPS = 6;
 export const IDC_DOMAIN_MAXLEN = 100;
 
 /**
- * Oracle SID / service name max length. The target form's input `maxLength` and the
- * approval-request server schema (`lib/approval-selection.ts`) read this one constant, so
- * the server can never reject a value the form let through.
+ * Oracle SID / service name max length — the target form input's `maxLength` only. The
+ * approval-request server schema (`lib/approval-selection.ts`) deliberately puts no length
+ * cap on this field: a previous request can replay a value the form never typed, and the
+ * contract sets no maximum.
  */
 export const IDC_SID_MAXLEN = 128;
 
