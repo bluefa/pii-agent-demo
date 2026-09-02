@@ -169,7 +169,7 @@ export interface PipelineDetail {
    *  upstream keeps it out of `PipelineSummary`. Optional: absent on a backend
    *  without request context (pipeline-orchestrator PR #53). */
   requested_by?: string | null;
-  /** Free-text note the requester left for the approver (≤200). Same optionality. */
+  /** Free-text note the requester left for the approver (≤512). Same optionality. */
   request_note?: string | null;
   /** Restart provenance (all three optional — absent on a pre-restart backend). */
   origin_pipeline_id?: number | null;
