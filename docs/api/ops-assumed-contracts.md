@@ -448,14 +448,15 @@ GET /install/v1/pipeline-manager/airflow-host?databaseUri={databaseUri}
   `lib/bff/http.ts`): `"https://…"` (JSON string) or `https://…` (text/plain — what
   Spring's `StringHttpMessageConverter` produces for a `String` return value). Reading the
   body with `res.json()` throws on the second shape, and the screen then shows
-  "DAG 주소 확인 불가" — a parse failure wearing the mask of a missing address. The request
+  "주소를 확인하지 못했어요" + 다시 시도 — a parse failure wearing the mask of a failed lookup. The request
   sends `Accept: */*` for the same reason: a text/plain endpoint must not 406 on us.
 - The address is rendered as an `<a href>`, so the adapter passes only `http(s)://` values
   through; anything else (an HTML error page served with 200, a `javascript:` scheme) folds
   to the same empty landing as "no address".
-- The address is not always obtainable. The screen folds every such case into
-  "DAG 주소 확인 불가"; only a fetch failure additionally offers 다시 시도, because
-  retrying an answer the upstream already gave changes nothing.
+- The address is not always obtainable. The screen splits the cases: an empty body is
+  "Airflow 주소가 없어요" (or "DAG가 아직 생성되지 않았어요" when the row's `dagName` is null
+  too), and a fetch failure is "주소를 확인하지 못했어요". Only the fetch failure offers 다시 시도,
+  because retrying an answer the upstream already gave changes nothing.
 
 Open questions for BE (asked 2026-08-20):
 - a missing address: 200 with `""`/`null`, or 404? **The answer changes the screen.** A 200

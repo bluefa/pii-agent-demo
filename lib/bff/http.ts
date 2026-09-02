@@ -87,7 +87,7 @@ const enc = (value: string): string => encodeURIComponent(value);
  * §11 airflow-host 의 본문 한 줄 → 주소. 업스트림이 String 하나를 돌려주는 엔드포인트는
  * 두 모양 중 하나로 나간다: `"https://…"`(JSON 문자열) 또는 `https://…`(text/plain —
  * Spring 의 StringHttpMessageConverter 가 String 반환에 붙이는 기본값). `res.json()` 은
- * 뒤쪽에서 던지고, 화면은 그걸 "DAG 주소 확인 불가"로 읽는다 — 파싱 실패가 주소 없음의
+ * 뒤쪽에서 던지고, 화면은 그걸 "주소를 확인하지 못했어요"로 읽는다 — 파싱 실패가 조회 실패의
  * 탈을 쓴다. 두 모양 다 같은 주소를 싣고 있으므로 둘 다 받는다.
  *
  * 스킴은 확인하고 넘긴다: 이 값은 화면에서 `<a href>` 가 되므로, 업스트림이 흔들려
@@ -412,8 +412,8 @@ export const httpBff: BffClient = {
     // of two shapes: `"https://…"` (JSON string) or `https://…` (text/plain, which is
     // what Spring's StringHttpMessageConverter produces when a controller returns
     // String). `res.json()` throws on the second one, and the screen then reports
-    // "DAG 주소 확인 불가 + 다시 시도" — a parse failure wearing the mask of a missing
-    // address. Both shapes carry the same address, so both are accepted here.
+    // "주소를 확인하지 못했어요 + 다시 시도" — a parse failure wearing the mask of a failed
+    // lookup. Both shapes carry the same address, so both are accepted here.
     // `getRaw` also sends `Accept: */*`, so a text/plain endpoint cannot 406 on us.
     getAirflowHost: async (databaseUri) => {
       const res = await getRaw(`/pipeline-manager/airflow-host?databaseUri=${enc(databaseUri)}`);

@@ -2259,6 +2259,16 @@ export const idcStyles = {
      * than continuing it. The bar's `border-t-0` still relies on the bottom border here.
      */
     framePaged: 'overflow-hidden rounded-t-[10px] border border-[#E5E7EB] bg-white',
+    /**
+     * `framePaged` for a table that mounts NO pager — same border, same fill, closed at the
+     * bottom by its own 10px round instead of by the bar. A console table short enough to
+     * need no paging (AgentDagTable at ≤5 rows, owner 2026-09-02: Cloudscape's "no
+     * pagination under five") would otherwise stop at `framePaged`'s square bottom corners
+     * with nothing underneath to finish them. Not `frame`: that one brings the 12px round
+     * and a shadow the paged sibling was chosen to avoid, and the two states of one table
+     * must read as one box that merely gained or lost its bar.
+     */
+    frameClosed: 'overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**

@@ -166,8 +166,10 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
              머리 밴드만 예외로, `approvalHeaderFlat` 의 파란 워시 위에서는 gray-100 이
              다시 사라져 한 칸 더 진한 워시가 간다(`ResourceSectionSkeleton` 의 판례).
              높이: 카운트 줄 = 그 줄에서 가장 큰 글자인 `countValue`(14px × leading-1.4)의
-             19.6px 줄 상자 → h-5. 표 머리 = approvalHeaderCell 의 py-3(24) + 19.6 ≈ 44px,
-             본문 행 = AgentDagTable 의 py-5(40) + 19.6 + 경계선 ≈ 61px.
+             19.6px 줄 상자 → h-5. 표의 카운터 줄(`리소스 N`)도 같은 글자라 같은 h-5 이고,
+             정착본처럼 표 위 mt-4 · 표는 그 아래 mt-2 에 선다.
+             표 머리 = approvalHeaderCell 의 py-3(24) + 19.6 ≈ 44px,
+             본문 행 = AgentDagTable 의 py-4(32, `approvalCell` 그대로) + 19.6 + 경계선 ≈ 53px.
              행은 셋만 그린다 — 에이전트가 몇인지가 바로 지금 오는 값이다. */
           /* `aria-busy` 와 낭독 한 줄은 이 상자가 진다 — 로딩 갈래에만 있는 요소라야
              정착 뒤에 「불러오는 중」이 남지 않는다. 상자는 정착본의 mt-5 슬롯 그대로이고
@@ -175,7 +177,8 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
           <div className="mt-5" aria-busy>
             <span className="sr-only">불러오는 중</span>
             <span className={cn(opsStyles.skeletonWash, 'block h-5 w-[420px]')} aria-hidden />
-            <div className={cn('mt-4', idcStyles.table.framePaged)} aria-hidden>
+            <span className={cn(opsStyles.skeletonWash, 'mt-4 block h-5 w-[96px]')} aria-hidden />
+            <div className={cn('mt-2', idcStyles.table.frameClosed)} aria-hidden>
               <div
                 className={cn(
                   'flex items-center gap-10 px-[18px] py-3',
@@ -189,7 +192,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
               {Array.from({ length: 3 }, (_, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-10 border-t border-[var(--pl-gray-100)] px-[18px] py-5"
+                  className="flex items-center gap-10 border-t border-[var(--pl-gray-100)] px-[18px] py-4"
                 >
                   {['w-[160px]', 'w-[96px]', 'w-[48px]', 'w-[72px]'].map((width) => (
                     <span key={width} className={cn(opsStyles.skeleton, 'h-5', width)} />
@@ -242,6 +245,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                 data={dag.data}
                 initialFilter={board.data.filter}
                 initialAgentId={board.data.agentId ?? null}
+                fetchedAt={dag.fetchedAt}
                 onClose={closeBoard}
                 onOpenDag={dagDetail.open}
               />

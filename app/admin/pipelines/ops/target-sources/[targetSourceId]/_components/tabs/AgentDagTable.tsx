@@ -4,10 +4,26 @@
  * 리소스(에이전트)별 최근 7일 DAG 표 — Airflow 확인 탭의 관측층.
  *
  * 표는 **사용자 화면 Step 1 리소스 표 그대로**다 (오너 2026-08-25): `ConsoleTable` 셸 +
- * 무윤곽 흰 본문(행 py-5) + `Pagination size="md"` 마감 바. 윤곽을 지는 것은 프레임과
+ * 무윤곽 흰 본문 + `Pagination size="md"` 마감 바. 윤곽을 지는 것은 프레임과
  * 그 바뿐이고 표 자체는 맨몸이다 (`CandidateResourceTable` 의 실루엣).
  * 툴바는 없다 — Step 1 은 검색·필터가 그 자리에 있어 상단 라운드를 지지만, 이 표에는
  * 거를 것이 없어서(아래 참조) 프레임이 그 라운드를 진다(`framePaged`).
+ *
+ * 페이저는 **6행부터** 선다 (오너 2026-09-02, 시안 A). 리소스 다섯에 "1–5 / 5" 와 페이지
+ * 크기 셀렉트가 붙으면 바가 표보다 많은 말을 한다 — Cloudscape Table 이 "5개 이하면
+ * 페이지네이션 없음"으로 긋는 선이 그것이다. 바가 없는 표는 `frameClosed` 가 제 라운드로
+ * 닫는다. 총계는 바가 사라져도 남아야 하므로 표 **위**의 카운터 줄(`리소스 N`)이 진다 —
+ * `MonitoringEvidenceBody` 의 카운트 문법(라운드 15 R15-3: 12px 라벨 + 14px 굵은 수)
+ * 그대로라, 바로 위의 논리 DB 줄과 같은 옷이다. 6행부터는 바가 밑에서 같은 수를 한 번
+ * 더 말하지만, 그 바는 페이지 범위를 말하는 자리라 중복이 아니다.
+ * ⚠️ 라운드 16 의 "1페이지 노출 유지" 판례는 필터가 있는 표의 것이었다 — 필터가 목록을
+ * 한 페이지로 줄였을 때 바가 사라지면 필터가 걸렸는지 바가 말해 주지 않는다는 이유였고,
+ * 이 표에는 필터가 없다(아래). 전제가 다르므로 그 판례는 여기에 걸리지 않는다.
+ *
+ * 행 높이는 `approvalCell` 의 py-4 그대로다 (오너 2026-09-02) — py-5 로 한 단 올려 세우던
+ * 덮어쓰기를 걷었다. Step 1 표는 체크박스와 두 줄 정체성을 지고 있어 그 높이가 필요했고,
+ * 이 표의 행은 한 줄뿐이다. 빌려 쓰는 것은 본문 래퍼(`CONNECTED_FRAME`)까지고, 높이는 셀
+ * 토큰이 정한다.
  *
  * ⛔ 종합 상태 필터(전체/성공/실패 칩)는 걷혔다 (오너 2026-08-25). 30행짜리 표에서
  * 칩 세 개는 정렬 한 번으로 끝나는 일을 세 상태로 만들었다 — 그 자리는 이제 Monitoring
@@ -19,6 +35,15 @@
  * §10 이 리소스에 대해 보증하는 것은 `resourceId` 와 `gcpRegion` 뿐이라, 나머지 세 칸
  * (이름·엔진·비-GCP 리전)은 확정 정보와 resourceId 로 조인해서 채운다(agentFacts).
  * 조인이 빗나가면 그 칸만 대시로 서고 표는 그대로다 — 없는 값을 id 에서 지어내지 않는다.
+ *
+ * 열은 언제나 선다 (오너 2026-09-03: "Resource Name · Resource ID · Database Type · Region 은
+ * 1행이어도 표현되어야 한다"). 확정 전 대상(스냅샷 404 → 빈 index)도 클라우드는 네 정체 열,
+ * IDC 는 세 정체 열을 그대로 세우고 조인 칸은 대시로 둔다 — 대신 카운터 줄 오른쪽의 한 문장이
+ * 그 대시가 왜 비었는지를 말한다(확정 정보가 채우는 값이고, 이 대상은 아직 확정 전이다).
+ * ⛔ 2026-09-02 시안 A 의 "조인 열 접기"(확정 전이면 Resource ID 하나로 접는 안)는 09-03 에
+ * 기각됐다: 열의 유무가 대상마다 갈리면 표를 두 벌로 읽어야 한다. 문장은 남는다 — 대시
+ * 세 개가 조인이 깨진 것처럼 읽히는 문제는 문장이 푼다.
+ * `null`(조회 중·조회 실패)에는 문장이 없다 — 아직 모르는 것과 없다고 답한 것은 다른 사실이다.
  *
  * 값의 문법은 확정 정보 표(WaitingApprovalTable)를 따른다 — Region 도 DB 도 맨 텍스트고,
  * 엔진 이름은 같은 `getDatabaseShortLabel` 로 쓴다. 한 화면 안에서 같은 사실이 자리마다
@@ -48,6 +73,7 @@ import { SortCaretIcon } from '@/app/components/ui/icons';
 import { IDC_COLUMN_WIDTHS } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { CONNECTED_FRAME } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   Dash,
   TcPill,
@@ -62,7 +88,6 @@ import {
   agentResourceFacts,
   type ConfirmedIndex,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/agentFacts';
-import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** 셸이 머리를 그리므로 남는 것은 본문 칸뿐 — 치수는 사용자 화면 표의 `approvalCell`. */
 const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[var(--pl-text-strong)]');
@@ -90,14 +115,13 @@ function PendingFact({ width }: { width: number }): ReactElement {
 /**
  * Step 1 표의 본문 래퍼 **그대로** — 클래스를 베끼지 않고 그 표가 쓰는 상수를 그대로
  * 가져온다(`CONNECTED_FRAME`). 같아야 하는 것이 값이 아니라 정체라, Step 1 이 그 판을
- * 바꾸는 날 이 표도 같이 움직여야 한다.
- *
- * 얹는 것은 행 높이 하나뿐 — `approvalCell` 의 py-4 에서 한 단 올린 py-5 (Step 1 이 그렇게
- * 서 있다). `:not([colspan])` 가드는 Step 1 에서 온 그대로다 — 이 표에는 빈 상태 줄이
- * 없지만(호출부가 `agents.length > 0` 으로 막는다), 상수를 빌려 쓰는 쪽이 원본의 조건을
- * 깎을 이유가 없다.
+ * 바꾸는 날 이 표도 같이 움직여야 한다. 행 높이는 얹지 않는다 — `approvalCell` 의 py-4 가
+ * 그대로 행이다(머리 주석).
  */
-const TABLE_BODY = cn(CONNECTED_FRAME, '[&_td:not([colspan])]:py-5');
+const TABLE_BODY = CONNECTED_FRAME;
+
+/** 페이저가 서는 최소 행수 — 이 수까지는 한눈에 다 보이고, 바는 말할 범위가 없다. */
+const PAGER_FROM = 6;
 
 /**
  * 열 폭. flex 는 하나뿐이다 — 셸의 싱크(남는 폭을 흡수하는 열)는 마지막 flex 열이 지므로,
@@ -139,6 +163,8 @@ export interface AgentDagTableProps {
    * 세 값이 세 가지 일을 한다 — `undefined` 는 **아직 조회 중**이라 그 칸들이 자국으로
    * 서고, `null`(조회 실패)과 조인 실패는 종전대로 대시다. 앞의 둘을 한 값으로 접으면
    * 조회가 도는 동안 표가 「이 리소스에는 이름이 없다」고 말했다가 값을 채워 넣는다.
+   * 비어 있다고 **답한** index(404 → 빈 Map)도 대시지만, 그때는 카운터 줄이 사유를
+   * 말한다(머리 주석).
    */
   confirmed: ConfirmedIndex | null | undefined;
   /**
@@ -158,6 +184,12 @@ export function AgentDagTable({
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [sort, setSort] = useState<StatusSort>(null);
+
+  // 확정 전 대상 — 스냅샷이 "없다"고 답했다(빈 index). 조인 칸이 전부 대시로 서는 이유를
+  // 카운터 줄이 말한다. undefined(조회 중)도 null(조회 실패)도 그 답이 아니라 말하지 않는다.
+  const prejoin = confirmed != null && confirmed.size === 0;
+  // 확정 정보가 아직 안 온 동안 그 표가 빌려 오는 칸들은 자국으로 선다 — 대시가 아니라.
+  const pending = confirmed === undefined;
 
   // 드래그 폭은 이 화면 한 표의 것이다 — 셸은 공유하지만 저장 키는 호출부가 준다.
   // flex 열의 폭은 세션 한정: 다음 방문에 되살리면 그 열이 싱크 역할을 잃는다.
@@ -245,21 +277,40 @@ export function AgentDagTable({
     return [...agents].sort((a, b) => (sortRank(a) - sortRank(b)) * dir);
   }, [agents, sort]);
 
+  // 다섯까지는 한 장이다 — 바도, 페이지도 없다.
+  const paged = ordered.length >= PAGER_FROM;
+
   // 렌더는 clamp 로 안전하지만 `page` 자체를 되돌려 놓지 않으면 목록이 줄었다 늘 때
   // 누른 적 없는 자리로 돌아간다: 5페이지에서 12건짜리 응답이 오면 2페이지를 보여 주고,
   // 다음 응답이 30건이면 조용히 5페이지로 튄다.
   const safePage = Math.min(page, Math.max(0, Math.ceil(ordered.length / pageSize) - 1));
   if (page !== safePage) setPage(safePage);
-  const pageRows = ordered.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const pageRows = paged ? ordered.slice(safePage * pageSize, safePage * pageSize + pageSize) : ordered;
 
-  // 확정 정보가 아직 안 온 동안 그 표가 빌려 오는 칸들은 자국으로 선다 — 대시가 아니라.
-  const pending = confirmed === undefined;
+  const b = opsStyles.tcBand;
 
   return (
     <section aria-label="리소스별 최근 7일 DAG">
-      {/* 표는 맨몸이고 윤곽은 프레임과 페이저 바가 진다 — 프레임이 상단 라운드와 옆선을,
-          바가 하단 라운드를 그린다(`framePaged` 의 계약). */}
-      <div className={idcStyles.table.framePaged}>
+      {/* 카운터 줄 — 표의 주어. 바닥(gray-200) 위라 잉크는 `counts` 의 gray-600 이고, 오른쪽의
+          대시 사유 문장도 같은 잉크다(weak 는 그 바닥에서 4.01 로 AA 아래 — 카운트 토큰의
+          주석과 같은 실측). */}
+      <div className={cn(b.counts, 'flex-wrap gap-y-1.5')}>
+        <span className={b.countSeg}>
+          리소스<b className={b.countValue}>{ordered.length.toLocaleString('ko-KR')}</b>
+        </span>
+        {prejoin && (
+          <span className="ml-auto text-[12px] font-normal text-[var(--pl-gray-600)]">
+            {isIdc
+              ? '접속 주소 · Port · 엔진은 확정 정보가 채워요 — 이 대상은 아직 확정 전이에요'
+              : '이름 · 엔진 · 리전은 확정 정보가 채워요 — 이 대상은 아직 확정 전이에요'}
+          </span>
+        )}
+      </div>
+
+      {/* 표는 맨몸이고 윤곽은 프레임이 진다 — 페이저가 있으면 프레임이 상단 라운드와 옆선을,
+          바가 하단 라운드를 그리고(`framePaged` 의 계약), 없으면 프레임 혼자 닫는다
+          (`frameClosed`). */}
+      <div className={cn('mt-2', paged ? idcStyles.table.framePaged : idcStyles.table.frameClosed)}>
         <div className={TABLE_BODY} {...(pending ? { 'aria-busy': true } : {})}>
           <ConsoleTable columns={columns} resize={resize}>
             <tbody className={idcStyles.table.body}>
@@ -397,17 +448,19 @@ export function AgentDagTable({
       </div>
 
       {/* `size="md"` 는 콘솔 표 마운트의 규칙이다 — `Pagination.mounts.test.ts` 가 강제한다. */}
-      <Pagination
-        size="md"
-        page={safePage}
-        pageSize={pageSize}
-        totalCount={ordered.length}
-        onPageChange={setPage}
-        onPageSizeChange={(next) => {
-          setPageSize(next);
-          setPage(0);
-        }}
-      />
+      {paged && (
+        <Pagination
+          size="md"
+          page={safePage}
+          pageSize={pageSize}
+          totalCount={ordered.length}
+          onPageChange={setPage}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(0);
+          }}
+        />
+      )}
     </section>
   );
 }
