@@ -275,10 +275,88 @@ describe('IdcConfirmedResourcesPanel — 이번 회차의 건수를 모르는 �
   });
 
   /**
-   * 스텝 6·7 은 회차 축을 넘기지 않는다. 세 항이 어떤 상태에서도 거짓이라, 조회가 아직
-   * 떠 있는 첫 프레임에도 그 표는 오늘과 같은 픽셀이다 — 그리고 읽기는 여전히 마운트 한 번.
+   * 실행이 이미 도는 채로 열린 화면. 첫 폴링이 회차 8 을 RUNNING 으로 물고 오면 효과는
+   * 회차 축(없음 → 8)에서 한 번 깨어나지만 멈춤 게이트에 막혀 도장을 찍지 못한다. 그 실행이
+   * **같은 회차 8 로** 정착하면 회차는 더 바뀌지 않는다 — 다시 읽게 만드는 것은 오직 멈춤
+   * 플래그가 참에서 거짓으로 넘어가는 것이다. 그게 의존성 배열에서 빠지면 넷째 항이 영영
+   * 참이라 두 수 칸은 스켈레톤에서 나오지 못한다. 그래서 회차를 붙박아 둔 채 멈춤만 푼다.
    */
-  it('leaves steps 6·7 without a skeleton in any frame, still one read on mount', async () => {
+  it('re-reads the counts when the run settles at the version it was already on', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={8}
+        countsPaused
+      />,
+    );
+    await waitFor(() => expect(logicalGroupHeader()).toBeTruthy());
+    expect(getSummariesMock).not.toHaveBeenCalled();
+    expect(skeletons()).toBe(2);
+
+    // 회차는 그대로 8 — 바뀐 것은 정착했다는 사실뿐이다.
+    await act(async () => {
+      rerender(
+        <IdcConfirmedResourcesPanel
+          targetSourceId={42}
+          state={state}
+          scope="latest"
+          runVersion={8}
+          countsPaused={false}
+        />,
+      );
+    });
+
+    expect(getSummariesMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+    expect(countCells()[1].textContent).toBe('3개');
+    expect(skeletons()).toBe(0);
+  });
+
+  /**
+   * 회차가 사라지는 쪽. 최신 실행이 없어지면(다른 화면에서 초기화되는 등) 회차는 7 에서
+   * 없음으로 넘어간다 — 그것도 회차가 바뀐 것이다. 넷째 항을 `runVersion != null` 로
+   * 잠가 두면 하필 그 순간 꺼져서, 죽은 7 회차의 수가 `미실행` 이라는 판정 옆에 이번
+   * 회차의 값인 양 선다.
+   */
+  it('does not flash the dead round when the latest run disappears', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+
+    getSummariesMock.mockImplementation(() => new Promise<Record<string, unknown>[]>(() => {}));
+    await act(async () => {
+      rerender(
+        <IdcConfirmedResourcesPanel
+          targetSourceId={42}
+          state={state}
+          scope="latest"
+          runVersion={null}
+          countsPaused={false}
+        />,
+      );
+    });
+
+    expect(skeletons()).toBe(2);
+    expect(countCells().map((td) => td.textContent)).toEqual(['', '']);
+  });
+
+  /**
+   * 스텝 6·7 은 회차 축을 넘기지 않는다. 마운트 경로에서는 네 항이 다 거짓이다 — 회차는
+   * 양쪽이 null 로 같고, 도장도 마운트 순간 자기 대상이다 — 그래서 조회가 아직 떠 있는 첫
+   * 프레임에도 그 표는 오늘과 같은 픽셀이고, 읽기는 여전히 마운트 한 번이다. 6·7 이 모든
+   * 항에서 면제된다는 뜻은 아니다: 대상 도장 항은 그 화면에도 살아 있어서, 대상을 제자리에서
+   * 갈아타면 6·7 도 새 조회가 닿을 때까지 스켈레톤이다.
+   */
+  it('leaves steps 6·7 without a skeleton on the mount path, still one read on mount', async () => {
     let answer: (rows: Record<string, unknown>[]) => void = () => {};
     getSummariesMock.mockImplementation(
       () =>

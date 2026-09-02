@@ -125,13 +125,17 @@ export const IdcConfirmedResourcesPanel = ({
   // 스켈레톤이다 — 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 `대상 8개` 라고
   // 단언할 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다: 맵만 비우면 아직
   // 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항은 정착과 새 응답
-  // 사이의 틈이다: 그게 없으면 정착하는 순간 직전 회차의 수가 잠깐 스친다. 스텝 6·7 은
-  // `runVersion` 을 넘기지 않으므로 넷째 항만 어떤 상태에서도 거짓이다.
+  // 사이의 틈이다: 그게 없으면 정착하는 순간 직전 회차의 수가 잠깐 스친다. 회차는 양쪽을
+  // `?? null` 로 맞춰 비교한다 — 있던 회차가 사라지는 것(7 → 없음)도 회차가 바뀐 것이라,
+  // 그 순간 죽은 회차의 수가 `미실행` 옆에 서서는 안 된다.
+  // 스텝 6·7 은 마운트 경로에서 이 표가 오늘과 같은 픽셀이다: `runVersion` 을 넘기지 않아
+  // 넷째 항의 양쪽이 다 null 이고, 도장도 마운트 순간 자기 대상이다. 다만 셋째 항 자체는
+  // 6·7 에도 산다 — 그 화면에서 대상을 제자리에서 갈아타면 새 조회가 닿을 때까지 스켈레톤이다.
   const countsLoading =
     connectionLoading ||
     countsPaused ||
     fetched.targetSourceId !== targetSourceId ||
-    (runVersion != null && fetched.runVersion !== runVersion);
+    fetched.runVersion !== (runVersion ?? null);
 
   // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
   // steps 1·2·3 use.

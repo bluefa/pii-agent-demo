@@ -387,12 +387,13 @@ export const ConnectionTestCard = ({
   // 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 직전 회차의 `대상 8개` 를 이번
   // 회차의 값인 양 내밀 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다 —
   // 맵만 비우면 아직 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항이
-  // 없으면 정착하는 순간 그 옛 수가 새 응답이 닿기 전까지 잠깐 스친다.
+  // 없으면 정착하는 순간 그 옛 수가 새 응답이 닿기 전까지 잠깐 스친다. 그 항은 회차가
+  // 사라지는 쪽(7 → 없음)에도 걸린다 — 없어진 회차도 넘어간 회차다.
   const countsLoading =
     loading ||
     testing ||
     fetchedCounts.targetSourceId !== targetSourceId ||
-    (runVersion != null && fetchedCounts.runVersion !== runVersion);
+    fetchedCounts.runVersion !== runVersion;
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
