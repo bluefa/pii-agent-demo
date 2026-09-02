@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 import {
   IDC_ACCESS_ALLOWED,
   IDC_ACCESS_DENIED,
@@ -310,7 +311,7 @@ const en: typeof ko = {
 
   // --- cells --------------------------------------------------------------
   collapseIps: 'Show less ▴',
-  showMoreIps: (n: number) => `${n} more IPs ▾`,
+  showMoreIps: (n: number) => `${n} more ${plural(n, 'IP', 'IPs')} ▾`,
   accessAllowed: 'Access allowed',
   accessDenied: 'Access not allowed',
   accessChecking: 'Checking access',
@@ -347,7 +348,8 @@ const en: typeof ko = {
   submitErrorDesc: 'Your integration targets are unchanged.',
   submitTitle: 'Request approval for these integration targets?',
   submitDescBefore: (total: number) => `Of ${total} in total,`,
-  submitDescEm: (live: number) => `${live} are requested as integration targets`,
+  submitDescEm: (live: number) =>
+    `${live} ${plural(live, 'is', 'are')} requested as ${plural(live, 'an integration target', 'integration targets')}`,
   submitDescAfter:
     'An admin review starts once you request it. To change anything, cancel and request again.',
   // Short on purpose: the three sit in a 1/3-width tile under a 40px number, and the modal's
@@ -361,7 +363,7 @@ const en: typeof ko = {
   reqApprovalErrorDesc: 'Your connection test results and Logical DB settings are unchanged.',
   reqApprovalTitle: 'Request approval to complete the integration?',
   reqApprovalDescEm: (total: number) =>
-    `Request completion approval with the connection test results for ${total} integration targets`,
+    `Request completion approval with the connection test results for ${total} integration ${plural(total, 'target', 'targets')}`,
   reqApprovalDescAfter:
     '. An admin review starts once you request it, and to change anything you have to cancel the request and submit again.',
   statTargets: 'Integration targets',

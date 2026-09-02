@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 
 /**
  * Step-1 candidate resources (the scan → select → request-approval card) and the
@@ -240,7 +241,8 @@ const ko = {
 
     // ----- rows -----
     rowToggle: (name: string, open: boolean) => `${name} ${open ? '접기' : '펼치기'}`,
-    metaSchemaCount: (count: string) => `스키마 ${count}`,
+    // `_n` is the raw count the English side needs for agreement; Korean has no plural.
+    metaSchemaCount: (count: string, _n: number) => `스키마 ${count}`,
     metaUntested: '미조회',
     statusDeny: '제외',
     statusStagedExclude: '제외 예정',
@@ -260,7 +262,7 @@ const ko = {
     reasonTitle: '제외 사유',
     reasonLegend: '제외 사유 선택',
     excludeWholeDbTail: ' 전체가 제외돼요',
-    excludeWholeDbSchemas: (count: string) => ` — 하위 스키마 ${count}개 포함`,
+    excludeWholeDbSchemas: (count: string, _n: number) => ` — 하위 스키마 ${count}개 포함`,
     excludeSchemaTail: ' 스키마만 제외돼요',
     absorbedSchemas: (count: number) => `기존 Schema 제외 ${count}건은 Database 제외로 합쳐져요.`,
     confirmExclude: '제외 (저장 전에 추가)',
@@ -282,7 +284,8 @@ const ko = {
     nextLead: '이 정책은 ',
     nextEmphasis: '다음 연결 테스트부터',
     nextTail: ' 반영돼요. 지금 적용하려면 연결 테스트를 다시 실행해 주세요.',
-    keptChanges: (count: string) => `고른 변경 ${count}건은 그대로 있어요. 닫으면 사라져요.`,
+    keptChanges: (count: string, _n: number) =>
+      `고른 변경 ${count}건은 그대로 있어요. 닫으면 사라져요.`,
     resultClose: '닫기',
     resultRetry: '다시 저장하기',
 
@@ -375,7 +378,8 @@ const en: typeof ko = {
     liveAggregating: 'Aggregating the scan results.',
     liveScanning: 'Running the infrastructure scan.',
     liveScanDone: 'The infrastructure scan is done.',
-    liveLoaded: (count: number) => `Loaded ${count} integration targets.`,
+    liveLoaded: (count: number) =>
+      `Loaded ${count} integration ${plural(count, 'target', 'targets')}.`,
     liveEmpty: 'No resources were found.',
     liveScanFailed: 'The infrastructure scan failed.',
     liveScanStale: 'The last scan is past the policy deadline, so you have to scan again.',
@@ -512,7 +516,7 @@ const en: typeof ko = {
     saving: 'Saving',
 
     rowToggle: (name: string, open: boolean) => `${open ? 'Collapse' : 'Expand'} ${name}`,
-    metaSchemaCount: (count: string) => `${count} schemas`,
+    metaSchemaCount: (count: string, n: number) => `${count} ${plural(n, 'schema', 'schemas')}`,
     metaUntested: 'Not looked up',
     statusDeny: 'Excluded',
     statusStagedExclude: 'To be excluded',
@@ -530,7 +534,8 @@ const en: typeof ko = {
     reasonTitle: 'Exclusion reason',
     reasonLegend: 'Choose an exclusion reason',
     excludeWholeDbTail: ' will be excluded entirely',
-    excludeWholeDbSchemas: (count: string) => ` — including its ${count} schemas`,
+    excludeWholeDbSchemas: (count: string, n: number) =>
+      ` — including its ${count} ${plural(n, 'schema', 'schemas')}`,
     excludeSchemaTail: ' will be excluded (this schema only)',
     absorbedSchemas: (count: number) =>
       count === 1
@@ -554,8 +559,8 @@ const en: typeof ko = {
     nextLead: 'This policy takes effect from ',
     nextEmphasis: 'the next connection test',
     nextTail: '. To apply it now, run the connection test again.',
-    keptChanges: (count: string) =>
-      `The changes you picked (${count}) are still here. Closing discards them.`,
+    keptChanges: (count: string, n: number) =>
+      `The ${plural(n, 'change', 'changes')} you picked (${count}) ${plural(n, 'is', 'are')} still here. Closing discards ${plural(n, 'it', 'them')}.`,
     resultClose: 'Close',
     resultRetry: 'Save again',
 

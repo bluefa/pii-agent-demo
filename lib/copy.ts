@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 
 /**
  * Fixed UI strings for the top nav, the service list, the access-request screen
@@ -401,9 +402,10 @@ const en: typeof ko = {
     noHistory: 'No history.',
     selected: 'Selected',
     // English counts a noun, so the noun has to agree; Korean has no plural for
-    // `건` to lose. One inline branch rather than the `plural` helper the SDU
-    // dictionary carries — there is exactly one counted noun in this namespace.
-    instanceCount: (total: number) => `${total} instance${total === 1 ? '' : 's'}`,
+    // `건` to lose. Through the shared `plural` helper like the three other counted
+    // nouns in this file (`ownersNamesMissing`, `ownersHidden`, `s4Count`), so the
+    // whole dictionary states its agreement the one way.
+    instanceCount: (total: number) => `${total} ${plural(total, 'instance', 'instances')}`,
     exclusionReason: 'Exclusion reason',
     china: 'China',
     notifications: 'Notifications',
@@ -561,9 +563,10 @@ const en: typeof ko = {
     ownersSearchLabel: 'Search owners',
     ownersNoMatch: (query: string) => `No owner matches ‘${query}’`,
     ownersNamesMissing: (count: number) =>
-      `This service has ${count} owners, but their names did not arrive`,
+      `This service has ${count} ${plural(count, 'owner', 'owners')}, but their ${plural(count, 'name', 'names')} did not arrive`,
     ownerCount: (n: number) => `${n}`,
-    ownersHidden: (n: number) => `${n} more owners are not listed here`,
+    ownersHidden: (n: number) =>
+      `${n} more ${plural(n, 'owner is', 'owners are')} not listed here`,
 
     userSearchPlaceholder: 'Search Knox ID or email',
     userSearchLabel: 'Search users',
@@ -653,7 +656,7 @@ const en: typeof ko = {
     s4Title: 'Register this?',
     s4Sub: 'From what you entered, we recommend the setup below.',
     s4Loading: 'Checking the setup',
-    s4Count: (n: number) => `${n} accounts will be registered.`,
+    s4Count: (n: number) => `${n} ${plural(n, 'account', 'accounts')} will be registered.`,
     s4Footer: 'If this is not what you expected, go back and change your entries.',
 
     s5Done: 'Registered',

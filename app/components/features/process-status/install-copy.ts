@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 import { SDU_STEP_TITLES } from '@/app/target-sources/[targetSourceId]/_components/sdu/sdu-steps';
 
 /**
@@ -353,7 +354,7 @@ const en: typeof ko = {
     filterEmpty: 'No results match your filters.',
     naTitle: 'No resources apply to this step',
     naDesc: (total: number) =>
-      `None of the ${total} integration targets apply to this step, so there is nothing to do.`,
+      `None of the ${total} integration ${plural(total, 'target applies', 'targets apply')} to this step, so there is nothing to do.`,
   },
 
   road: {

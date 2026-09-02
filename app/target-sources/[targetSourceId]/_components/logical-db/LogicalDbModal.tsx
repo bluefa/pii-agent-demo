@@ -1037,7 +1037,7 @@ const SaveResultFrame = ({
         </>
       ) : (
         <p className={logicalDbStyles.result.keptBox}>
-          {t.keptChanges(fmt(changes.length))}
+          {t.keptChanges(fmt(changes.length), changes.length)}
         </p>
       )}
       <div className={logicalDbStyles.result.actions}>
@@ -1391,7 +1391,7 @@ const Row = ({
   // `미조회` rides beside the name, not in 상태: it is a fact about this NAME (the policy
   // outlived the run that would have listed it), while 상태 answers "collected or not".
   const meta = [
-    isDb && hasSchemaUnit && schemaCount > 0 ? t.metaSchemaCount(fmt(schemaCount)) : null,
+    isDb && hasSchemaUnit && schemaCount > 0 ? t.metaSchemaCount(fmt(schemaCount), schemaCount) : null,
     row.untested ? t.metaUntested : null,
   ]
     .filter(Boolean)
@@ -1537,7 +1537,7 @@ const ReasonPanel = ({
             <>
               <strong className="font-mono">{abbrevMiddle(row.name, 16, 12)}</strong>
               {t.excludeWholeDbTail}
-              {hasSchemaUnit && schemaCount > 0 ? t.excludeWholeDbSchemas(fmt(schemaCount)) : ''}
+              {hasSchemaUnit && schemaCount > 0 ? t.excludeWholeDbSchemas(fmt(schemaCount), schemaCount) : ''}
             </>
           ) : (
             <>
