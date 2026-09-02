@@ -8,17 +8,21 @@ import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 const getApprovalRequestLatest = vi.fn();
 const getConfirmedIntegration = vi.fn();
 const getApprovalHistory = vi.fn();
+// The two NLB reads feed lookup modals. They are spies rather than fixed stubs because
+// what those modals draw depends on WHICH outcome arrived — 조회 중 · 실패 · 빈 결과 are
+// three different frames, and a test that can only produce one of them cannot see that.
+const getNlbTable = vi.fn();
+const getNlbIndexMappings = vi.fn();
 
 vi.mock('@/app/lib/api/task-queue-requests', async (importOriginal) => {
   // Not replaced wholesale: the IDC table derives its 구분 badge through `idcAddressKind`,
-  // which lives in this module. Only the fetches are stubbed — the two NLB reads feed
-  // lookup modals, and an empty answer is a legitimate one the tab must render around.
+  // which lives in this module. Only the fetches are stubbed.
   const mod = await importOriginal<typeof import('@/app/lib/api/task-queue-requests')>();
   return {
     ...mod,
     getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatest(...args),
-    getNlbTable: async () => [],
-    getNlbIndexMappings: async () => [],
+    getNlbTable: (...args: unknown[]) => getNlbTable(...args),
+    getNlbIndexMappings: (...args: unknown[]) => getNlbIndexMappings(...args),
   };
 });
 vi.mock('@/app/lib/api', () => ({
@@ -74,6 +78,8 @@ describe('RequestTab 요청 리소스', () => {
     vi.clearAllMocks();
     getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
     getApprovalHistory.mockResolvedValue({ content: [] });
+    getNlbTable.mockResolvedValue([]);
+    getNlbIndexMappings.mockResolvedValue([]);
   });
 
   /**
@@ -261,5 +267,68 @@ describe('RequestTab 요청 리소스', () => {
     expect(screen.queryByText('불러오는 중…')).toBeNull();
     // 라벨은 고정 문자열이라 기다리는 동안에도 실물로 선다.
     expect(screen.getByText('요청일시')).toBeTruthy();
+  });
+
+  /**
+   * 두 조회 모달은 IDC 전용 fetch 두 건을 먹는데, 그 둘이 도착하기 전에도 열린다 —
+   * 진입은 표와 툴바에 있고 표는 승인 요청 응답만 기다린다. 조회 중을 결말로 접으면
+   * 화면이 아직 도는 요청을 두고 없다·실패했다고 단언한다.
+   */
+  describe('IDC 조회 모달 — 조회 중은 결말이 아니다', () => {
+    const mountIdc = () => {
+      getApprovalRequestLatest.mockResolvedValue({
+        request: {
+          requestId: 1,
+          status: 'PENDING',
+          requestedBy: 'ops',
+          requestedAt: '2026-07-31T05:00:00Z',
+        },
+        resources: [
+          { ...row(0), resourceId: 'idc-r-1', resourceName: null, connectTargets: ['10.20.1.11'], idcKind: 'IP' },
+        ],
+      });
+      return render(<RequestTab targetSourceId={1031} detail={{ cloud_provider: 'IDC' }} />);
+    };
+
+    it('배정 조회가 도는 동안 사용 서비스 모달은 실패했다고 말하지 않는다', async () => {
+      getNlbIndexMappings.mockReturnValue(new Promise(() => {}));
+      mountIdc();
+      fireEvent.click(await screen.findByRole('button', { name: '조회' }));
+
+      expect(screen.queryByText('조합을 불러오지 못했어요')).toBeNull();
+      const busy = document.querySelector('[aria-busy]');
+      expect(busy).not.toBeNull();
+      expect(busy?.textContent).toContain('불러오는 중');
+    });
+
+    it('배정 조회가 실패하면 사용 서비스 모달이 그렇게 말한다', async () => {
+      getNlbIndexMappings.mockRejectedValue(new Error('boom'));
+      mountIdc();
+      fireEvent.click(await screen.findByRole('button', { name: '조회' }));
+
+      expect(await screen.findByText('조합을 불러오지 못했어요')).toBeTruthy();
+    });
+
+    it('점유표가 도는 동안 NLB 리스너 현황은 빈 표를 그리지 않는다', async () => {
+      getNlbTable.mockReturnValue(new Promise(() => {}));
+      mountIdc();
+      fireEvent.click(await screen.findByRole('button', { name: 'NLB 리스너 현황' }));
+
+      // 열 이름은 고정 문자열이라 실물로 서고, 행은 자국이다 — 빈 tbody 는 「NLB 가
+      // 하나도 없다」는 사실이라 조회 중에 그릴 수 없다.
+      expect(screen.getByText('NLB Index')).toBeTruthy();
+      const busy = document.querySelector('[aria-busy]');
+      expect(busy).not.toBeNull();
+      expect(busy?.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    });
+
+    it('점유표 조회가 실패하면 NLB 리스너 현황이 그렇게 말한다', async () => {
+      getNlbTable.mockRejectedValue(new Error('boom'));
+      mountIdc();
+      fireEvent.click(await screen.findByRole('button', { name: 'NLB 리스너 현황' }));
+
+      expect(await screen.findByText(/NLB 리스너 현황을 불러오지 못했어요/)).toBeTruthy();
+      expect(screen.queryByText('NLB Index')).toBeNull();
+    });
   });
 });

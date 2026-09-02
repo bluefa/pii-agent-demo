@@ -89,7 +89,9 @@ const idcAddresses = (row: ConfirmedIntegrationResourceInfo): string[] => {
 
 export const agentResourceFacts = (
   resourceId: string,
-  index: ConfirmedIndex | null,
+  // `undefined` = 확정 정보가 아직 오지 않았다. 여기서는 없는 것과 같이 다루고(빈 사실),
+  // 그 둘을 화면에서 가르는 것은 호출부의 일이다 — 이 함수는 값만 안다.
+  index: ConfirmedIndex | null | undefined,
 ): AgentResourceFacts => {
   const row = index?.get(resourceId);
   if (!row) return EMPTY_FACTS;

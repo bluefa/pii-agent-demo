@@ -120,22 +120,36 @@ export function ResourceList({
   const list = useResourceListState();
   const [showingServices, setShowingServices] = useState<RequestResourceRow | null>(null);
   const [listenersOpen, setListenersOpen] = useState(false);
-  const [nlbTable, setNlbTable] = useState<NlbTableRow[]>([]);
-  // null = the fetch failed, which ServiceAssignmentModal says outright instead of
-  // passing for "배정 없음".
-  const [mappings, setMappings] = useState<ResourceNlbMappings[] | null>(null);
+  /**
+   * Three outcomes, three values — the queue request screen's own grammar
+   * (`queue/requests/[targetSourceId]/page.tsx`): `undefined` = 아직 조회 중,
+   * `null` = 조회 실패, 배열 = 정착. Folding the first two into `[]`/`null` made the
+   * modals state something false: 사용 서비스 said 「조합을 불러오지 못했어요」 about a
+   * request still in flight, and NLB 리스너 현황 drew the same empty table for loading
+   * and for failure. Both modals read all three values now.
+   *
+   * Non-IDC targets never settle these — both entry points are IDC-only
+   * (`ResourceSection` gates them on `isIdc`), so no modal can open to read them.
+   */
+  const [nlbTable, setNlbTable] = useState<NlbTableRow[] | null | undefined>(undefined);
+  const [mappings, setMappings] = useState<ResourceNlbMappings[] | null | undefined>(undefined);
 
-  // IDC only — both feed a lookup modal, so a failure leaves that modal empty rather
-  // than breaking the tab around it.
+  // IDC only — both feed a lookup modal, so a failure leaves that modal saying so
+  // rather than breaking the tab around it.
   useEffect(() => {
     if (!isIdc) return;
     const controller = new AbortController();
     void getNlbTable({ signal: controller.signal })
       .then((loaded) => setNlbTable(loaded))
-      .catch(() => {});
+      // An abort is not a failure — the remount that caused it is already fetching.
+      .catch(() => {
+        if (!controller.signal.aborted) setNlbTable(null);
+      });
     void getNlbIndexMappings(targetSourceId, { signal: controller.signal })
       .then((loaded) => setMappings(loaded))
-      .catch(() => setMappings(null));
+      .catch(() => {
+        if (!controller.signal.aborted) setMappings(null);
+      });
     return () => controller.abort();
   }, [isIdc, targetSourceId]);
 

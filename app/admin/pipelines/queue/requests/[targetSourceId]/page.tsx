@@ -446,12 +446,13 @@ export default function RequestDetailPage(): ReactElement {
                 </>
               )}
 
-              {/* rows 의 `?? []` 는 타입을 위한 것 — 점유표가 없는 동안은 이 모달을
-                  여는 버튼이 전부 잠겨 있어 열릴 수 없다. */}
+              {/* 세 값을 그대로 넘긴다 — 모달이 조회 중·실패·정착을 스스로 가른다.
+                  `?? []` 로 접던 자리인데, 이 화면에서는 그 둘 다 버튼이 잠겨 있어
+                  열리지 않으므로 보이는 것은 정착본뿐이다(운영 화면은 잠그지 않는다). */}
               <NlbListenerModal
                 open={modal === 'nlb'}
                 onClose={() => setModal(null)}
-                rows={nlbTable ?? []}
+                rows={nlbTable}
               />
               {assigning != null && (
                 <NlbAssignModal
