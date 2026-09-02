@@ -127,9 +127,12 @@ export function ApprovalHistoryCard({
            Heights are MEASURED, not derived — the browser reports a settled head row at
            37.3px and a settled body row at 46.0px, and the same classes reproduce the head
            exactly. The body row is what the bars have to hold up: py-3(24) + hairline(1)
-           leaves 21px of content, which is the 14px line box, NOT the 20px 상태 pill — the
-           pill is the shorter of the two and never owned this row. So the three text bars
-           are h-[21px] and only the pill's stays h-5, which is its real height.
+           leaves 21px of content, so the text bars are h-[21px] and only the pill's stays
+           h-5, its real height.
+           ⚠️ That 21px is NOT the 14px line box. The sibling 수신자 table uses the same
+           `table.cell` at the same 14px but carries neither a pill nor a 상세 보기 button,
+           and it measures 44.7px a row — a 19.6px line box. The extra 1.4px here is bought
+           by this table's two control cells, so do not carry the 21 to a plain text table.
            Five rows because that is the page size — how many rows exist is what is loading. */
         <div className={pipelineStyles.card.tableWrap} aria-busy>
           <span className="sr-only">불러오는 중</span>

@@ -89,9 +89,10 @@ export function SduDefinitionCard({ targetSourceId }: SduDefinitionCardProps): R
           /* 정착본의 `ConsoleTable` 자국 그대로. 머리(열 이름·폭)는 `COLUMNS` 가 이미 아는
              고정 사실이라 실물로 그리고 — 그래서 머리 높이를 여기서 다시 셈하지 않는다 —
              값 자리만 바가 대신한다. 행은 **둘**이다: 정의 하나가 드는 대상은 대개 한 줌이라
-             다섯을 예약하면 도착하는 순간 표가 줄어든다. 셀 높이도 `CELL` 이 낸다 —
-             approvalCell 의 py-4(32) + 14px 글줄(19.6, 관리자 셸의 leading-1.4) ≈ 51.6px 이고,
-             바는 그 글줄 자리를 h-5 로 채운다. */
+             다섯을 예약하면 도착하는 순간 표가 줄어든다.
+             높이는 **실측**이다 — 브라우저가 이 표(대상 1100, 대상 2건)의 정착본 머리를
+             44.1px, 본문 행을 52.1px 로 보고한다: approvalCell 의 py-4(32) + 14px 글줄(19.6).
+             그래서 바가 h-[19.6px] 다. */
           <div aria-busy>
             <span className="sr-only">불러오는 중</span>
             <div className={idcStyles.table.frame}>
@@ -101,7 +102,7 @@ export function SduDefinitionCard({ targetSourceId }: SduDefinitionCardProps): R
                     <tr key={index}>
                       {['w-[56px]', 'w-[72px]', 'w-[104px]', 'w-[168px]'].map((width) => (
                         <td key={width} className={CELL}>
-                          <span className={cn(opsStyles.skeletonBar, 'block h-5', width)} />
+                          <span className={cn(opsStyles.skeletonBar, 'block h-[19.6px]', width)} />
                         </td>
                       ))}
                     </tr>
