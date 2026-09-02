@@ -755,9 +755,14 @@ export function ConfirmedInfoCard({
            나머지 칸의 막대는 14px 글줄 상자(19.6) → h-5 이고, 폭은 열 폭의 55% 다:
            `COL_W` 가 움직이면 같이 움직이게, 손으로 벤 수를 남기지 않는다.
 
-           ⛔ 페이저는 안 그린다. 건수를 모르는 채로 그 바를 세우면 `0–0 / 0건` 이라고
-           **말하게 된다** — 조회 중의 `—` 와 같은 거짓이다. 아래에 아무것도 서지 않는
-           바라 빠져도 밀리는 것이 없다(`ResourceSectionSkeleton` 의 같은 판단). */
+           ⛔ 페이저는 안 그린다 (오너 2026-09-03 확인). 건수를 모르는 채로 그 바를
+           세우면 `1–0 / 전체 0건` 이라고 **말하게 된다** — 조회 중의 `—` 와 같은 거짓이다.
+           `Pagination` 에 busy 갈래를 다는 길도 있지만, 그 primitive 는 사용자 화면까지
+           30곳 넘게 쓰고 스켈레톤 바가 필요로 하는 --pl-* 토큰은 `app/globals.css` 가
+           이 파일 바깥으로 못 박아 둔 팔레트다 — 프레임 맨 아래 53.0px 을 사려고 치르기엔
+           비싸다. 남는 잔차는 그 53.0px(실측) 하나이고, 그 바 **아래에는 아무것도 서지
+           않으므로** 빠져도 밀리는 것이 없다 (`ResourceSectionSkeleton` 의 같은 판단).
+           ⚠️ 프레임 아래에 무언가가 서는 날 이 전제는 만료된다. */
         <div className={TABLE_FRAME} aria-busy>
           <span className="sr-only">확정 정보를 불러오는 중</span>
           <ConsoleTable columns={columns} groups={LDB_GROUPS} resize={resize} busy>
