@@ -158,6 +158,9 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
   const [detail, setDetail] = useState<RawTargetSourceDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null);
+  // 단계는 상세와 따로 도착한다 — 도착 전의 null 을 「단계 없음」으로 그리면 마스트헤드가
+  // 알약 없이 한 번 서고, 알약이 끼어들며 그 오른쪽을 민다 (OpsHeader 의 seat).
+  const [processLoaded, setProcessLoaded] = useState(false);
   // 방금 저장한 ARN만 담는다 — 표시값의 출처는 detail.metadata 이고, 저장 직후에는
   // 그 detail 이 아직 옛 값이라 이 한 칸이 덮어쓴다 (다음 로드에서 metadata 가 따라온다).
   const [savedRoleArns, setSavedRoleArns] = useState<Partial<Record<RoleKind, string>>>({});
@@ -316,6 +319,44 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
     void loadTc();
   }, [loadTc]);
 
+  /**
+   * 대상이 바뀌면 이전 대상의 응답은 더 이상 사실이 아니다 — 언마운트 없이 id 만 바뀌는
+   * 경로에서(같은 화면 안의 대상 이동) 옛 마스트헤드·티켓·TC 판정·DAG 가 새 대상의
+   * **정착된 사실**로 서 있다가 응답이 하나씩 도착하며 뒤집힌다.
+   *
+   * 초기화는 조회 이펙트가 아니라 **여기**서 한다: 조회 이펙트는 `reloadKey` 로도 다시
+   * 도는데(초기화·BDC 확인·승인 결정 뒤의 `retry`), 그 자리에서 비우면 화면이 매번
+   * 셸 스켈레톤까지 되감긴다. 비워야 하는 것은 대상이 바뀌었을 때뿐이다.
+   *
+   * `savedRoleArns` 도 함께 비운다 — 그 한 칸은 `detail.metadata` 를 **덮는** 값이라,
+   * 남겨 두면 새 대상의 role 자리에 앞 대상에서 방금 저장한 ARN 이 그대로 선다.
+   * 설치모드·실데이터는 상세가 도착하며 그 자리에서 덮어써지고, 그전에는 상세가 null 이라
+   * 마스트헤드 자체가 없다.
+   *
+   * 렌더 중에 비운다(이펙트가 아니라). 이펙트는 커밋 **뒤에** 도는 것이라 앞 대상의
+   * 마스트헤드가 한 프레임 그려지고 나서 사라지고, `react-hooks/set-state-in-effect` 가
+   * 그 자리를 막는다. 렌더 중의 갱신은 리액트가 자식을 커밋하기 전에 되감으므로 앞 대상은
+   * 한 번도 새 id 로 그려지지 않는다 (react.dev, "prop 이 바뀔 때 state 초기화").
+   */
+  const [shownTarget, setShownTarget] = useState(targetSourceId);
+  if (shownTarget !== targetSourceId) {
+    setShownTarget(targetSourceId);
+    setDetail(null);
+    setDetailFailed(false);
+    setProcessStatus(null);
+    setProcessLoaded(false);
+    setJiraTicket(null);
+    setTicketLoaded(false);
+    setSavedRoleArns({});
+    setTcStatus(null);
+    setTcLatest(null);
+    setTcResults([]);
+    setTcLoaded(false);
+    setTcLatestFailed(false);
+    setTcStatusFailed(false);
+    setDag({ phase: 'loading' });
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -344,7 +385,8 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
       // 탭을 그대로 받으므로, 이제 읽을 사람이 있다.
       void getProcessStatus(targetSourceId)
         .then((status) => !cancelled && setProcessStatus(status.process_status as ProcessStatus))
-        .catch(() => !cancelled && setProcessStatus(null));
+        .catch(() => !cancelled && setProcessStatus(null))
+        .finally(() => !cancelled && setProcessLoaded(true));
       void getTargetJiraTicket(targetSourceId)
         .then((loaded) => !cancelled && setJiraTicket(loaded))
         .catch(() => !cancelled && setJiraTicket(null))
@@ -487,7 +529,45 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
         </div>
         <div className={opsStyles.body}>
           <div className={opsStyles.content}>
-            <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
+            {/* 본문도 **그리려는 탭의 발자국**을 잡는다 — `currentTab` 은 이 조기 반환 위에서
+                이미 정해져 있으므로, 어느 탭이 정착할지는 상세가 없어도 안다.
+
+                진행 상태(기본이자 딥링크 없이 들어오는 전부)는 두 칸이다. 한 칸짜리 320px
+                블록으로 두면 상세가 도착하는 순간 한 칸이 두 칸으로 갈리면서 432px 로 뛴다
+                (실측 320 → 432.39). 높이는 다시 세지 않고 정착 프레임의 클래스가 낳게 한다:
+                `card.base`(pt-5/pb-6) + `pagedCardBody`(min-h-266) + 페이저(mt-4 h-8).
+
+                ⚠️ SDU 는 이 행이 **둘**이다(실측 847.19). 그런데 SDU 인지는 상세가 와야
+                알고, 두 행을 미리 그리면 SDU 가 아닌 대다수 대상에서 아래 카드가 없는
+                432px 를 더 덮는다. 그래서 한 행 쪽을 고른다 — 모자란 쪽은 도착하며 자라고,
+                넘치는 쪽은 없는 것을 덮는다.
+
+                제목·설명은 막대다. 왼쪽 카드의 제목은 대상 종류가 정하고(SDU 면 「연동 대상
+                정의」), 오른쪽은 서버가 그린 카드(`statusSlot`)의 것이라 여기서 손으로 옮겨
+                적으면 같은 문자열의 두 번째 출처가 생긴다. */}
+            {currentTab === OPS_TAB_SLUGS.status ? (
+              <div className={opsStyles.cardsRow}>
+                {[0, 1].map((column) => (
+                  <div key={column} className={cn(pipelineStyles.card.base, opsStyles.pagedCard)}>
+                    {/* 28px·19.6px — 정착본 제목(20px)과 설명(14px)의 줄 상자(실측). */}
+                    <div className={cn(opsStyles.skeletonBar, 'h-[28px] w-[132px]')} />
+                    <div className={cn(opsStyles.skeletonBar, 'mt-3 h-5 w-[216px]')} />
+                    {/* `flex` + `flex-1` — 막대가 min-h-266 을 실제로 채운다. 높이를 여기
+                        다시 적으면 그 266 이 두 곳에 살게 된다. */}
+                    <div className={cn(opsStyles.pagedCardBody, 'flex')}>
+                      <div className={cn(opsStyles.skeleton, 'flex-1')} />
+                    </div>
+                    {/* 페이저 자리 — 컨트롤은 그리지 않고 높이만 둔다 (`OpsPagination` mt-4 h-8). */}
+                    <div className="mt-4 h-8" aria-hidden />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* 딥링크로 열리는 나머지 여덟 탭은 전부 **한 칸**이다(실측: 인프라 작업 638.98,
+                 연결 테스트 425.59). 모양은 그것이고, 높이는 탭마다 달라 여기서 말할 수 있는
+                 사실이 아니다 — 한 칸이라는 것만 말하고 높이는 잡지 않는다. */
+              <div className={cn(opsStyles.skeleton, 'h-[320px]')} />
+            )}
           </div>
         </div>
       </div>
@@ -516,6 +596,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
           targetSourceId={targetSourceId}
           detail={detail}
           processStatus={processStatus}
+          processLoaded={processLoaded}
           isAws={isAws}
           savedRoleArns={savedRoleArns}
           grantTfExecution={grantTfExecution}

@@ -48,6 +48,7 @@ const renderHeader = (d: RawTargetSourceDetail): void => {
       targetSourceId={1006}
       detail={d}
       processStatus={null}
+      processLoaded
       isAws
       savedRoleArns={{}}
       grantTfExecution
@@ -109,6 +110,7 @@ describe('OpsHeader — AWS 역할 칸', () => {
         targetSourceId={1006}
         detail={detail(scan, execution)}
         processStatus={null}
+        processLoaded
         isAws
         savedRoleArns={{}}
         grantTfExecution
