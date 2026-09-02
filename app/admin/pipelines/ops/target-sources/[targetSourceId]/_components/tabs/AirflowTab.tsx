@@ -72,10 +72,14 @@ export interface AirflowTabProps {
 export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): ReactElement {
   // 확정 스냅샷은 DAG 표가 §10 밖에서 빌려 오는 사실(리전·DatabaseType·IDC 접속 주소)의
   // 출처다. best-effort — 실패하면 조인 칸만 대시로 서고 표는 그대로 뜬다.
-  const [confirmed, setConfirmed] = useState<ConfirmedIndex | null>(null);
+  //
+  // 값은 셋이다: `undefined` = 아직 조회 중, `null` = 조회 실패, index = 정착. 처음 둘을
+  // 하나로 접으면 §10 이 먼저 도착한 창에서 표가 그 칸들을 대시로 그린다 — 대시는 이 표에서
+  // 「그 값이 없다」는 낱말이라, 아직 모르는 것을 없다고 단언하게 된다.
+  const [confirmed, setConfirmed] = useState<ConfirmedIndex | null | undefined>(undefined);
   useAbortableEffect(
     (signal) => {
-      setConfirmed(null);
+      setConfirmed(undefined);
       return getConfirmedIntegration(targetSourceId, { signal })
         .then((snapshot) => {
           if (signal.aborted) return;
@@ -84,7 +88,10 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
         .catch((error: unknown) => {
           if (signal.aborted) return;
           // 404 = 확정 전 대상(원래 없음) — 빈 index 도 조인은 대시로 끝난다.
-          if (isMissingConfirmedIntegrationError(error)) setConfirmed(indexConfirmedResources([]));
+          // 그 밖의 거절은 실패다: 조인 칸은 대시로 서고 표는 그대로 뜬다(종전 그대로).
+          setConfirmed(
+            isMissingConfirmedIntegrationError(error) ? indexConfirmedResources([]) : null,
+          );
         });
     },
     [targetSourceId],

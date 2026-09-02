@@ -23,6 +23,7 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { fmtDuration } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/scanShared';
 import { Dash } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import { TcRunPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/tcShared';
@@ -73,6 +74,20 @@ export function TcRunHistoryModal({
 
   const { appTable } = tqStyles;
 
+  // The settled table and its skeleton share ONE head (`ApprovalHistoryCard`'s rule):
+  // written twice, a column change follows only one of them.
+  const head = (
+    <thead className={appTable.thead}>
+      <tr>
+        <th className={cn(appTable.th, 'w-[64px]')}>회차</th>
+        <th className={appTable.th}>요청 시각</th>
+        <th className={appTable.th}>완료 시각</th>
+        <th className={cn(appTable.th, 'w-[90px]')}>소요</th>
+        <th className={cn(appTable.th, 'w-[80px]')}>결과</th>
+      </tr>
+    </thead>
+  );
+
   return (
     <ModalShell open onClose={onClose} variant="task" labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
@@ -83,7 +98,43 @@ export function TcRunHistoryModal({
       </p>
 
       {loading ? (
-        <div className="min-h-[220px]" aria-busy />
+        /* The settled table's own footprint — the sibling TcHistoryModal's grammar with
+           this table's five columns. Column names are fixed strings this modal already
+           knows, so they are drawn for real (`StatusCardSkeleton`'s rule) and only the
+           values are bars.
+           Heights are MEASURED, not derived — the browser reports a settled head row at
+           41.3px and a settled body row at 47.4px. `appTable.td` spends py-[13px](26) and
+           a border-t(1) of that, leaving **20.4px** of content, so the bars are h-5 —
+           which is also `TcRunPill`'s real height (`pill.md`), so one number holds the row.
+           The markup is NOT shared with the sibling: different columns, different widths,
+           a different pill shape. Five rows because that is the page size. */
+        <div className={appTable.wrap} aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <table className={appTable.root}>
+            {head}
+            <tbody className={appTable.body} aria-hidden>
+              {Array.from({ length: PAGE_SIZE }, (_, index) => (
+                <tr key={index}>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[28px]')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[118px]')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[118px]')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[42px]')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[52px] rounded-full')} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>실행 기록을 불러오지 못했습니다.</p>
       ) : rows.length === 0 ? (
@@ -91,15 +142,7 @@ export function TcRunHistoryModal({
       ) : (
         <div className={appTable.wrap}>
           <table className={appTable.root}>
-            <thead className={appTable.thead}>
-              <tr>
-                <th className={cn(appTable.th, 'w-[64px]')}>회차</th>
-                <th className={appTable.th}>요청 시각</th>
-                <th className={appTable.th}>완료 시각</th>
-                <th className={cn(appTable.th, 'w-[90px]')}>소요</th>
-                <th className={cn(appTable.th, 'w-[80px]')}>결과</th>
-              </tr>
-            </thead>
+            {head}
             <tbody className={appTable.body}>
               {rows.map((row, index) => (
                 <tr key={`${row.version ?? 'run'}-${index}`}>
@@ -125,7 +168,11 @@ export function TcRunHistoryModal({
         </div>
       )}
 
-      {!loading && !failed && totalPages > 1 && (
+      {/* The pager stays mounted across a page turn — its shape is the page COUNT, which
+          the turn does not change, so gating it on `loading` collapsed and re-inflated it
+          under the table on every ‹ 이전 / 다음 ›. It is still absent on the first load:
+          nothing sits under it, so appearing there shifts nothing. */}
+      {!failed && totalPages > 1 && (
         <PlPagination
           className="mt-4"
           center

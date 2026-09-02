@@ -76,6 +76,18 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
 
   const { appTable } = tqStyles;
 
+  // The settled table and its skeleton share ONE head (`ApprovalHistoryCard`'s rule):
+  // written twice, a column change follows only one of them.
+  const head = (
+    <thead className={appTable.thead}>
+      <tr>
+        <th className={cn(appTable.th, 'w-[150px]')}>일시</th>
+        <th className={cn(appTable.th, 'w-[110px]')}>상태</th>
+        <th className={appTable.th}>사유</th>
+      </tr>
+    </thead>
+  );
+
   return (
     <ModalShell open onClose={onClose} variant="task" labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={pipelineStyles.modal.title}>
@@ -84,7 +96,38 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
       <p className={pipelineStyles.modal.desc}>완료 확인 · 재실행 요청 · 초기화 이벤트의 전체 기록 (최신순)</p>
 
       {loading ? (
-        <div className="min-h-[220px]" aria-busy />
+        /* The settled table's own footprint. Column names are fixed strings this modal
+           already knows, so they are drawn for real (`StatusCardSkeleton`'s rule) and only
+           the values are bars.
+           Heights are MEASURED, not derived — the browser reports a settled head row at
+           41.3px and a settled body row at 47.3px. `appTable.td` spends py-[13px](26) and
+           a border-t(1) of that, leaving **20.3px** of content, so the bars are h-5.
+           ⚠️ `opsStyles.statusTag` measures 20.8px, taller than that residual. Its bar
+           stays h-5 anyway (`ApprovalHistoryCard`'s rule): a pill bar that outgrows the
+           text residual would make the SKELETON row taller than the row it stands in for.
+           Five rows because that is the page size — how many rows exist is what is
+           loading, so a page that settles with fewer shrinks by the difference. */
+        <div className={appTable.wrap} aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <table className={appTable.root}>
+            {head}
+            <tbody className={appTable.body} aria-hidden>
+              {Array.from({ length: PAGE_SIZE }, (_, index) => (
+                <tr key={index}>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[118px]')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[58px] rounded')} />
+                  </td>
+                  <td className={appTable.td}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[172px]')} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : failed ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-2')}>이력을 불러오지 못했습니다.</p>
       ) : rows.length === 0 ? (
@@ -92,13 +135,7 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
       ) : (
         <div className={appTable.wrap}>
           <table className={appTable.root}>
-            <thead className={appTable.thead}>
-              <tr>
-                <th className={cn(appTable.th, 'w-[150px]')}>일시</th>
-                <th className={cn(appTable.th, 'w-[110px]')}>상태</th>
-                <th className={appTable.th}>사유</th>
-              </tr>
-            </thead>
+            {head}
             <tbody className={appTable.body}>
               {rows.map((row, index) => {
                 const meta = STATUS_META[row.status];
@@ -128,7 +165,11 @@ export function TcHistoryModal({ targetSourceId, onClose }: TcHistoryModalProps)
         </div>
       )}
 
-      {!loading && !failed && totalPages > 1 && (
+      {/* The pager stays mounted across a page turn — its shape is the page COUNT, which
+          the turn does not change, so gating it on `loading` collapsed and re-inflated it
+          under the table on every ‹ 이전 / 다음 ›. It is still absent on the first load:
+          nothing sits under it, so appearing there shifts nothing. */}
+      {!failed && totalPages > 1 && (
         <PlPagination
           className="mt-4"
           center

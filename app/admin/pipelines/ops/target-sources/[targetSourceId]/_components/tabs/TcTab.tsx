@@ -311,6 +311,10 @@ export function TcTab({
         <TcCredentialModal
           secrets={secrets}
           rows={confirmedRows}
+          // 이 모달을 여는 CTA 는 상태 조회(`statusLoaded`)에 걸려 있고 목록은 이 탭의
+          // 별도 조회라, 상태가 먼저 도착한 창에서는 목록이 아직 없다. 그 창을 빈 목록으로
+          // 그리지 않게 여기서 말해 준다.
+          loading={!settled}
           failed={secretsFailed}
           onClose={() => setCredentialsOpen(false)}
         />

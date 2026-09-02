@@ -107,7 +107,6 @@ const ko = {
     /** A null processor means ADR-006 approved it automatically — say so, don't hide the field. */
     systemProcessor: '시스템',
     reasonHeading: '처리 사유',
-    loadingResources: '리소스 목록을 불러오는 중…',
     statTotal: '전체 요청',
     statTarget: '연동 요청 대상',
     statExcluded: '연동 요청 제외대상',
@@ -272,7 +271,6 @@ const en: typeof ko = {
     processedAt: 'Processed at',
     systemProcessor: 'System',
     reasonHeading: 'Reason',
-    loadingResources: 'Loading the resource list…',
     statTotal: 'Total',
     statTarget: 'Targets',
     statExcluded: 'Excluded',
