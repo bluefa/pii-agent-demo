@@ -62,11 +62,30 @@ import {
   agentResourceFacts,
   type ConfirmedIndex,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/agentFacts';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 /** 셸이 머리를 그리므로 남는 것은 본문 칸뿐 — 치수는 사용자 화면 표의 `approvalCell`. */
 const CELL = cn(idcStyles.table.approvalCell, 'align-middle text-[14px] text-[var(--pl-text-strong)]');
 /** 값을 덮어 자르는 칸(시안 F) — 넘치는 값이 말줄임 대신 다음 열 밑으로 이어진다. */
 const CLIP_CELL = cn(CELL, idcStyles.table.consoleCell);
+
+/**
+ * 아직 모르는 칸. `Dash` 는 이 표에서 「그 값이 없다」는 낱말이라(조인이 빗나갔거나 IDC
+ * 리소스에 이름이 없거나), 확정 정보가 아직 오지 않은 칸에 그것을 쓰면 표가 없는 사실을
+ * 단언하고 곧 조용히 값으로 바뀐다.
+ *
+ * 높이는 14px 값의 글자 높이다 — 행 높이는 이 칸이 잡지 않는다(같은 행의 논리 DB 수와
+ * 판정 알약이 §10 에서 바로 와 실물로 서 있다). `StatusCardSkeleton` 의 규칙 그대로.
+ */
+function PendingFact({ width }: { width: number }): ReactElement {
+  return (
+    <span
+      className={cn(opsStyles.skeletonBar, 'block h-[14px] rounded')}
+      style={{ width }}
+      aria-hidden
+    />
+  );
+}
 
 /**
  * Step 1 표의 본문 래퍼 **그대로** — 클래스를 베끼지 않고 그 표가 쓰는 상수를 그대로
@@ -114,11 +133,14 @@ export interface AgentDagTableProps {
   /** 주간 보드 패널을 이 에이전트로 스코프해 연다 — 진입은 규모 열의 수 하나뿐이다. */
   onViewDbs: (agentId: string) => void;
   /**
-   * 확정 정보 조인 — 없으면(로딩·조회 실패·조인 실패) 그 칸들은 대시로 선다.
-   * §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다: Resource Name·DatabaseType·
-   * 리전(비-GCP)·IDC 접속 주소는 전부 여기서 온다.
+   * 확정 정보 조인. §10 은 리소스에 대해 resourceId·gcpRegion 만 보증한다:
+   * Resource Name·DatabaseType·리전(비-GCP)·IDC 접속 주소는 전부 여기서 온다.
+   *
+   * 세 값이 세 가지 일을 한다 — `undefined` 는 **아직 조회 중**이라 그 칸들이 자국으로
+   * 서고, `null`(조회 실패)과 조인 실패는 종전대로 대시다. 앞의 둘을 한 값으로 접으면
+   * 조회가 도는 동안 표가 「이 리소스에는 이름이 없다」고 말했다가 값을 채워 넣는다.
    */
-  confirmed: ConfirmedIndex | null;
+  confirmed: ConfirmedIndex | null | undefined;
   /**
    * IDC 대상이면 정체 열이 통째로 갈린다 — 클라우드의 이름·id·리전 대신 IDC 단계 표
    * (`IdcResourceTable`)의 접속 주소 · Port · Database Type 이 선다 (오너 2026-08-26).
@@ -230,12 +252,15 @@ export function AgentDagTable({
   if (page !== safePage) setPage(safePage);
   const pageRows = ordered.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
+  // 확정 정보가 아직 안 온 동안 그 표가 빌려 오는 칸들은 자국으로 선다 — 대시가 아니라.
+  const pending = confirmed === undefined;
+
   return (
     <section aria-label="리소스별 최근 7일 DAG">
       {/* 표는 맨몸이고 윤곽은 프레임과 페이저 바가 진다 — 프레임이 상단 라운드와 옆선을,
           바가 하단 라운드를 그린다(`framePaged` 의 계약). */}
       <div className={idcStyles.table.framePaged}>
-        <div className={TABLE_BODY}>
+        <div className={TABLE_BODY} {...(pending ? { 'aria-busy': true } : {})}>
           <ConsoleTable columns={columns} resize={resize}>
             <tbody className={idcStyles.table.body}>
               {pageRows.map((agent) => {
@@ -266,16 +291,26 @@ export function AgentDagTable({
                                 </span>
                               )}
                             </span>
+                          ) : pending ? (
+                            <PendingFact width={132} />
                           ) : (
                             <Dash />
                           )}
                         </td>
                         <td className={cn(CLIP_CELL, 'font-mono text-[var(--pl-text-medium)]')}>
-                          {facts.port === null ? <Dash /> : facts.port}
+                          {facts.port !== null ? (
+                            facts.port
+                          ) : pending ? (
+                            <PendingFact width={40} />
+                          ) : (
+                            <Dash />
+                          )}
                         </td>
                         <td className={CLIP_CELL}>
                           {facts.databaseType ? (
                             <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
+                          ) : pending ? (
+                            <PendingFact width={56} />
                           ) : (
                             <Dash />
                           )}
@@ -290,6 +325,8 @@ export function AgentDagTable({
                             <span className="font-medium text-[var(--pl-text-strong)]" title="확정 정보 기준">
                               {facts.name}
                             </span>
+                          ) : pending ? (
+                            <PendingFact width={148} />
                           ) : (
                             <Dash />
                           )}
@@ -305,6 +342,8 @@ export function AgentDagTable({
                               리소스가 MYSQL 과 MySQL 로 갈라져 읽히면 다른 것처럼 보인다. */}
                           {facts.databaseType ? (
                             <span title="확정 정보 기준">{getDatabaseShortLabel(facts.databaseType)}</span>
+                          ) : pending ? (
+                            <PendingFact width={56} />
                           ) : (
                             <Dash />
                           )}
@@ -316,6 +355,8 @@ export function AgentDagTable({
                             <span>{agent.gcpRegion}</span>
                           ) : facts.region ? (
                             <span title="확정 정보 기준">{facts.region}</span>
+                          ) : pending ? (
+                            <PendingFact width={104} />
                           ) : (
                             <Dash />
                           )}

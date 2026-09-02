@@ -20,11 +20,12 @@
  *
  * Read-only — the resource's OWN assignment is changed in NlbAssignModal, and no footer,
  * since the only action would have been 닫기 and the header X already is that.
- * resource_id is NEVER rendered (design-spec §8). `mappings === null` means the fetch
- * failed, which the body says outright instead of passing for "없음".
+ * resource_id is NEVER rendered (design-spec §8). `mappings === undefined` means the fetch
+ * is still in flight and `null` that it failed — the body draws a waiting frame for the
+ * first and says so outright for the second, and neither passes for "없음".
  */
 import { useMemo, useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, pipelineStyles } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { TqModal } from '@/app/admin/pipelines/queue/_components/TqModal';
 import { findResourceMappings } from '@/app/admin/pipelines/queue/requests/_logic';
@@ -62,6 +63,11 @@ const EMPTY_WRAP = 'flex flex-col items-center gap-2 px-5 py-8 text-center';
 const EMPTY_TITLE = 'text-[16px] font-semibold text-[var(--pl-text-strong)]';
 const EMPTY_BODY = 'max-w-[46ch] text-[14px] text-[var(--pl-text-weak)]';
 
+/** 대기 프레임의 자국 — 폭만 다르고 높이는 정착본과 같다. 몇 개가 올지는 지금 오는
+ *  값이라, 좌측은 흔한 규모(5), 우측은 한 NLB 의 서비스 몇 개로 세운다. */
+const SKELETON_MASTER_WIDTHS = [72, 64, 78, 68, 74];
+const SKELETON_CHIP_WIDTHS = [46, 52, 40, 58, 44, 50, 38];
+
 /** rows → one entry per NLB, index ascending; nulls last. */
 function toGroups(rows: { serviceCode: string | null; nlbIndex: number | null }[]): NlbGroup[] {
   const byIndex = new Map<number | null, string[]>();
@@ -82,8 +88,11 @@ export interface ServiceAssignmentModalProps {
   open: boolean;
   onClose: () => void;
   resource: RequestResourceRow;
-  /** All resources' mappings, or null when the fetch failed. */
-  mappings: ResourceNlbMappings[] | null;
+  /**
+   * All resources' mappings — `undefined` while the fetch is in flight, `null` when it
+   * failed. 조회 중을 실패로 접으면 아직 도는 요청을 두고 「불러오지 못했어요」라고 말한다.
+   */
+  mappings: ResourceNlbMappings[] | null | undefined;
 }
 
 export function ServiceAssignmentModal({
@@ -95,7 +104,10 @@ export function ServiceAssignmentModal({
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<number | null | undefined>(undefined);
 
-  const rows = findResourceMappings(mappings, resource.resourceId);
+  // 조회 중은 조인 전에 갈린다 — `findResourceMappings` 의 null 은 「알 수 없음」이고,
+  // 그 낱말을 아직 오지 않은 것에 쓰면 실패와 같은 화면이 된다.
+  const rows =
+    mappings === undefined ? undefined : findResourceMappings(mappings, resource.resourceId);
   const total = rows?.length ?? 0;
 
   const groups = useMemo(() => toGroups(rows ?? []), [rows]);
@@ -147,7 +159,52 @@ export function ServiceAssignmentModal({
         )}
       </div>
 
-      {rows === null ? (
+      {rows === undefined ? (
+        /* 정착본의 그 틀 그대로 — 도구 줄 한 칸과 좌우 두 칸짜리 상자가 서고, 값만
+           막대다. 검색 칸까지 실물로 세우지 않는 이유는 그것이 고정 문자열이 아니라
+           컨트롤이라서다: 아직 오지 않은 목록을 거를 수 있는 것처럼 보인다.
+           높이는 정착본의 클래스에서 온다 — 도구 줄은 SEARCH 의 py-2(16) + 14px 줄
+           상자 + 테두리 2, 카운트는 12px 줄 상자, 좌측 행은 MASTER_ITEM 의 py-2(16) +
+           12px 줄 상자 + 밑줄 1. 상자 높이는 좌측이 잡는다(정착본과 같은 규칙). */
+        <div aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <div className="mt-4 flex items-center gap-3">
+            <span className={cn(pipelineStyles.skeletonBar, 'block h-[38px] flex-1 rounded-lg')} aria-hidden />
+            <span
+              className={cn(pipelineStyles.skeletonBar, 'block h-[17px] w-[136px] flex-none rounded')}
+              aria-hidden
+            />
+          </div>
+          <div
+            className="mt-3 grid grid-cols-[236px_1fr] overflow-hidden rounded-[10px] border border-[var(--pl-border)]"
+            aria-hidden
+          >
+            <div className="border-r border-[var(--pl-border)] bg-[var(--pl-bg-inner)]">
+              {SKELETON_MASTER_WIDTHS.map((width, index) => (
+                <div
+                  key={index}
+                  className="flex items-baseline justify-between gap-2 border-b border-[var(--pl-border)] px-3 py-2"
+                >
+                  <span className={cn(pipelineStyles.skeletonBar, 'block h-[17px] rounded')} style={{ width }} />
+                  <span className={cn(pipelineStyles.skeletonBar, 'block h-[17px] w-3 rounded')} />
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-3">
+              <span className={cn(pipelineStyles.skeletonBar, 'mb-2.5 block h-[17px] w-[168px] rounded')} />
+              <div className="flex flex-wrap gap-1.5">
+                {SKELETON_CHIP_WIDTHS.map((width, index) => (
+                  <span
+                    key={index}
+                    className={cn(pipelineStyles.skeletonBar, 'block h-[23px] rounded-md')}
+                    style={{ width }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : rows === null ? (
         <div className={EMPTY_WRAP}>
           <p className={EMPTY_TITLE}>조합을 불러오지 못했어요</p>
           <p className={EMPTY_BODY}>
