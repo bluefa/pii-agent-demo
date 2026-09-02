@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import type { ResourcesState } from '@/app/hooks/useIdcResources';
@@ -139,6 +139,164 @@ describe('IdcConfirmedResourcesPanel — when the logical-DB counts are re-read'
       <IdcConfirmedResourcesPanel targetSourceId={42} state={state} scope="latestSuccess" />,
     );
     await waitFor(() => expect(logicalGroupHeader()).toBeTruthy());
+    expect(getSummariesMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * 수 칸의 두 부재. `—` 는 이번 회차가 이 행을 말하지 않았다는 **정착한 사실**이고,
+ * 스켈레톤은 이번 회차의 수를 아직 모른다는 뜻이다. 연결 상태가 대기·진행 중이라 말하는
+ * 행이 같은 줄에서 직전 회차의 `8개` 를 이번 회차의 값인 양 내밀던 것이 여기서 고쳐진다.
+ */
+describe('IdcConfirmedResourcesPanel — 이번 회차의 건수를 모르는 동안', () => {
+  const summaries = [
+    { resource_id: 'r1', logical_database_count: 8, excluded_logical_database_count: 3 },
+  ];
+  // `8개` 는 수와 단위가 두 노드라 getByText 로는 잡히지 않는다 — 자리로 집는다.
+  // 스텝 6·7 열: 접속 주소 · Port · Database Type · 대상 · 제외 · BDC측 출발지.
+  const countCells = () => {
+    const row = screen.getByText('10.0.0.1').closest('tr') as HTMLTableRowElement;
+    return [row.cells[3], row.cells[4]];
+  };
+  const skeletons = () =>
+    countCells().reduce((n, td) => n + td.querySelectorAll('.animate-pulse').length, 0);
+
+  beforeEach(() => {
+    getSummariesMock.mockReset();
+    getSummariesMock.mockResolvedValue(summaries);
+  });
+
+  it('holds the count cells at a skeleton while the run is in flight', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+
+    // 다음 실행이 뜬다 — 이 회차는 아직 아무 수도 보고하지 않았다.
+    rerender(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused
+      />,
+    );
+
+    expect(skeletons()).toBe(2);
+    // 직전 회차의 수도, 정착한 부재(—)도 아니다.
+    expect(countCells().map((td) => td.textContent)).toEqual(['', '']);
+  });
+
+  /**
+   * 정착과 새 응답 사이의 틈 — 회차는 넘어갔는데 조회는 아직 떠 있다. 도장이 회차를 함께
+   * 물지 않으면 이 구간에서 직전 회차의 수가 그대로 서고, 그게 정착 순간의 깜빡임이다.
+   */
+  it('does not flash the previous round while the new counts are still in flight', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+
+    let answer: (rows: Record<string, unknown>[]) => void = () => {};
+    getSummariesMock.mockImplementation(
+      () =>
+        new Promise<Record<string, unknown>[]>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await act(async () => {
+      rerender(
+        <IdcConfirmedResourcesPanel
+          targetSourceId={42}
+          state={state}
+          scope="latest"
+          runVersion={8}
+          countsPaused={false}
+        />,
+      );
+    });
+
+    expect(skeletons()).toBe(2);
+    expect(countCells()[0].textContent).not.toBe('8개');
+
+    // 답이 오면 그때 선다 — 스켈레톤은 늦추는 것이지 비우는 것이 아니다.
+    await act(async () => {
+      answer([{ resource_id: 'r1', logical_database_count: 5, excluded_logical_database_count: 0 }]);
+    });
+    await waitFor(() => expect(countCells()[0].textContent).toBe('5개'));
+    expect(skeletons()).toBe(0);
+  });
+
+  /**
+   * 조회가 실패해도 이 회차에 대한 답은 나온 것이다 — 실패라는 답. 실패 갈래가 회차 도장을
+   * 찍지 않으면 셋째 항이 영영 참이라 그 칸은 스켈레톤에서 나오지 못하고, 화면은 "아직
+   * 읽는 중"이라고 끝없이 말한다. 정착한 부재는 `—` 다.
+   */
+  it('settles the skeleton to — when the read for the new round fails', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={7}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+
+    getSummariesMock.mockRejectedValue(new Error('503'));
+    await act(async () => {
+      rerender(
+        <IdcConfirmedResourcesPanel
+          targetSourceId={42}
+          state={state}
+          scope="latest"
+          runVersion={8}
+          countsPaused={false}
+        />,
+      );
+    });
+
+    await waitFor(() => expect(countCells()[0].textContent).toBe('—'));
+    expect(skeletons()).toBe(0);
+  });
+
+  /**
+   * 스텝 6·7 은 회차 축을 넘기지 않는다. 세 항이 어떤 상태에서도 거짓이라, 조회가 아직
+   * 떠 있는 첫 프레임에도 그 표는 오늘과 같은 픽셀이다 — 그리고 읽기는 여전히 마운트 한 번.
+   */
+  it('leaves steps 6·7 without a skeleton in any frame, still one read on mount', async () => {
+    let answer: (rows: Record<string, unknown>[]) => void = () => {};
+    getSummariesMock.mockImplementation(
+      () =>
+        new Promise<Record<string, unknown>[]>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(<IdcConfirmedResourcesPanel targetSourceId={42} state={state} scope="latestSuccess" />);
+
+    // 조회는 아직 떠 있다 — 그래도 스켈레톤이 아니라 정착한 `—` 다.
+    expect(skeletons()).toBe(0);
+    expect(countCells().map((td) => td.textContent)).toEqual(['—', '—']);
+
+    await act(async () => {
+      answer(summaries);
+    });
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+    expect(skeletons()).toBe(0);
     expect(getSummariesMock).toHaveBeenCalledTimes(1);
   });
 });

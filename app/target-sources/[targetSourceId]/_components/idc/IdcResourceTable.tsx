@@ -71,6 +71,12 @@ interface IdcResourceTableProps {
    */
   logicalDbCounts?: LogicalDbCountMap;
   /**
+   * `logicalro` column only — 이번 회차의 건수를 아직 모른다(첫 조회 전, 실행이 도는 중,
+   * 회차는 넘어갔는데 새 응답이 아직). 그동안 두 수는 스켈레톤이다 — `—` 는 "이번 회차가
+   * 이 행을 말하지 않았다" 라는 정착한 사실이라 이 자리에 쓸 수 없다.
+   */
+  countsLoading?: boolean;
+  /**
    * `conn` column only — 최근 실행의 리소스별 판정(`foldAgentStatuses`). **행의
    * `connection` 이 아니라 이 맵을 읽는다**: 그 필드는 무보고를 PENDING 으로 접어서
    * "아직 아무 결과도 없다" 와 "agent 가 대기라고 보고했다" 를 같은 픽셀로 만든다.
@@ -293,6 +299,7 @@ export const IdcResourceTable = ({
   credentials,
   onCredentialOpen,
   logicalDbCounts,
+  countsLoading = false,
   connectionStatusByResource,
   connectionLoading = false,
   connectionHasRun = false,
@@ -444,12 +451,14 @@ export const IdcResourceTable = ({
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.target ?? null}
                         label={t.logicalTargetLabel(r.hosts[0] ?? r.resourceId)}
+                        loading={countsLoading}
                       />
                     </td>
                     <td className={idcStyles.table.approvalCell}>
                       <LogicalDbCountCell
                         count={logicalDbCounts?.get(r.resourceId)?.excluded ?? null}
                         label={t.logicalExcludedLabel(r.hosts[0] ?? r.resourceId)}
+                        loading={countsLoading}
                       />
                     </td>
                     {/* 건수와 무관하게 언제나 선다. 제외 정책은 실행이 만드는 것이 아니라

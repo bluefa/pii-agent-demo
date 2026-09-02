@@ -253,7 +253,9 @@ describe('ConnectionTestCard', () => {
     // 판정 없음을 말하는 두 태그도 아직 서면 안 된다 — 모르는 동안은 스켈레톤뿐이다.
     expect(within(table).queryByText('미보고')).toBeNull();
     expect(within(table).queryByText('미실행')).toBeNull();
-    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
+    // 연결 상태 + 대상 + 제외 — 세 칸 다 "아직 모른다"이다. 첫 폴링 전에는 판정도 수도
+    // 없고, 수 칸의 `—` 는 이번 회차가 답했다는 뜻이라 그 자리에 쓸 수 없다.
+    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(3);
   });
 
   /**
@@ -303,7 +305,7 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
 
-  it('replaces the skeleton with the verdict once the poll lands', () => {
+  it('replaces the skeleton with the verdict once the poll lands', async () => {
     pollingState.loading = false;
     pollingState.triggering = false;
     pollingState.canRunTest = true;
@@ -312,8 +314,9 @@ describe('ConnectionTestCard', () => {
 
     const table = screen.getByRole('table');
     expect(table.getAttribute('aria-busy')).toBe('false');
-    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(0);
     expect(within(table).getByText('성공')).toBeTruthy();
+    // 수 칸은 제 회차의 답까지 기다린다 — 판정보다 한 박자 늦게 스켈레톤을 내려놓는다.
+    await waitFor(() => expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(0));
   });
 
   it('disables the run CTA when a row has no credential, without touching Connection Status', () => {
@@ -753,6 +756,40 @@ describe('ConnectionTestCard', () => {
 
       await waitFor(() => expect(row().cells[6].textContent).toBe('—'));
       expect(row().cells[7].textContent).toBe('—');
+    });
+
+    /**
+     * 도는 동안 화면에 남아 있던 것은 직전 회차의 수였다 — `대상 8개` 가 이번 회차의 값인
+     * 양 그대로 서 있었다. 모르는 동안은 스켈레톤이고 `—` 도 아니다: 그 대시는 "이번 회차가
+     * 이 행을 말하지 않았다"는 정착한 사실이라 아직 참이 아니다.
+     *
+     * 실행을 부른 직후(QUEUED)를 고른 이유: latest_version 이 새 회차를 되돌려주기 전이라
+     * `runVersion` 은 아직 직전 회차 그대로다. 회차 도장으로는 가려지지 않는 구간이고,
+     * `testing` 항이 홀로 지키는 자리다.
+     */
+    it('holds the counts at a skeleton the moment a run is called, not at the previous round', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 8, excluded_logical_database_count: 3 },
+      ]);
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('8개'));
+
+      // 실행을 불렀다 — 아직 같은 회차를 들고 있지만, 이 수는 더 이상 "이번 실행"의 것이 아니다.
+      pollingState.uiState = 'QUEUED';
+      await act(async () => {
+        rerender();
+      });
+
+      expect(row().cells[6].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[7].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[6].textContent).toBe('');
+      expect(row().cells[7].textContent).toBe('');
     });
 
     /**
