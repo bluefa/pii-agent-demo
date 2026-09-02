@@ -300,3 +300,56 @@ describe('IdcConfirmedResourcesPanel — 이번 회차의 건수를 모르는 �
     expect(getSummariesMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * 대상을 갈아탄 직후. 맵은 도장(`fetched.targetSourceId`)이 어긋나 비지만, `countsLoading`
+ * 은 그 도장을 보지 않는다 — 두 대상이 같은 회차 위에 있으면 셋째 항도 거짓이라 화면은
+ * 새 대상의 조회가 닿기 전에 이미 `—` 를 단언한다. 그 `—` 는 "이번 회차가 이 행을 말하지
+ * 않았다" 가 아니라 "아직 묻지도 않았다" 다.
+ */
+describe('IdcConfirmedResourcesPanel — 대상을 갈아탄 직후', () => {
+  const summaries = [
+    { resource_id: 'r1', logical_database_count: 8, excluded_logical_database_count: 3 },
+  ];
+  const countCells = () => {
+    const row = screen.getByText('10.0.0.1').closest('tr') as HTMLTableRowElement;
+    return [row.cells[3], row.cells[4]];
+  };
+  const skeletons = () =>
+    countCells().reduce((n, td) => n + td.querySelectorAll('.animate-pulse').length, 0);
+
+  beforeEach(() => {
+    getSummariesMock.mockReset();
+    getSummariesMock.mockResolvedValue(summaries);
+  });
+
+  it('holds the count cells at a skeleton while the new target is still being read', async () => {
+    const { rerender } = render(
+      <IdcConfirmedResourcesPanel
+        targetSourceId={42}
+        state={state}
+        scope="latest"
+        runVersion={3}
+        countsPaused={false}
+      />,
+    );
+    await waitFor(() => expect(countCells()[0].textContent).toBe('8개'));
+
+    // 두 대상이 같은 회차 위에 있다 — 목의 모든 대상이 test_connection_version: 3 이다.
+    getSummariesMock.mockImplementation(() => new Promise<Record<string, unknown>[]>(() => {}));
+    await act(async () => {
+      rerender(
+        <IdcConfirmedResourcesPanel
+          targetSourceId={99}
+          state={state}
+          scope="latest"
+          runVersion={3}
+          countsPaused={false}
+        />,
+      );
+    });
+
+    expect(skeletons()).toBe(2);
+    expect(countCells().map((td) => td.textContent)).toEqual(['', '']);
+  });
+});

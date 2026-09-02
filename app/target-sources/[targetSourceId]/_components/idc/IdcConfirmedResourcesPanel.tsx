@@ -121,13 +121,17 @@ export const IdcConfirmedResourcesPanel = ({
   // counts land. Resource ids can repeat across target sources — a stale map would silently
   // attribute one target's counts to another's rows.
   const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
-  // 이번 회차의 건수를 아는가. 세 갈래 전부 "아직 모른다" 이고, 그동안 수 칸은
+  // 이번 회차의 건수를 아는가. 네 갈래 전부 "아직 모른다" 이고, 그동안 수 칸은
   // 스켈레톤이다 — 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 `대상 8개` 라고
-  // 단언할 수는 없다. 셋째 항은 정착과 새 응답 사이의 틈이다: 그게 없으면 정착하는 순간
-  // 직전 회차의 수가 잠깐 스친다. 스텝 6·7 은 `runVersion` 을 넘기지 않으므로 세 항이
-  // 어떤 상태에서도 거짓이다.
+  // 단언할 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다: 맵만 비우면 아직
+  // 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항은 정착과 새 응답
+  // 사이의 틈이다: 그게 없으면 정착하는 순간 직전 회차의 수가 잠깐 스친다. 스텝 6·7 은
+  // `runVersion` 을 넘기지 않으므로 넷째 항만 어떤 상태에서도 거짓이다.
   const countsLoading =
-    connectionLoading || countsPaused || (runVersion != null && fetched.runVersion !== runVersion);
+    connectionLoading ||
+    countsPaused ||
+    fetched.targetSourceId !== targetSourceId ||
+    (runVersion != null && fetched.runVersion !== runVersion);
 
   // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
   // steps 1·2·3 use.

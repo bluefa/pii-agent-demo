@@ -847,8 +847,9 @@ describe('ConnectionTestCard', () => {
 
     /**
      * 대상을 갈아타면 옛 대상의 수는 새 화면에 서면 안 된다 — resourceId 는 대상 간에 겹칠
-     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지는
-     * 이 행에 대해 아는 것이 없으므로 `—` 다.
+     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지
+     * 서는 것은 `—` 가 아니라 스켈레톤이다 — 아직 안 물어봤다는 것은 이 회차가 이 행을 두고
+     * 아무 말도 하지 않았다는 정착한 부재(`—`)와 같은 부재가 아니다.
      */
     it('does not leak the previous target counts into a target it has not read yet', async () => {
       getSummariesMock.mockResolvedValue([
@@ -884,8 +885,10 @@ describe('ConnectionTestCard', () => {
       await act(async () => {
         rerender(element(2));
       });
-      expect(row().cells[6].textContent).toBe('—');
-      expect(row().cells[7].textContent).toBe('—');
+      expect(row().cells[6].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[7].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[6].textContent).toBe('');
+      expect(row().cells[7].textContent).toBe('');
 
       // 도장이 맞는 답이 오면 그때 선다 — 게이트는 늦추는 것이지 비우는 것이 아니다.
       await act(async () => {

@@ -382,12 +382,17 @@ export const ConnectionTestCard = ({
   // 대상을 갈아탄 직후의 낡은 맵은 남의 수를 이 행에 조용히 붙인다.
   const logicalDbCounts =
     fetchedCounts.targetSourceId === targetSourceId ? fetchedCounts.counts : EMPTY_COUNTS;
-  // 이번 회차의 건수를 아는가. 첫 폴링 전, 실행이 도는 중, 그리고 회차는 넘어갔는데 새
-  // 응답이 아직 — 셋 다 "모른다" 이고, 그동안 두 수는 스켈레톤이다. 연결 상태가 대기·진행
-  // 중이라 말하는 행이 같은 줄에서 직전 회차의 `대상 8개` 를 이번 회차의 값인 양 내밀 수는
-  // 없다. 셋째 항이 없으면 정착하는 순간 그 옛 수가 새 응답이 닿기 전까지 잠깐 스친다.
+  // 이번 회차의 건수를 아는가. 첫 폴링 전, 실행이 도는 중, 대상을 갈아탄 직후, 그리고
+  // 회차는 넘어갔는데 새 응답이 아직 — 넷 다 "모른다" 이고, 그동안 두 수는 스켈레톤이다.
+  // 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 직전 회차의 `대상 8개` 를 이번
+  // 회차의 값인 양 내밀 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다 —
+  // 맵만 비우면 아직 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항이
+  // 없으면 정착하는 순간 그 옛 수가 새 응답이 닿기 전까지 잠깐 스친다.
   const countsLoading =
-    loading || testing || (runVersion != null && fetchedCounts.runVersion !== runVersion);
+    loading ||
+    testing ||
+    fetchedCounts.targetSourceId !== targetSourceId ||
+    (runVersion != null && fetchedCounts.runVersion !== runVersion);
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
