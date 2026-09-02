@@ -19,7 +19,7 @@
  *  - Fixture timestamps are anchored relative to module-load NOW so the 1h/1d/7d
  *    period windows never rot.
  */
-import { getCurrentUser, getProjectByTargetSourceId } from '@/lib/mock-data';
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import { SYSTEM_REQUESTER } from '@/lib/pipeline/types';
 import type {
   CloudProvider,
@@ -1240,11 +1240,18 @@ const hasActiveRun = (targetSourceId: string): boolean =>
 const nextPipelineId = (): number => store().reduce((max, p) => Math.max(max, p.pipeline_id), 0) + 1;
 
 /**
- * What the real BFF injects into `requested_by` from its verified session — the
- * console never sends it. The mock stands in with its current user, so a run
- * started from the console names the operator the TopNav chip shows.
+ * `requested_by` as the orchestrator records it: the value the proxy route
+ * stamped into the body (`withRequester`, the signed-in user's id), trimmed,
+ * blank → null. The mock does not invent a requester of its own — a body that
+ * carries none records none, exactly like upstream.
  */
-const currentRequester = (): string | null => getCurrentUser()?.name ?? null;
+const requesterFrom = (body: unknown): string | null => {
+  if (body === null || typeof body !== 'object') return null;
+  const raw = (body as { requested_by?: unknown }).requested_by;
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return trimmed === '' ? null : trimmed;
+};
 
 const parseIntParam = (value: string | null, fallback: number): number => {
   if (value === null) return fallback;
@@ -1861,7 +1868,7 @@ export const mockPipeline = {
       return err(409, 'PIPELINE_ALREADY_ACTIVE', `target '${targetSourceId}' already has an active run`, path);
     }
     const created = buildPendingPipeline(
-      targetSourceId, provider, type, recipe.name, recipe.steps, currentRequester(),
+      targetSourceId, provider, type, recipe.name, recipe.steps, requesterFrom(body),
     );
     store().push(created);
     return ok(toDetail(created));
@@ -1936,7 +1943,7 @@ export const mockPipeline = {
       cloud_provider: provider,
       recipe_definition: null,
       status: 'PENDING',
-      requested_by: currentRequester(),
+      requested_by: requesterFrom(body),
       request_note: null,
       created_at: now,
       last_activity_at: now,
@@ -2053,7 +2060,7 @@ export const mockPipeline = {
     }));
     // Upstream RequestContext.orInheritFrom: a restart that carries its own
     // requester is a new request; one that carries none inherits the origin's.
-    const requester = currentRequester();
+    const requester = requesterFrom(body);
     const created: MockPipeline = {
       pipeline_id: newId,
       type: origin.type,

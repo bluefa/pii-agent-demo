@@ -133,9 +133,9 @@ export interface TaskSummary {
 }
 
 /**
- * The `requested_by` the BFF writes for a run it started on its own — the
- * auto-install a target gets on entering 4단계. Every other value in that field
- * is a verified account id, so the console prints this one as 시스템.
+ * The `requested_by` the orchestrator writes for a run it started on its own —
+ * the auto-install a target gets on entering 4단계. Every other value in that
+ * field is a signed-in user's id, so the console prints this one as 시스템.
  */
 export const SYSTEM_REQUESTER = 'SYSTEM';
 
@@ -164,8 +164,9 @@ export interface PipelineDetail {
   done_task_count: number;
   total_task_count: number;
   tasks: TaskSummary[];
-  /** Who asked for this run: the account the BFF verified from its session, or
-   *  `SYSTEM_REQUESTER` when the BFF started the run itself. Detail only — the
+  /** Who asked for this run: the signed-in user's id (`/user/me` `id`, stamped by
+   *  the proxy route — never typed by the client), or `SYSTEM_REQUESTER` when the
+   *  orchestrator started the run itself. Detail only — the
    *  upstream keeps it out of `PipelineSummary`. Optional: absent on a backend
    *  without request context (pipeline-orchestrator PR #53). */
   requested_by?: string | null;

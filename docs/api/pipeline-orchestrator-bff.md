@@ -179,8 +179,10 @@ GNB: `lib/routes.ts`에 경로 상수 추가 + `TopNav.tsx` `NAV_ITEMS`에 "파�
   **키 자체가 생략**(NON_NULL). `effective_execution_timeout`은 CONDITION_CHECK에서 null.
 - **요청 맥락 `requested_by`(≤100) · `request_note`(≤512)** — 생성(#10)·custom(#11)·재시작 본문에
   선택으로 실리고 `PipelineDetail`에만 노출된다(`PipelineSummary` #3/#7/#8에는 없음 — 자유 텍스트를
-  목록으로 퍼뜨리지 않는 업스트림 결정). 두 값은 **BFF가 검증된 세션 계정에서 주입**한다 — 콘솔은 본문에
-  넣지 않는다(클라이언트가 보낸 identity는 신뢰하지 않음). 오케스트레이터가 4단계 진입 이벤트(GCP Pub/Sub)를 직접 받아
+  목록으로 퍼뜨리지 않는 업스트림 결정). `requested_by`는 **프록시 라우트(서버)가 `/user/me`의 `id`(사용자 id, email 아님)를 본문에 찍는다**
+  (`withRequester` — 생성·custom·재시작 세 라우트). 브라우저는 보내지 않고, 보내도 덮어쓴다(클라이언트가
+  보낸 identity는 신뢰하지 않음). `/user/me`를 못 얻으면 본문을 그대로 올려 요청자를 비운다 — 추측값을
+  적지 않는다. 업스트림 BFF가 세션에서 다시 찍어도 같은 값이다. 오케스트레이터가 4단계 진입 이벤트(GCP Pub/Sub)를 직접 받아
   스스로 여는 자동 설치(Azure/IDC)는 `requested_by: "SYSTEM"`(예약값, `SYSTEM_REQUESTER`)을 넣고 이유는
   `request_note`에 적는다. 콘솔은 상세에서 「수행 담당자 {계정}」/「수행 담당자 시스템」으로 그리고,
   값이 없는 행(기능 이전 실행)은 그 항목을 생략한다. 재시작은 자기 요청자를 실으면 그 사람이 새 요청자,

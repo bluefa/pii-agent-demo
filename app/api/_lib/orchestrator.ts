@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestId } from '@/app/api/_lib/request-id';
+import { getMeOrNull } from '@/lib/bff/current-user';
 import { OrchestratorUnreachableError } from '@/lib/bff/errors';
 import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
 
@@ -16,6 +17,22 @@ import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
 export interface OrchestratorHandlerContext {
   requestId: string;
   params: Record<string, string>;
+}
+
+/**
+ * Stamp the signed-in user's id into `requested_by` of a run-starting body
+ * (create / custom / restart). The id comes from the request-scoped `/user/me`
+ * (the session cookie the browser sent, verified upstream) — never from the
+ * body, so a client-supplied `requested_by` is always overwritten. When the
+ * identity cannot be resolved the body goes up untouched and the orchestrator
+ * records no requester rather than a guessed one.
+ */
+export async function withRequester(body: unknown): Promise<unknown> {
+  const me = await getMeOrNull();
+  const userId = me?.id?.trim();
+  if (!userId) return body;
+  const base = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  return { ...base, requested_by: userId };
 }
 
 type OrchestratorHandler = (
