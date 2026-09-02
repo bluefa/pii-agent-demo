@@ -253,31 +253,34 @@ describe('여덟 열짜리 이력만 옆으로 민다', () => {
   });
 });
 
-describe('네 뷰의 행은 모두 Target Source 운영 상세로 간다', () => {
+describe('행의 목적지는 뷰가 고른다 — 요청 두 뷰는 연동 요청 상세, 나머지 둘은 운영 상세', () => {
   const opsHref = '/admin/pipelines/ops/target-sources/1801';
+  const requestHref = '/admin/pipelines/queue/requests/1801';
 
-  it('승인 대기 행', async () => {
+  it('승인 대기 행 — 연동 요청 상세', async () => {
     await draw();
-    expect(screen.getByRole('link', { name: '정산서비스 운영 상세 보기' }).getAttribute('href')).toBe(
-      opsHref,
-    );
+    expect(
+      screen.getByRole('link', { name: '정산서비스 연동 요청 상세 보기' }).getAttribute('href'),
+    ).toBe(requestHref);
+    expect(screen.queryByRole('link', { name: '정산서비스 운영 상세 보기' })).toBeNull();
   });
 
-  it('반려 미확인 행', async () => {
+  it('반려 미확인 행 — 연동 요청 상세', async () => {
     await draw('rejected');
-    expect(screen.getByRole('link', { name: '반려서비스 운영 상세 보기' }).getAttribute('href')).toBe(
-      opsHref,
-    );
+    expect(
+      screen.getByRole('link', { name: '반려서비스 연동 요청 상세 보기' }).getAttribute('href'),
+    ).toBe(requestHref);
+    expect(screen.queryByRole('link', { name: '반려서비스 운영 상세 보기' })).toBeNull();
   });
 
-  it('전체 이력 행 — 이제 이 행도 움직인다', async () => {
+  it('전체 이력 행 — 이제 이 행도 움직인다 (운영 상세)', async () => {
     await draw('history');
     expect(screen.getByRole('link', { name: '이력서비스 운영 상세 보기' }).getAttribute('href')).toBe(
       opsHref,
     );
   });
 
-  it('최근 생성 행', async () => {
+  it('최근 생성 행 — 운영 상세', async () => {
     await draw('recent');
     expect(
       screen.getByRole('link', { name: '신규서비스 운영 상세 보기' }).getAttribute('href'),
