@@ -741,14 +741,45 @@ export function ConfirmedInfoCard({
   return (
     <>
       {loading ? (
-        <div className="mt-3" aria-busy>
-          {Array.from({ length: 4 }, (_, index) => (
-            <div
-              key={index}
-              className={cn(opsStyles.skeleton, 'mt-2 h-10 first:mt-0')}
-              aria-hidden="true"
-            />
-          ))}
+        /* 표의 자국 — 같은 프레임(`TABLE_FRAME`), **같은 셸**, 페이지 크기만큼의 행.
+           종전의 h-10 막대 넷은 프레임도 열 머리도 없이 맨 바닥에 서 있어서, 행이
+           도착하는 순간 이 탭에서 가장 큰 면이 테두리를 얻고 머리 두 단만큼 자랐다 —
+           막으려던 그 리플로우를 스스로 냈다.
+
+           머리는 `ConsoleTable` 이 그대로 그린다: 열 이름도 그룹 머리도 이 화면이 이미
+           아는 고정 문자열이고(`isIdc` 는 프롭이라 조회를 기다리지 않는다), 셸을 공유하면
+           열이 바뀌는 날 스켈레톤이 따로 늙지 않는다. 드래그 폭(`resize`)도 같이 든다.
+
+           행 높이를 세우는 것은 연결 상태 칸이다 — 그 자리표(`ConnCell` 의 loading 갈래,
+           알약 28 + 4 + 글줄 21 = 53px)는 이미 실측된 물건이라 여기서 그대로 재사용한다.
+           나머지 칸의 막대는 14px 글줄 상자(19.6) → h-5 이고, 폭은 열 폭의 55% 다:
+           `COL_W` 가 움직이면 같이 움직이게, 손으로 벤 수를 남기지 않는다.
+
+           ⛔ 페이저는 안 그린다. 건수를 모르는 채로 그 바를 세우면 `0–0 / 0건` 이라고
+           **말하게 된다** — 조회 중의 `—` 와 같은 거짓이다. 아래에 아무것도 서지 않는
+           바라 빠져도 밀리는 것이 없다(`ResourceSectionSkeleton` 의 같은 판단). */
+        <div className={TABLE_FRAME} aria-busy>
+          <span className="sr-only">확정 정보를 불러오는 중</span>
+          <ConsoleTable columns={columns} groups={LDB_GROUPS} resize={resize} busy>
+            <tbody className={idcStyles.table.body} aria-hidden>
+              {Array.from({ length: DEFAULT_PAGE_SIZE }, (_, index) => (
+                <tr key={index}>
+                  {columns.map((column) => (
+                    <td key={column.key} className={CELL}>
+                      {column.key === 'conn' ? (
+                        <ConnCell verdict={undefined} fact={undefined} loading onOpenLog={() => {}} />
+                      ) : (
+                        <span
+                          className={cn(opsStyles.skeletonBar, 'block h-5')}
+                          style={{ width: Math.round(column.width * 0.55) }}
+                        />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </ConsoleTable>
         </div>
       ) : rows.length === 0 ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
