@@ -193,6 +193,26 @@ describe('proxy (auth gate)', () => {
     expect(forwardedPathname(res)).toBe('/pass/services');
   });
 
+  /**
+   * The request the proxy sees on a soft navigation is the RSC fetch, which
+   * carries Next's cache-busting `_rsc` hash. Both exits have to drop it: the
+   * value ends up on the address bar the user lands on after logging in.
+   */
+  it('drops Next\'s internal _rsc query from the path it hands on', async () => {
+    const { proxy } = await import('@/proxy');
+
+    const passed = proxy(
+      new NextRequest('http://localhost:3000/services?tab=aws&_rsc=1abc', {
+        headers: { cookie: 'pass-adsso-token=abc' },
+      }),
+    );
+    expect(forwardedPathname(passed)).toBe('/pass/services?tab=aws');
+
+    const redirected = proxy(new NextRequest('http://localhost:3000/services?tab=aws&_rsc=1abc'));
+    const target = new URL(redirected.headers.get('location') ?? '');
+    expect(target.searchParams.get('returnTo')).toBe('/pass/services?tab=aws');
+  });
+
   // The header feeds a redirect target, so an inbound one is overwritten rather
   // than appended — otherwise a crafted link could pick where the login returns.
   it('overwrites a client-sent x-pathname instead of trusting it', async () => {

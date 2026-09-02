@@ -5,6 +5,9 @@ import { PATHNAME_HEADER } from '@/lib/sso-login';
 // Session cookie issued by the BFF on the AD SSO callback (PR #8646).
 const SESSION_COOKIE = 'pass-adsso-token';
 
+// Next's cache buster on a soft navigation's RSC fetch (NEXT_RSC_UNION_QUERY).
+const RSC_QUERY = '_rsc';
+
 /**
  * Where this request should come back to after logging in again.
  *
@@ -12,9 +15,18 @@ const SESSION_COOKIE = 'pass-adsso-token';
  * the basePath re-attached by NextURL itself, but returnTo travels as a literal
  * query value, so it must carry the `/pass` prefix explicitly or the post-login
  * redirect lands on a 404 (basePath, next.config.ts).
+ *
+ * `_rsc` is dropped because the request this runs on is often the RSC fetch, not
+ * the address bar: kept, a stale internal hash would ride back from the login on
+ * a URL the user then sees and shares. A fresh URLSearchParams — mutating
+ * `nextUrl.searchParams` would edit the very URL the redirect below clones.
  */
-const returnToOf = (request: NextRequest) =>
-  `/pass${request.nextUrl.pathname}${request.nextUrl.search}`;
+const returnToOf = (request: NextRequest) => {
+  const params = new URLSearchParams(request.nextUrl.search);
+  params.delete(RSC_QUERY);
+  const query = params.toString();
+  return `/pass${request.nextUrl.pathname}${query ? `?${query}` : ''}`;
+};
 
 /**
  * Let the request through, telling the server which path it is rendering.
