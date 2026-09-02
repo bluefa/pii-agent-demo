@@ -21,20 +21,38 @@ import { cn, idcStyles, numericFeatures, textColors } from '@/lib/theme';
  * IDC 표의 행은 글자 크기 하나로 읽는다). 전에는 12px 이라 한 칸 안에서 수와 단위가 두
  * 눈금으로 갈렸고, 그 12 는 이 컴포넌트를 함께 쓰는 클라우드 표에도 같이 서 있었다.
  *
+ * `loading` is not the same absence as `—`. The dash is a settled fact — this round answered,
+ * and it said nothing about this row. `loading` is "this round's counts are not known yet",
+ * which a dash would state as a verdict and then flip a moment later. Same distinction
+ * `TcStatusTag` draws in the 연결 상태 칸 next door, drawn the same way: a bar the size of
+ * this cell's content, no text.
+ *
  * Shared by the cloud (WaitingApprovalTable) and IDC (IdcResourceTable) step-6 tables.
  */
 export const LogicalDbCountCell = ({
   count,
   label,
   onOpen,
+  loading = false,
 }: {
   count: number | null | undefined;
   label: string;
   onOpen?: () => void;
+  /** 이번 회차의 건수를 아직 모른다 — 수도 `—` 도 아닌 스켈레톤. */
+  loading?: boolean;
 }) => {
   const { locale } = useLocale();
   const t = CANDIDATE_COPY[locale].logicalDb;
 
+  if (loading) {
+    // 14px 수 + `개` 한 글자의 크기다 — 옆 칸 판정 알약(26×52)이 아니라 이 칸이 들일 내용에 맞춘다.
+    return (
+      <span
+        className={cn(idcStyles.skeletonBar, 'block h-[18px] w-[34px] rounded')}
+        aria-hidden="true"
+      />
+    );
+  }
   if (count == null) return <span className={textColors.tertiary}>—</span>;
   if (count === 0 || !onOpen) {
     // tertiary, not the quaternary used for the — placeholder: a reported count is content, and

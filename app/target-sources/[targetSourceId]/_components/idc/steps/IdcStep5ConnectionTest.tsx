@@ -460,6 +460,10 @@ export const IdcStep5ConnectionTest = ({
                 // 단 스냅샷이 있으면 '읽지 못했다'가 아니다 — 그 회차가 이 행을 언급하지
                 // 않았을 뿐이라 미보고가 참이고, 카드도 같은 순간 미보고로 센다.
                 connectionHasRun={fetchError && !latestJob ? null : !!latestJob}
+                // 회차가 바뀌면 그 회차의 논리 DB 건수를 다시 읽는다. 도는 동안에는 읽지
+                // 않는다 — 이번 회차의 수는 아직 없고, 화면에 남는 것은 직전 회차의 수다.
+                runVersion={latestJob?.test_connection_version ?? null}
+                countsPaused={testing}
               />
             </div>
           </div>

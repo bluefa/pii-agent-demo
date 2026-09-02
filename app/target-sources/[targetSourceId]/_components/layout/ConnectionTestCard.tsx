@@ -348,8 +348,9 @@ export const ConnectionTestCard = ({
   const runVersion = latestJob?.test_connection_version ?? null;
   const [fetchedCounts, setFetchedCounts] = useState<{
     targetSourceId: number;
+    runVersion: number | null;
     counts: LogicalDbCountMap;
-  }>({ targetSourceId, counts: EMPTY_COUNTS });
+  }>({ targetSourceId, runVersion: null, counts: EMPTY_COUNTS });
   useEffect(() => {
     if (testing) return;
     const controller = new AbortController();
@@ -358,7 +359,11 @@ export const ConnectionTestCard = ({
     })
       .then((summaries) => {
         if (controller.signal.aborted) return;
-        setFetchedCounts({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
+        setFetchedCounts({
+          targetSourceId,
+          runVersion,
+          counts: buildLogicalDbCountMap(summaries),
+        });
       })
       .catch(() => {
         // abort 는 실패가 아니다 — 대상을 갈아타거나 회차가 바뀌어 우리가 끊은 것이고,
@@ -367,7 +372,9 @@ export const ConnectionTestCard = ({
         // 조회 실패는 빈 결과가 아니다 — 맵을 비워 모든 수를 `—` 로 되돌린다. 직전 회차의
         // 수를 그대로 두면 이번 회차가 보고한 값인 양 읽히고, 0 을 지어내면 "논리 DB 가
         // 없다" 라는, 계약이 답한 적 없는 사실이 화면에 선다.
-        setFetchedCounts({ targetSourceId, counts: EMPTY_COUNTS });
+        // 도장은 실패에도 찍는다 — 이 회차에 대한 답은 나왔다(조회 실패라는 답). 안 찍으면
+        // 아래 `countsLoading` 의 셋째 항이 영영 참이라 그 칸이 스켈레톤에서 못 나온다.
+        setFetchedCounts({ targetSourceId, runVersion, counts: EMPTY_COUNTS });
       });
     return () => controller.abort();
   }, [targetSourceId, runVersion, testing]);
@@ -375,6 +382,18 @@ export const ConnectionTestCard = ({
   // 대상을 갈아탄 직후의 낡은 맵은 남의 수를 이 행에 조용히 붙인다.
   const logicalDbCounts =
     fetchedCounts.targetSourceId === targetSourceId ? fetchedCounts.counts : EMPTY_COUNTS;
+  // 이번 회차의 건수를 아는가. 첫 폴링 전, 실행이 도는 중, 대상을 갈아탄 직후, 그리고
+  // 회차는 넘어갔는데 새 응답이 아직 — 넷 다 "모른다" 이고, 그동안 두 수는 스켈레톤이다.
+  // 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 직전 회차의 `대상 8개` 를 이번
+  // 회차의 값인 양 내밀 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다 —
+  // 맵만 비우면 아직 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항이
+  // 없으면 정착하는 순간 그 옛 수가 새 응답이 닿기 전까지 잠깐 스친다. 그 항은 회차가
+  // 사라지는 쪽(7 → 없음)에도 걸린다 — 없어진 회차도 넘어간 회차다.
+  const countsLoading =
+    loading ||
+    testing ||
+    fetchedCounts.targetSourceId !== targetSourceId ||
+    fetchedCounts.runVersion !== runVersion;
 
   // Per-unit verdict from the latest poll (hydrates on mount, B3). FAIL-first fold —
   // several agents may report on one unit, and the previous last-write-wins map could
@@ -894,6 +913,7 @@ export const ConnectionTestCard = ({
                           <LogicalDbCountCell
                             count={logicalCount.target}
                             label={t.countLabelTarget(rowName)}
+                            loading={countsLoading}
                           />
                         </td>
                         {/* 제외는 정책이지 실행 결과가 아니다 — 논리 DB 가 없는 엔진에는
@@ -912,6 +932,7 @@ export const ConnectionTestCard = ({
                             <LogicalDbCountCell
                               count={logicalCount.excluded}
                               label={t.countLabelExcluded(rowName)}
+                              loading={countsLoading}
                             />
                           )}
                         </td>

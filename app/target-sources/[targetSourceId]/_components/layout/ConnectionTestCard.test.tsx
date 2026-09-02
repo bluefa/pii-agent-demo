@@ -253,7 +253,9 @@ describe('ConnectionTestCard', () => {
     // 판정 없음을 말하는 두 태그도 아직 서면 안 된다 — 모르는 동안은 스켈레톤뿐이다.
     expect(within(table).queryByText('미보고')).toBeNull();
     expect(within(table).queryByText('미실행')).toBeNull();
-    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(1);
+    // 연결 상태 + 대상 + 제외 — 세 칸 다 "아직 모른다"이다. 첫 폴링 전에는 판정도 수도
+    // 없고, 수 칸의 `—` 는 이번 회차가 답했다는 뜻이라 그 자리에 쓸 수 없다.
+    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(3);
   });
 
   /**
@@ -303,7 +305,7 @@ describe('ConnectionTestCard', () => {
     expect(screen.queryByRole('button', { name: /진행 중/ })).toBeNull();
   });
 
-  it('replaces the skeleton with the verdict once the poll lands', () => {
+  it('replaces the skeleton with the verdict once the poll lands', async () => {
     pollingState.loading = false;
     pollingState.triggering = false;
     pollingState.canRunTest = true;
@@ -312,8 +314,9 @@ describe('ConnectionTestCard', () => {
 
     const table = screen.getByRole('table');
     expect(table.getAttribute('aria-busy')).toBe('false');
-    expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(0);
     expect(within(table).getByText('성공')).toBeTruthy();
+    // 수 칸은 제 회차의 답까지 기다린다 — 판정보다 한 박자 늦게 스켈레톤을 내려놓는다.
+    await waitFor(() => expect(table.querySelectorAll('tbody .animate-pulse').length).toBe(0));
   });
 
   it('disables the run CTA when a row has no credential, without touching Connection Status', () => {
@@ -756,6 +759,40 @@ describe('ConnectionTestCard', () => {
     });
 
     /**
+     * 도는 동안 화면에 남아 있던 것은 직전 회차의 수였다 — `대상 8개` 가 이번 회차의 값인
+     * 양 그대로 서 있었다. 모르는 동안은 스켈레톤이고 `—` 도 아니다: 그 대시는 "이번 회차가
+     * 이 행을 말하지 않았다"는 정착한 사실이라 아직 참이 아니다.
+     *
+     * 실행을 부른 직후(QUEUED)를 고른 이유: latest_version 이 새 회차를 되돌려주기 전이라
+     * `runVersion` 은 아직 직전 회차 그대로다. 회차 도장으로는 가려지지 않는 구간이고,
+     * `testing` 항이 홀로 지키는 자리다.
+     */
+    it('holds the counts at a skeleton the moment a run is called, not at the previous round', async () => {
+      getSummariesMock.mockResolvedValue([
+        { resource_id: 'res-1', logical_database_count: 8, excluded_logical_database_count: 3 },
+      ]);
+      pollingState.uiState = 'SUCCESS';
+      pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+      const rerender = renderStable([
+        makeResource({ resourceId: 'res-1', resourceName: 'named-counted', credentialId: 'Key1' }),
+      ]);
+
+      const row = () => screen.getByText('named-counted').closest('tr') as HTMLTableRowElement;
+      await waitFor(() => expect(row().cells[6].textContent).toBe('8개'));
+
+      // 실행을 불렀다 — 아직 같은 회차를 들고 있지만, 이 수는 더 이상 "이번 실행"의 것이 아니다.
+      pollingState.uiState = 'QUEUED';
+      await act(async () => {
+        rerender();
+      });
+
+      expect(row().cells[6].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[7].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[6].textContent).toBe('');
+      expect(row().cells[7].textContent).toBe('');
+    });
+
+    /**
      * 언제 읽는가는 그려진 수만 봐서는 잠기지 않는다 — 아래 세 테스트는 **호출**을 센다.
      *
      * 도는 동안에는 읽지 않는다: 이 회차의 건수는 아직 없고, 폴링은 몇 초마다 돌아온다.
@@ -810,8 +847,9 @@ describe('ConnectionTestCard', () => {
 
     /**
      * 대상을 갈아타면 옛 대상의 수는 새 화면에 서면 안 된다 — resourceId 는 대상 간에 겹칠
-     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지는
-     * 이 행에 대해 아는 것이 없으므로 `—` 다.
+     * 수 있어서, 도장 없는 맵은 남의 수를 이 행에 조용히 붙인다. 새 조회가 답하기 전까지
+     * 서는 것은 `—` 가 아니라 스켈레톤이다 — 아직 안 물어봤다는 것은 이 회차가 이 행을 두고
+     * 아무 말도 하지 않았다는 정착한 부재(`—`)와 같은 부재가 아니다.
      */
     it('does not leak the previous target counts into a target it has not read yet', async () => {
       getSummariesMock.mockResolvedValue([
@@ -847,8 +885,10 @@ describe('ConnectionTestCard', () => {
       await act(async () => {
         rerender(element(2));
       });
-      expect(row().cells[6].textContent).toBe('—');
-      expect(row().cells[7].textContent).toBe('—');
+      expect(row().cells[6].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[7].querySelectorAll('.animate-pulse').length).toBe(1);
+      expect(row().cells[6].textContent).toBe('');
+      expect(row().cells[7].textContent).toBe('');
 
       // 도장이 맞는 답이 오면 그때 선다 — 게이트는 늦추는 것이지 비우는 것이 아니다.
       await act(async () => {

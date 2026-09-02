@@ -55,6 +55,16 @@ interface IdcConfirmedResourcesPanelProps {
   connectionLoading?: boolean;
   /** `connectionStatus` 와 짝 — 보고가 없는 행이 '미보고'인지 '미실행'인지 가른다. */
   connectionHasRun?: boolean | null;
+  /**
+   * Step 5 only — 지금 실행의 회차(`test_connection_version`). 바뀌면 그 회차의 건수를
+   * 다시 읽는다. 스텝 6·7 은 넘기지 않는다 — 그 화면의 회차는 다시 바뀌지 않는다.
+   */
+  runVersion?: number | null;
+  /**
+   * `runVersion` 과 짝 — 실행이 도는 동안에는 이번 회차의 건수가 아직 없어서, 그때 읽으면
+   * 표 전체가 `—` 로 비었다가 정착 시점에 되돌아온다.
+   */
+  countsPaused?: boolean;
 }
 
 /**
@@ -73,31 +83,59 @@ export const IdcConfirmedResourcesPanel = ({
   connectionStatus,
   connectionLoading = false,
   connectionHasRun = false,
+  runVersion,
+  countsPaused = false,
 }: IdcConfirmedResourcesPanelProps) => {
   const t = IDC_COPY[useLocale().locale];
   // Step 5 counts for the whole table in one call; the per-resource lists load only on open.
-  const [fetched, setFetched] = useState<{ targetSourceId: number; counts: LogicalDbCountMap }>({
-    targetSourceId,
-    counts: EMPTY_COUNTS,
-  });
+  const [fetched, setFetched] = useState<{
+    targetSourceId: number;
+    runVersion: number | null;
+    counts: LogicalDbCountMap;
+  }>({ targetSourceId, runVersion: null, counts: EMPTY_COUNTS });
   useEffect(() => {
+    if (countsPaused) return;
     const controller = new AbortController();
     void getLatestTestConnectionResultSummaries(targetSourceId, scope, {
       signal: controller.signal,
     })
       .then((summaries) => {
         if (controller.signal.aborted) return;
-        setFetched({ targetSourceId, counts: buildLogicalDbCountMap(summaries) });
+        setFetched({
+          targetSourceId,
+          runVersion: runVersion ?? null,
+          counts: buildLogicalDbCountMap(summaries),
+        });
       })
       .catch(() => {
-        // No summaries available → leave the map empty so cells render "—".
+        // abort 는 실패가 아니다 — 우리가 끊은 것이고 뒤이은 조회가 곧 답한다.
+        if (controller.signal.aborted) return;
+        // No summaries available → leave the map empty so cells render "—". 도장은 그래도
+        // 찍는다: 이 회차에 대한 답은 나왔고(조회 실패라는 답), 안 찍으면 그 칸은 영영
+        // 스켈레톤으로 남는다.
+        setFetched({ targetSourceId, runVersion: runVersion ?? null, counts: EMPTY_COUNTS });
       });
     return () => controller.abort();
-  }, [targetSourceId, scope]);
+  }, [targetSourceId, scope, runVersion, countsPaused]);
   // Stamped with the id it was fetched for, so a switch to another target shows "—" until its own
   // counts land. Resource ids can repeat across target sources — a stale map would silently
   // attribute one target's counts to another's rows.
   const logicalDbCounts = fetched.targetSourceId === targetSourceId ? fetched.counts : EMPTY_COUNTS;
+  // 이번 회차의 건수를 아는가. 네 갈래 전부 "아직 모른다" 이고, 그동안 수 칸은
+  // 스켈레톤이다 — 연결 상태가 대기·진행 중이라 말하는 행이 같은 줄에서 `대상 8개` 라고
+  // 단언할 수는 없다. 셋째 항은 위 맵을 비우는 대상 도장과 같은 축이다: 맵만 비우면 아직
+  // 묻지도 않은 대상의 행이 `—` 라는 정착한 부재를 단언한다. 넷째 항은 정착과 새 응답
+  // 사이의 틈이다: 그게 없으면 정착하는 순간 직전 회차의 수가 잠깐 스친다. 회차는 양쪽을
+  // `?? null` 로 맞춰 비교한다 — 있던 회차가 사라지는 것(7 → 없음)도 회차가 바뀐 것이라,
+  // 그 순간 죽은 회차의 수가 `미실행` 옆에 서서는 안 된다.
+  // 스텝 6·7 은 마운트 경로에서 이 표가 오늘과 같은 픽셀이다: `runVersion` 을 넘기지 않아
+  // 넷째 항의 양쪽이 다 null 이고, 도장도 마운트 순간 자기 대상이다. 다만 셋째 항 자체는
+  // 6·7 에도 산다 — 그 화면에서 대상을 제자리에서 갈아타면 새 조회가 닿을 때까지 스켈레톤이다.
+  const countsLoading =
+    connectionLoading ||
+    countsPaused ||
+    fetched.targetSourceId !== targetSourceId ||
+    fetched.runVersion !== (runVersion ?? null);
 
   // Search / filter / paging shared with the cloud step-6 table, via the same IDC projection
   // steps 1·2·3 use.
@@ -130,6 +168,7 @@ export const IdcConfirmedResourcesPanel = ({
             // deleted on the owner's order with the fw/health columns (LIN-96 §3.7).
             cols={onCredentialOpen ? ['cred', 'conn', 'logicalro', 'src'] : ['logicalro', 'src']}
             logicalDbCounts={logicalDbCounts}
+            countsLoading={countsLoading}
             connectionStatusByResource={connectionStatus}
             connectionLoading={connectionLoading}
             connectionHasRun={connectionHasRun}
