@@ -535,7 +535,10 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
             <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
               {group.map((tab) => {
                 const active = tab === currentTab;
-                const isStep = tab === stepTab;
+                // 같은 탭에 같은 빨강이 둘 서지 않는다 — 5단계(INSTALLED)에 서 있고
+                // 최신 실행이 실패하면 인라인 점과 코너 점이 같은 색으로 겹쳤다. 실패는
+                // 인라인 점이 이미 말하므로 코너는 물러난다.
+                const isStep = tab === stepTab && !(tab === OPS_TAB_SLUGS.tc && tcGate === 'failed');
                 // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
                 // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
                 const words = [
