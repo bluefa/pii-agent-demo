@@ -14,6 +14,7 @@ import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   getTestedLogicalDatabases,
   getExcludedLogicalDatabases,
@@ -41,6 +42,36 @@ const panel = {
 /** Row identity = database[.schema] — 편집 모달과 같은 표기. */
 const itemKey = (database: string, schema?: string): string =>
   schema ? `${database}.${schema}` : database;
+
+/** 정착본 목록이 도착할 때까지 그 자리에 서는 줄 수 — 패널의 min-h 안에 드는 수다. */
+const SKELETON_ROWS = 5;
+
+/**
+ * 대기 프레임 한 패널분. 패널의 제목·틀은 이 모달이 이미 아는 고정 문자열이라 실물로
+ * 서 있고, 기다리는 건 목록과 그 개수뿐이다 — 그래서 그 둘만 바다
+ * (`StatusCardSkeleton` 의 규칙). 두 패널이 같은 마크업을 두 번 내므로 여기 한 번만
+ * 적는다: 다른 건 이름 뒤 표지의 높이뿐이다(연동 대상은 12px 맨 글자 14px, 제외는
+ * `tag.base` 칩 22px).
+ *
+ * 높이는 실측이다(브라우저): 정착본 행이 두 패널 모두 **41px** 이고, `panel.row` 가
+ * py-2(16) + 밑줄(1) 을 쓰므로 안쪽 줄 상자가 24px 이다 — 그래서 감싼 칸이 h-6 이고,
+ * 바는 그 안에서 제 실물 높이로 선다. 다섯 줄은 머리 42 + 5×41 = 247 로 패널의
+ * min-h-[280px] 안에 들어가는 수라, 목록이 도착해도 패널이 그 바닥에서 안 움직인다.
+ */
+function LdbSkeletonRows({ markClass }: { markClass: string }): ReactElement {
+  return (
+    <>
+      {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+        <div key={index} className={panel.row} aria-hidden>
+          <span className="flex h-6 min-w-0 items-center">
+            <span className={cn(opsStyles.skeletonBar, 'block h-[14px] w-[172px]')} />
+            <span className={cn(opsStyles.skeletonBar, 'ml-2 block', markClass)} />
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
 
 export interface LdbViewModalProps {
   targetSourceId: number;
@@ -106,13 +137,19 @@ export function LdbViewModal({
         <div className={panel.wrap}>
           <div className={panel.head}>
             <span className={panel.title}>연동 대상 논리 DB</span>
-            <span className={panel.count}>{loading ? '' : `${tested.length}개`}</span>
-          </div>
-          <div className={panel.body}>
+            {/* 빈 문자열이던 자리 — 개수는 지금 오는 값이라 다른 값들처럼 바로 선다. */}
             {loading ? (
-              <p className={panel.placeholder} aria-busy>
-                불러오는 중…
-              </p>
+              <span className={cn(opsStyles.skeletonBar, 'block h-[14px] w-[30px]')} aria-hidden />
+            ) : (
+              <span className={panel.count}>{`${tested.length}개`}</span>
+            )}
+          </div>
+          <div className={panel.body} aria-busy={loading || undefined}>
+            {loading ? (
+              <>
+                <span className="sr-only">불러오는 중</span>
+                <LdbSkeletonRows markClass="h-[14px] w-[56px]" />
+              </>
             ) : testedFailed ? (
               <p className={panel.placeholder}>연동 대상 목록을 불러오지 못했습니다.</p>
             ) : tested.length === 0 ? (
@@ -138,13 +175,16 @@ export function LdbViewModal({
         <div className={panel.wrap}>
           <div className={panel.head}>
             <span className={panel.title}>연동 제외 논리 DB</span>
-            <span className={panel.count}>{loading ? '' : `${excluded.length}개`}</span>
-          </div>
-          <div className={panel.body}>
             {loading ? (
-              <p className={panel.placeholder} aria-busy>
-                불러오는 중…
-              </p>
+              <span className={cn(opsStyles.skeletonBar, 'block h-[14px] w-[30px]')} aria-hidden />
+            ) : (
+              <span className={panel.count}>{`${excluded.length}개`}</span>
+            )}
+          </div>
+          <div className={panel.body} aria-busy={loading || undefined}>
+            {loading ? (
+              /* 제외 행의 표지는 `tag.base` 칩이다 — 실측 22px. */
+              <LdbSkeletonRows markClass="h-[22px] w-[72px] rounded-md" />
             ) : excludedFailed ? (
               <p className={panel.placeholder}>제외 목록을 불러오지 못했습니다.</p>
             ) : excluded.length === 0 ? (

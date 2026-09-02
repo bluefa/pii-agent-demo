@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -52,6 +52,32 @@ describe('ApprovalRequestDetailModal', () => {
     getApprovalRequestDetail.mockResolvedValue({
       resources: Array.from({ length: 23 }, (_, i) => resource(i, i % 5 !== 0)),
     });
+  });
+
+  /**
+   * § ③ opens into the list's own footprint. It used to be one centred line of text in a
+   * ~70px box, so the modal body grew by several hundred px the moment the detail landed.
+   */
+  it('reserves the resource section while the detail is in flight', async () => {
+    let release: (value: { resources: unknown[] }) => void = () => {};
+    getApprovalRequestDetail.mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    open();
+
+    // The queue's own skeleton — the same one the 연동 요청 정보 tab draws, so the two
+    // surfaces cannot drift apart.
+    const busy = screen.getByRole('status', { name: '연동 대상을 불러오는 중' });
+    expect(busy.querySelectorAll('.animate-pulse').length).toBeGreaterThan(1);
+    // Tile labels are fixed strings this screen already knows: drawn for real, not barred.
+    expect(screen.getByText('연동 요청 제외대상')).toBeTruthy();
+
+    await act(async () => {
+      release({ resources: [resource(0, true)] });
+    });
+    expect(screen.queryByRole('status', { name: '연동 대상을 불러오는 중' })).toBeNull();
   });
 
   /** The list is one filterable table, not two stacked ones — the tiles ARE the split. */
