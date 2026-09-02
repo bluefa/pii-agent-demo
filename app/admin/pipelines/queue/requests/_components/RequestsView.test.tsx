@@ -207,13 +207,13 @@ describe('페이지는 고른 뷰만 넘어간다', () => {
   });
 });
 
-describe('일곱 열짜리 이력만 옆으로 민다', () => {
+describe('여덟 열짜리 이력만 옆으로 민다', () => {
   it('전체 이력의 행 블록에만 바닥값이 있고, 두 작업 뷰에는 없다', async () => {
     await draw('history');
     // 바닥값은 스크롤러가 아니라 **안쪽** 블록에 있어야 한다 — 블록의 scrollWidth 는
     // 제 상자 폭이라, 안쪽에 min-width 가 없으면 넘칠 것이 없어 스크롤러가 안 열린다.
     const historyRows = screen.getByRole('table', { name: '전체 History 확인 목록' });
-    expect(historyRows.className).toContain('min-w-[704px]');
+    expect(historyRows.className).toContain('min-w-[730px]');
     expect(historyRows.parentElement?.className).toContain('overflow-x-auto');
 
     await act(async () => {
@@ -225,16 +225,44 @@ describe('일곱 열짜리 이력만 옆으로 민다', () => {
   });
 });
 
-describe('행은 여전히 상세로 간다', () => {
-  it('작업 뷰의 행은 상세 링크를 품고, 이력 행은 품지 않는다', async () => {
-    await draw();
-    expect(
-      screen.getByRole('link', { name: '정산서비스 연동 요청 상세 보기' }).getAttribute('href'),
-    ).toBe('/admin/pipelines/queue/requests/1801');
+describe('세 뷰의 행은 모두 Target Source 운영 상세로 간다', () => {
+  const opsHref = '/admin/pipelines/ops/target-sources/1801';
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /전체 이력/ }));
-    });
-    expect(screen.queryAllByRole('link')).toEqual([]);
+  it('승인 대기 행', async () => {
+    await draw();
+    expect(screen.getByRole('link', { name: '정산서비스 운영 상세 보기' }).getAttribute('href')).toBe(
+      opsHref,
+    );
+  });
+
+  it('반려 미확인 행', async () => {
+    await draw('rejected');
+    expect(screen.getByRole('link', { name: '반려서비스 운영 상세 보기' }).getAttribute('href')).toBe(
+      opsHref,
+    );
+  });
+
+  it('전체 이력 행 — 이제 이 행도 움직인다', async () => {
+    await draw('history');
+    expect(screen.getByRole('link', { name: '이력서비스 운영 상세 보기' }).getAttribute('href')).toBe(
+      opsHref,
+    );
+  });
+
+  it('id 가 없는 이력 행은 링크도 꼬리 잉크도 없다 — 죽은 링크를 그리지 않는다', async () => {
+    getApprovalHistory.mockResolvedValue(
+      paged([historyRow, { ...historyRow, historyRecordId: 8, targetSourceId: null, serviceName: '삭제된서비스' }], 2),
+    );
+    await draw('history');
+
+    expect(screen.getByRole('link', { name: '이력서비스 운영 상세 보기' })).toBeTruthy();
+    expect(screen.queryAllByRole('link').length).toBe(1);
+
+    const table = screen.getByRole('table', { name: '전체 History 확인 목록' });
+    const rows = screen.getAllByRole('row').filter((r) => r.parentElement === table).slice(1);
+    const tail = (row: HTMLElement): Element =>
+      row.querySelectorAll('[role="cell"]')[row.querySelectorAll('[role="cell"]').length - 1];
+    expect(tail(rows[0]).querySelector('svg')).toBeTruthy();
+    expect(tail(rows[1]).querySelector('svg')).toBeNull();
   });
 });

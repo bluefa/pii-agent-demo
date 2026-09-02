@@ -273,7 +273,26 @@ const HISTORY_COLUMNS: readonly Column[] = [
   { label: '상태', className: rq.status },
   { label: '수행자', className: rq.actor },
   { label: '일시', className: rq.when },
+  { className: rq.chev },
 ];
+
+/**
+ * 행 전체를 덮는 이동 링크 — 세 뷰가 같은 곳으로 간다 (오너 지시): Target Source
+ * 운영 상세. `tab` 을 붙이지 않으므로 진행 상태로 떨어진다.
+ *
+ * 링크는 첫 셀 **안에** 둔다 — role=row 는 셀만 자식으로 가져야 해서, 행 직속 <a> 는
+ * 스크린리더 순회에서 지워질 수 있다. absolute inset-0 이라 위치는 그대로 행 전체를
+ * 덮는다.
+ */
+function RowLink({ id, serviceName }: { id: number; serviceName: string | null }): ReactElement {
+  return (
+    <Link
+      href={passRoutes.pipelines.ops.targetSource(id)}
+      aria-label={`${serviceName ?? `Target Source ${id}`} 운영 상세 보기`}
+      className="absolute inset-0"
+    />
+  );
+}
 
 /** 대기 경과 셀. 날짜가 없으면 일수도 없다 — 0일이라고 말하지 않는다. */
 function WaitCell({ since }: { since: string | null | undefined }): ReactElement {
@@ -339,8 +358,8 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     tone: 'muted',
     columns: HISTORY_COLUMNS,
     /**
-     * 704 = 고정 열 합(service 72 + code 76 + target 48 + cloud 72 + status 116
-     * + actor 112 + when 136 = 632) + gap 6칸 × 12. 일곱 열은 바닥(1080)의 카드
+     * 730 = 고정 열 합(service 72 + code 76 + target 48 + cloud 72 + status 116
+     * + actor 112 + when 136 + chev 14 = 646) + gap 7칸 × 12. 여덟 열은 바닥(1080)의 카드
      * 안쪽 558 에 안 들어간다 — 그때 줄어드는 것은 **일시**였고(101 상자에 119 잉크),
      * 분 단위가 조용히 사라졌다. 이력의 일이 "언제 일어났나" 하나인데 그 값의 정밀도를
      * 말없이 버리는 것은 밀도 절충이 아니라 데이터 결함이다. 좁으면 옆으로 민다.
@@ -349,7 +368,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
      * 안 잘리고, 잘리는 것은 잘리라고 둔 설명뿐이다. 거기에 바닥값을 주면 지금 맞는
      * 레이아웃에 가로 스크롤만 생긴다.
      */
-    rowsMinWidth: 'min-w-[704px]',
+    rowsMinWidth: 'min-w-[730px]',
     empty: {
       title: '표시할 승인 이력이 없어요',
       caption: '연동 요청이 처리되면 이력이 여기에 쌓여요',
@@ -476,29 +495,19 @@ function ViewCard<T>({ meta, state, children }: ViewCardProps<T>): ReactElement 
 }
 
 /** 두 작업 뷰의 행은 같은 골격이다 — 두 번째 flex 컬럼에 들어갈 값과, 대기·일자가
- *  읽는 날짜만 다르다. 행 전체가 같은 상세로 가고, 사유 전문과 요청 내역(리소스)은
- *  그곳에서 읽는다. */
+ *  읽는 날짜만 다르다. 행 전체가 Target Source 운영 상세로 가고, 사유 전문과 요청
+ *  내역(리소스)은 그곳의 연동 요청 정보 탭에서 읽는다. */
 const actionRows = (
   rows: RequestListRow[],
   note: (row: RequestListRow) => string | null | undefined,
   when: (row: RequestListRow) => string | null | undefined,
-  linkLabel: string,
 ): ReactNode =>
   rows.map((row) => {
     const id = row.targetSourceId;
     return (
       <div key={id ?? row.serviceCode} role="row" className={cn(rq.row, id != null && rq.rowLink)}>
-        {/* 링크는 첫 셀 안에 둔다 — role=row 는 셀만 자식으로 가져야 해서, 행
-            직속 <a> 는 스크린리더 순회에서 지워질 수 있다. absolute inset-0
-            이라 위치는 그대로 행 전체를 덮는다. */}
         <span role="cell" className={cn(rq.service, rq.serviceName)}>
-          {id != null && (
-            <Link
-              href={passRoutes.pipelines.queue.request(id)}
-              aria-label={`${row.serviceName ?? `Target Source ${id}`} ${linkLabel}`}
-              className="absolute inset-0"
-            />
-          )}
+          {id != null && <RowLink id={id} serviceName={row.serviceName} />}
           {row.serviceName ?? '—'}
         </span>
         <span role="cell" className={cn(rq.code, rq.mono)}>
@@ -507,9 +516,9 @@ const actionRows = (
         <span role="cell" className={rq.cloud}>
           <ProvTag provider={row.cloudProvider ?? ''} />
         </span>
-        {/* 미리보기 한 줄. 전문은 행을 눌러 상세에서 — hover 툴팁은 두지 않는다:
-            툴팁을 띄우려면 이 셀이 포인터를 받아야 하고, 그러면 같은 자리에서
-            행 링크 클릭이 죽는다. */}
+        {/* 미리보기 한 줄. 전문은 행을 눌러 운영 상세의 연동 요청 정보 탭에서 —
+            hover 툴팁은 두지 않는다: 툴팁을 띄우려면 이 셀이 포인터를 받아야 하고,
+            그러면 같은 자리에서 행 링크 클릭이 죽는다. */}
         <span role="cell" className={rq.note}>
           {note(row) ?? '—'}
         </span>
@@ -594,7 +603,6 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                   rows,
                   (row) => row.description,
                   (row) => row.latestApprovalRequest?.requestedAt,
-                  '연동 요청 상세 보기',
                 )
               }
             </ViewCard>
@@ -605,22 +613,26 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                   rows,
                   (row) => row.latestApprovalRequest?.reason,
                   (row) => row.latestApprovalRequest?.processedAt,
-                  '반려 내역 상세 보기',
                 )
               }
             </ViewCard>
           ) : (
-            /* 전체 이력 — read-only audit log. key 는 historyRecordId (유일).
-               targetSourceId·requestId 는 반복될 수 있어 key 로 못 쓴다. */
+            /* 전체 이력 — 승인 처리 기록. key 는 historyRecordId (유일).
+               targetSourceId·requestId 는 반복될 수 있어 key 로 못 쓴다.
+               id 가 없는 행은 갈 곳이 없다 — 링크도, 꼬리 잉크도, hover 도 없다.
+               죽은 링크를 그리느니 그 행만 안 움직이는 편이 정직하다. */
             <ViewCard meta={VIEW_META.history} state={history}>
               {(rows) =>
-                rows.map((row) => (
+                rows.map((row) => {
+                  const id = row.targetSourceId;
+                  return (
                   <div
                     key={row.historyRecordId ?? `${row.targetSourceId}:${row.requestId}`}
                     role="row"
-                    className={rq.row}
+                    className={cn(rq.row, id != null && rq.rowLink)}
                   >
                     <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                      {id != null && <RowLink id={id} serviceName={row.serviceName} />}
                       {row.serviceName ?? '—'}
                     </span>
                     <span role="cell" className={cn(rq.code, rq.mono)}>
@@ -641,8 +653,12 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                     <span role="cell" className={rq.when}>
                       {fmtDateTime(row.createdAt)}
                     </span>
+                    <span role="cell" className={rq.chev}>
+                      {id != null && <Icon name="arrow-up-right" size="sm" />}
+                    </span>
                   </div>
-                ))
+                  );
+                })
               }
             </ViewCard>
           )}
