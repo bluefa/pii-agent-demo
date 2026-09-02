@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 import { SDU_DB_TYPE_MAX, SDU_DB_TYPE_MAXLEN } from '@/lib/types/sdu';
 
 /**
@@ -27,9 +28,6 @@ export interface SduReturnHintFacts {
   afterCount: number;
   uploadIpChanged: boolean;
 }
-
-/** English count nouns only. Korean has no plural to agree with. */
-const plural = (count: number, one: string, many: string): string => (count === 1 ? one : many);
 
 const ko = {
   /** `SduUploadSummary` — the recap steps 3 and 4 both close with. */
@@ -550,7 +548,7 @@ const en: typeof ko = {
     invalidatedByIp: 'The upload IP changed — the firewall check has to be done again',
 
     firewallIntro: (regions: string, count: number) =>
-      `The Regions you defined in Step 1 are ${regions} — ${count} in total. Your internal firewall has to allow outbound traffic to the endpoints and destination IPs below.`,
+      `The ${plural(count, 'Region', 'Regions')} you defined in Step 1 ${plural(count, 'is', 'are')} ${regions} — ${count} in total. Your internal firewall has to allow outbound traffic to the endpoints and destination IPs below.`,
     colEndpoint: 'Endpoint',
     colDestinationIps: 'Destination IP',
     colTargets: 'Targets',

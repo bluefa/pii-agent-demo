@@ -1,5 +1,6 @@
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import type { Locale } from '@/lib/locale';
+import { plural } from '@/lib/plural';
 
 /**
  * Fixed UI strings for the shared install shell — the step cards (2·3·5·6·7), the
@@ -357,7 +358,7 @@ const en: typeof ko = {
     errorDescription: 'Your connection test results and Logical DB settings are unchanged.',
     title: 'Request approval to complete the integration?',
     descriptionStrong: (count: number): string =>
-      `Request completion approval with the connection test results for ${count} targets`,
+      `Request completion approval with the connection test results for ${count} ${plural(count, 'target', 'targets')}`,
     descriptionTail:
       '. An admin review starts once you request it, and to change anything you have to cancel the request and submit again.',
     confirmLabel: 'Request',
@@ -366,7 +367,7 @@ const en: typeof ko = {
     tileExcluded: 'Excluded Logical DBs',
     colLogicalDb: 'Logical DB',
     colExcluded: 'Excluded',
-    databaseCount: (count: number): string => `${count} databases`,
+    databaseCount: (count: number): string => `${count} ${plural(count, 'database', 'databases')}`,
     countLabelTarget: 'Logical DB',
     countLabelExcluded: 'Excluded Logical DBs',
   },
