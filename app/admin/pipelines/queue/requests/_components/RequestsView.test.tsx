@@ -3,8 +3,8 @@
  * P2 연동 요청 — the rail owns which view is on screen.
  *
  * What is pinned here is what the redesign can silently lose:
- *   1. 세 뷰 중 하나만 표가 된다 — 레일이 나머지 둘을 대신 말한다.
- *   2. 안 보이는 뷰의 건수도 사실이어야 하므로 셋 다 첫 페이지를 읽는다. 그러나
+ *   1. 네 뷰 중 하나만 표가 된다 — 레일이 나머지 셋을 대신 말한다.
+ *   2. 안 보이는 뷰의 건수도 사실이어야 하므로 넷 다 첫 페이지를 읽는다. 그러나
  *      도착 전에는 '0' 이 아니라 아무것도 쓰지 않는다.
  *   3. 뷰를 바꾸면 표가 바뀌고 주소가 따라온다 — replace 이므로 기록은 늘지 않는다.
  *   4. `?view=` 딥링크는 첫 페인트부터 그 뷰다.
@@ -23,6 +23,7 @@ vi.mock('next/navigation', () => ({
 
 const getRequestList = vi.fn();
 const getApprovalHistory = vi.fn();
+const getRecentTargetSources = vi.fn();
 
 vi.mock('@/app/lib/api/task-queue-requests', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/lib/api/task-queue-requests')>();
@@ -30,6 +31,7 @@ vi.mock('@/app/lib/api/task-queue-requests', async (importOriginal) => {
     ...actual,
     getRequestList: (...args: unknown[]) => getRequestList(...args),
     getApprovalHistory: (...args: unknown[]) => getApprovalHistory(...args),
+    getRecentTargetSources: (...args: unknown[]) => getRecentTargetSources(...args),
   };
 });
 
@@ -43,6 +45,7 @@ const row = (over: Partial<RequestListRow> = {}): RequestListRow => ({
   serviceCode: 'STL',
   cloudProvider: 'AWS',
   confirmStatus: 'PENDING',
+  createdAt: '2026-08-19T02:00:00Z',
   latestApprovalRequest: {
     requestId: 91,
     status: 'PENDING',
@@ -88,35 +91,43 @@ beforeEach(() => {
     ),
   );
   getApprovalHistory.mockResolvedValue(paged([historyRow], 41));
+  getRecentTargetSources.mockResolvedValue(
+    paged([row({ serviceName: '신규서비스', serviceCode: 'NEW', targetSourceId: 1520 })], 6),
+  );
 });
 
-const draw = async (initial: 'pending' | 'rejected' | 'history' = 'pending'): Promise<void> => {
+const draw = async (
+  initial: 'pending' | 'rejected' | 'history' | 'recent' = 'pending',
+): Promise<void> => {
   await act(async () => {
     render(<RequestsView initialView={initial} />);
   });
 };
 
-describe('`?view=` 는 세 값만 인정한다', () => {
+describe('`?view=` 는 네 값만 인정한다', () => {
   it('아는 값은 그대로, 모르는 값과 빈 값은 승인 대기로', () => {
     expect(requestView('rejected')).toBe('rejected');
     expect(requestView('history')).toBe('history');
+    expect(requestView('recent')).toBe('recent');
     expect(requestView('nope')).toBe('pending');
     expect(requestView(undefined)).toBe('pending');
   });
 });
 
 describe('레일이 표 한 장을 고른다', () => {
-  it('고른 뷰만 표가 되고, 나머지 둘은 레일 항목으로만 있다', async () => {
+  it('고른 뷰만 표가 되고, 나머지 셋은 레일 항목으로만 있다', async () => {
     await draw();
 
     expect(screen.getByRole('table', { name: '연동 요청 확인 목록' })).toBeTruthy();
     expect(screen.queryByRole('table', { name: '연동 요청 반려 확인 목록' })).toBeNull();
     expect(screen.queryByRole('table', { name: '전체 History 확인 목록' })).toBeNull();
+    expect(screen.queryByRole('table', { name: '최근 생성 대상 확인 목록' })).toBeNull();
 
+    // 레일 순서 = 작업(승인 대기 · 반려 미확인 · 최근 생성) / 기록(전체 이력).
     const rail = screen.getByRole('navigation', { name: '연동 요청 보기' });
     expect(
       Array.from(rail.querySelectorAll('button')).map((b) => b.textContent),
-    ).toEqual(['승인 대기3', '반려 미확인2', '전체 이력41']);
+    ).toEqual(['승인 대기3', '반려 미확인2', '최근 14일 생성6', '전체 이력41']);
   });
 
   it('고른 항목만 aria-current 를 든다', async () => {
@@ -130,19 +141,21 @@ describe('레일이 표 한 장을 고른다', () => {
   it('건수가 도착하기 전에는 수를 쓰지 않는다 — 0 이라고도 말하지 않는다', async () => {
     getRequestList.mockImplementation(() => new Promise<never>(() => {}));
     getApprovalHistory.mockImplementation(() => new Promise<never>(() => {}));
+    getRecentTargetSources.mockImplementation(() => new Promise<never>(() => {}));
     await draw();
 
     const rail = screen.getByRole('navigation', { name: '연동 요청 보기' });
     expect(Array.from(rail.querySelectorAll('button')).map((b) => b.textContent)).toEqual([
       '승인 대기',
       '반려 미확인',
+      '최근 14일 생성',
       '전체 이력',
     ]);
   });
 });
 
 describe('보이지 않는 뷰의 건수도 읽는다', () => {
-  it('진입에 세 뷰가 각각 첫 페이지를 한 번씩 읽는다', async () => {
+  it('진입에 네 뷰가 각각 첫 페이지를 한 번씩 읽는다', async () => {
     await draw();
     expect(getRequestList.mock.calls.map((c) => [c[0], c[1]])).toEqual([
       ['PENDING', 0],
@@ -150,6 +163,8 @@ describe('보이지 않는 뷰의 건수도 읽는다', () => {
     ]);
     expect(getApprovalHistory).toHaveBeenCalledTimes(1);
     expect(getApprovalHistory.mock.calls[0][0]).toBe(0);
+    expect(getRecentTargetSources).toHaveBeenCalledTimes(1);
+    expect(getRecentTargetSources.mock.calls[0][0]).toBe(0);
   });
 });
 
@@ -180,6 +195,12 @@ describe('뷰를 바꾸면 표와 주소가 함께 바뀐다', () => {
   it('?view=rejected 딥링크는 첫 페인트부터 반려 뷰다', async () => {
     await draw('rejected');
     expect(screen.getByRole('table', { name: '연동 요청 반려 확인 목록' })).toBeTruthy();
+  });
+
+  it('?view=recent 딥링크는 첫 페인트부터 최근 생성 뷰다', async () => {
+    await draw('recent');
+    expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' })).toBeTruthy();
+    expect(screen.getByText('신규서비스')).toBeTruthy();
   });
 });
 
@@ -223,9 +244,16 @@ describe('여덟 열짜리 이력만 옆으로 민다', () => {
       'min-w-',
     );
   });
+
+  it('최근 생성은 여섯 열이라 바닥값이 없다', async () => {
+    await draw('recent');
+    expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' }).className).not.toContain(
+      'min-w-',
+    );
+  });
 });
 
-describe('세 뷰의 행은 모두 Target Source 운영 상세로 간다', () => {
+describe('네 뷰의 행은 모두 Target Source 운영 상세로 간다', () => {
   const opsHref = '/admin/pipelines/ops/target-sources/1801';
 
   it('승인 대기 행', async () => {
@@ -247,6 +275,13 @@ describe('세 뷰의 행은 모두 Target Source 운영 상세로 간다', () =>
     expect(screen.getByRole('link', { name: '이력서비스 운영 상세 보기' }).getAttribute('href')).toBe(
       opsHref,
     );
+  });
+
+  it('최근 생성 행', async () => {
+    await draw('recent');
+    expect(
+      screen.getByRole('link', { name: '신규서비스 운영 상세 보기' }).getAttribute('href'),
+    ).toBe('/admin/pipelines/ops/target-sources/1520');
   });
 
   it('id 가 없는 이력 행은 링크도 꼬리 잉크도 없다 — 죽은 링크를 그리지 않는다', async () => {

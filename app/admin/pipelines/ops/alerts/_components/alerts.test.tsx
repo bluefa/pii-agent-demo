@@ -33,6 +33,7 @@ const ROW: AlertListRow = {
   serviceCode: 'STL',
   cloudProvider: 'AWS',
   confirmStatus: 'CONFIRMED',
+  createdAt: '2026-07-10T09:00:00Z',
   latestApprovalRequest: null,
   delaySeconds: 262000,
   statusChangedAt: '2026-07-17T18:56:00Z',

@@ -338,6 +338,13 @@ export const mockServiceCodes: ServiceCode[] = [
     name: "메일 발송 허브",
     description: "메일 도메인 PII Agent 연동",
   },
+  // 대상 1801(tcq-proj-1801)이 이 코드를 달고 있는데 카탈로그에는 없었다 — 이름을
+  // 못 찾은 화면들이 이름 자리에 코드 'LGS' 를 그대로 적고 있었다.
+  {
+    code: "LGS",
+    name: "물류 입출고 및 재고 원장",
+    description: "물류 도메인 PII Agent 연동",
+  },
   // 레일이 한 화면에 여러 서비스를 담았을 때를 보기 위한 카탈로그 — 연동 과제
   // (mockProjects)는 없고 서비스 목록·검색·페이지네이션에만 등장한다.
   // 코드는 실제 계약과 같이 3글자로 맞춘다.
@@ -2789,6 +2796,48 @@ mockProjects.push(
     };
   })
 );
+
+// ===== 최근 생성 대상 (운영 알림 '최근 14일 생성' 버킷) =====
+// 창은 **서버의 것**이고 고정이다 — 요청에 날짜 파라미터가 없다. 그래서 목도 날짜를
+// 받아서 자르지 않고, 카탈로그가 "최근에 생겼다"는 사실을 직접 들고 있어야 한다.
+//
+// 픽스처의 생성일은 전부 두 달 이상 지난 고정 문자열이라, 오늘이 언제든 창이 비어
+// 버킷이 0건으로만 보인다. 그래서 여기 적힌 대상만 **지금 기준 상대 시각**으로 다시
+// 태어난다. 목록 정렬(최신 순)이 실제로 도는지 보려고 값을 흩어 두었다.
+//
+// 고른 기준: 상세가 열리는 대상(= 카탈로그에 있는 id) 중, 다른 픽스처가 이미 날짜를
+// 못 박아 둔 대상은 뺐다 — 승인 이력(APPROVAL_HISTORY)에 7월 행이 있는 대상이나
+// 기한 초과 스캔으로 시드된 대상(lib/bff/mock/scan.ts)을 "3일 전에 생겼다"고 하면
+// 한 대상을 두고 두 화면이 서로 모순되는 말을 한다.
+//
+// 여섯 모두 **업무 서비스**여야 한다. 단계 시연용 픽스처(makeIdcProject 의 1020~1028,
+// 그 아래 cloud step-coverage 시드)는 서비스 코드 자리에 플랫폼 이름('idc'·'gcp'…)을
+// 달고 설명 자리에 화면 안내문을 달아, 목록에 서면 운영자가 실제 연동 대상과 구별할
+// 수 없다. 여기서 안 고르는 것으로 끝내지 않고 목록 쪽에도 같은 판정을 둔다
+// (lib/bff/mock/task-queue.ts 의 recentProjects) — 나중에 시연 픽스처가 하나 더 생겨도
+// 이 목록에 조용히 끼지 못한다.
+export const RECENT_CREATION_WINDOW_DAYS = 14;
+
+const RECENTLY_CREATED_DAYS_AGO = new Map<number, number>([
+  [1520, 2],
+  [1801, 3],
+  [1322, 5],
+  [1462, 8],
+  [1255, 10],
+  [1511, 13],
+]);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+for (const project of mockProjects) {
+  const daysAgo = RECENTLY_CREATED_DAYS_AGO.get(project.targetSourceId);
+  if (daysAgo === undefined) continue;
+  // 생성과 갱신을 같은 시각으로 둔다. createdAt 만 당기면 "만들어지기 전에 고쳐진"
+  // 대상이 되고, updatedAt 로 정렬하는 목록들이 그걸 그대로 보여준다.
+  const at = new Date(Date.now() - daysAgo * DAY_MS).toISOString();
+  project.createdAt = at;
+  project.updatedAt = at;
+}
 
 // ===== 최초 연동 시각 =====
 // 연동을 마친 적 있는 대상에만 찍는다. 여기서 한 번 세워 두면 그 뒤로는 아무도 안

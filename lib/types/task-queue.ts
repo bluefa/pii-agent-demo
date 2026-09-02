@@ -36,6 +36,8 @@ export interface DashboardSummary {
   needInstallCount: number;
   needTestConnectionCount: number;
   needPiiAgentConfirmCount: number;
+  /** 최근 14일 이내 생성된 대상. 서버가 창을 소유한다 — 프론트는 날짜를 계산하지도 보내지도 않는다. */
+  recentlyCreatedCount: number;
   evaluatedAt: string | null;
 }
 
@@ -48,6 +50,7 @@ export const ALERT_TARGET_KINDS = [
   'need-install',
   'need-test-connection',
   'need-pii-agent-confirm',
+  'recent',
 ] as const;
 
 export type AlertTargetKind = (typeof ALERT_TARGET_KINDS)[number];
@@ -75,6 +78,9 @@ export interface RequestListRow {
   serviceCode: string | null;
   cloudProvider: string | null;
   confirmStatus: string | null;
+  /** TargetSourceInfo.createdAt — when the target source itself was created (not
+   *  when its request was sent). The 최근 생성 list orders and prints this. */
+  createdAt: string | null;
   latestApprovalRequest: {
     requestId: number | null;
     status: string | null;
@@ -214,6 +220,7 @@ export function toDashboardSummary(
     needInstallCount: wire.need_install_count ?? 0,
     needTestConnectionCount: wire.need_test_connection_count ?? 0,
     needPiiAgentConfirmCount: wire.need_pii_agent_confirm_count ?? 0,
+    recentlyCreatedCount: wire.recently_created_count ?? 0,
     evaluatedAt: wire.evaluated_at ?? null,
   };
 }
@@ -249,6 +256,7 @@ function toRequestListRow(row: z.infer<typeof schemas.TargetSourceInfo>): Reques
     serviceCode: row.serviceCode ?? null,
     cloudProvider: row.cloudProvider ?? null,
     confirmStatus: row.confirmStatus ?? null,
+    createdAt: row.createdAt ?? null,
     latestApprovalRequest: latest
       ? {
           requestId: latest.request_id ?? null,

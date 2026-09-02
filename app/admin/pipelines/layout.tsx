@@ -171,7 +171,7 @@ const SIDEBAR_GROUPS = [
 
 /** Counts the nav badges read. */
 interface NavCounts {
-  pendingApprovals: number;
+  requestsToCheck: number;
   alertCount: number;
   pendingAccessRequests: number;
 }
@@ -179,8 +179,12 @@ interface NavCounts {
 /** Which nav items carry a count badge, and what they count. */
 const NAV_BADGES: Record<string, { label: string; count: (c: NavCounts) => number }> = {
   [passRoutes.pipelines.queue.requests]: {
-    label: '승인 대기 연동 요청',
-    count: (c) => c.pendingApprovals,
+    // 이 수는 더 이상 승인 요청만이 아니다 — 레일의 작업 묶음 세 뷰(승인 대기 ·
+    // 반려 미확인 · 최근 생성)를 함께 센다. 갓 만들어진 대상은 승인 요청이 아니므로
+    // 라벨은 세 집단이 공유하는 것만 말한다. 무엇에 대한 확인인지는 항목 자신의
+    // 글자(연동 요청)가 이미 말하고 있다.
+    label: '확인이 필요한 대상',
+    count: (c) => c.requestsToCheck,
   },
   [passRoutes.pipelines.ops.alerts]: {
     label: '조치가 필요한 대상',
@@ -206,8 +210,9 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? '';
   const { layout } = pipelineStyles;
 
-  // Nav count badges: 연동 요청 = 승인 대기 requests, 운영 알림 = the four Step 3~6
-  // action buckets. Hidden at 0, clamped to "9+".
+  // Nav count badges: 연동 요청 = the rail's 작업 group (승인 대기 + 반려 미확인 +
+  // 최근 생성), 운영 알림 = the four Step 3~6 action buckets. Hidden at 0, clamped
+  // to "9+".
   // Re-read on every admin navigation, NOT on an interval (one ran on EVERY
   // admin screen, hidden tabs included). Mount alone is not enough: this is a
   // client layout, so React preserves it across in-app navigation and a
@@ -221,7 +226,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // `usePathname()` drops the query. The badge and that screen can disagree
   // between bucket clicks. No caller is left; the hook stays for the next one.
   // Best-effort (errors ignored): the nav badge must never break the shell.
-  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [requestsToCheck, setRequestsToCheck] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
   const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [nonce, setNonce] = useState(0);
@@ -231,7 +236,14 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
     getDashboardSummary({ signal: controller.signal })
       .then((summary) => {
         if (controller.signal.aborted) return;
-        setPendingApprovals(summary.pendingApprovalCount ?? 0);
+        // 연동 요청 레일의 작업 묶음 세 뷰와 같은 집합. 셋을 여기서 더하는 이유는
+        // 배지가 그 화면의 히어로와 같은 수를 말해야 하기 때문이다 — 하나만 세면
+        // 배지와 그 화면이 나란히 다른 수를 말한다.
+        setRequestsToCheck(
+          (summary.pendingApprovalCount ?? 0) +
+            (summary.rejectedApprovalCount ?? 0) +
+            (summary.recentlyCreatedCount ?? 0),
+        );
         setAlertCount(
           (summary.confirmingCount ?? 0) +
             (summary.needInstallCount ?? 0) +
@@ -302,7 +314,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
               const badge = NAV_BADGES[item.href];
               const count = badge
-                ? badge.count({ pendingApprovals, alertCount, pendingAccessRequests })
+                ? badge.count({ requestsToCheck, alertCount, pendingAccessRequests })
                 : 0;
               return (
                 <Link
