@@ -19,6 +19,7 @@
 import { Suspense } from 'react';
 
 import { bff } from '@/lib/bff/client';
+import { redirectIfSessionExpired } from '@/lib/bff/session-expired';
 import { schemas } from '@/lib/generated/install-v1';
 import { isAlertTargetKind, toDashboardSummary } from '@/lib/types/task-queue';
 import {
@@ -71,6 +72,11 @@ const loadCounts = async (): Promise<AlertCounts | null> => {
 
     return toDashboardSummary(wire);
   } catch (err) {
+    // An expired session is not an unknown count — it is a login (ADR-008 §91).
+    // Nothing on this screen fetches from the browser, so on a soft navigation
+    // this catch is the only place a 401 is ever seen. It sits in the catch body
+    // because `redirect()` throws: a try around it would swallow the exit.
+    await redirectIfSessionExpired(err);
     console.warn('[ops/alerts] 요약 조회 실패 — 건수는 모른다고 그린다', err);
     return null;
   }

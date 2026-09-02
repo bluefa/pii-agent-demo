@@ -30,9 +30,14 @@ export interface TargetSourceLoadFailure {
    * 어떤 실패인지. 권한 없음은 **오류가 아니라 상태**라 화면 자체가 다르다
    * (AccessDeniedState) — 문구만 갈아 끼우면 빨간 X 아래 "권한이 없어요" 가 놓여
    * 시스템이 고장 난 것처럼 읽힌다.
+   *
+   * `unauthorized` is neither an error nor a permission state: ADR-008 §91 reads
+   * 401 as an expired SSO session, so this page renders nothing at all — it leaves
+   * for the login. Kept apart from `forbidden` because telling someone whose token
+   * merely lapsed that they lack permission sends them to request access they have.
    */
-  kind: 'forbidden' | 'other';
-  /** 사용자가 읽을 한 줄. `kind === 'forbidden'` 이면 쓰이지 않는다. */
+  kind: 'forbidden' | 'unauthorized' | 'other';
+  /** 사용자가 읽을 한 줄. `kind` 가 `forbidden`/`unauthorized` 면 쓰이지 않는다. */
   message: string;
   /**
    * `false` 면 이 화면이 아는 실패다. 서버 콘솔에 `console.error` 로 남기지 않는다 —
@@ -59,7 +64,11 @@ export const classifyTargetSourceLoad = (
         unexpected: false,
       };
     }
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401) {
+      // 만료된 세션은 화면이 아니라 재로그인으로 답한다 (ADR-008 §91).
+      return { kind: 'unauthorized', message: '', unexpected: false };
+    }
+    if (error.status === 403) {
       // 문구를 들려 보내지 않는다 — 이 경우의 화면은 한 줄이 아니라 행동(권한 요청)이다.
       return { kind: 'forbidden', message: '', unexpected: false };
     }

@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 import { bff } from '@/lib/bff/client';
+import { ssoLoginPath } from '@/lib/sso-login';
 import { BffError } from '@/lib/bff/errors';
 import { schemas } from '@/lib/generated/install-v1';
 import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
@@ -65,6 +67,15 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       // 띄우므로, 정상 처리한 404 를 거기 올리면 개발자에게는 터진 화면으로 보인다.
       const status = err instanceof BffError ? err.status : '?';
       console.warn(`[target-sources/${targetSourceId}] 상세 조회 ${status} — 안내 화면으로 대체`);
+    }
+    // 만료된 세션에는 화면을 그리지 않는다 — 로그인으로 보낸다 (ADR-008 §91).
+    // `redirect` throws, and throwing from a catch *body* propagates normally;
+    // inside the `try` it would be swallowed as a load failure.
+    if (failure.kind === 'unauthorized') {
+      // Verified with curl: `redirect()` prepends basePath to Location, so the
+      // path here is basePath-relative. `returnTo` is a literal query value and
+      // must carry `/pass` itself (proxy.ts, app/sso/login/route.ts).
+      redirect(ssoLoginPath(`/pass/target-sources/${targetSourceId}`));
     }
     // 권한 없음은 오류 화면이 아니라 요청으로 이어지는 화면을 받는다.
     return failure.kind === 'forbidden' ? (

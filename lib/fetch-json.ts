@@ -11,6 +11,7 @@
 import { AppError, isKnownErrorCode } from '@/lib/errors';
 import type { AppErrorCode } from '@/lib/errors';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, parseLocaleCookie, type Locale } from '@/lib/locale';
+import { redirectToSsoLogin } from '@/lib/sso-login';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,6 +221,16 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       // 204 No Content
       if (res.status === 204) return undefined as T;
       return (await res.json()) as T;
+    }
+
+    // ADR-008 §91: 401 is *always* an expired/absent SSO session, never a
+    // permission verdict — so this wrapper owns the re-login instead of ~90 call
+    // sites each growing their own guess, and a background poller stops showing
+    // an error card for a session that only needs renewing. The throw below still
+    // happens: the caller must stop, and the page is leaving anyway. No dedupe
+    // guard — concurrent pollers calling `assign` with the same URL is harmless.
+    if (res.status === 401 && typeof window !== 'undefined') {
+      redirectToSsoLogin();
     }
 
     throw await parseErrorResponse(res);

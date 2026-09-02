@@ -26,6 +26,17 @@ const { railCookie } = vi.hoisted(() => ({
   railCookie: { value: undefined as string | undefined },
 }));
 
+// Throws, like the real one: `redirect()` unwinds the render. A mock that only
+// recorded would let the page go on and return a screen — exactly what an expired
+// session must not be shown.
+const { redirectMock } = vi.hoisted(() => ({
+  redirectMock: vi.fn((url: string): never => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
+}));
+
+vi.mock('next/navigation', () => ({ redirect: redirectMock }));
+
 vi.mock('next/headers', () => ({
   cookies: async () => ({
     get: (name: string) =>
@@ -173,9 +184,22 @@ describe('GET /pass/target-sources/[targetSourceId]', () => {
       expect((await load()).type).toBe(AccessDeniedStub);
     });
 
-    it('401 도 같은 화면을 준다', async () => {
+    /**
+     * 401 은 다른 화면이 아니라 **화면 없음**이다 — 만료된 세션(ADR-008 §91)은 로그인으로
+     * 되돌린다. returnTo 는 literal query value 라 `/pass` 를 스스로 지고 가야 하고,
+     * 목적지 자체는 basePath-relative 다 (`redirect` 가 접두어를 붙인다).
+     */
+    it('401 은 화면을 그리지 않고 SSO 로그인으로 되돌린다', async () => {
       getTargetSourceMock.mockRejectedValue(new BffError(401, 'UNAUTHORIZED', 'nope'));
-      expect((await load()).type).toBe(AccessDeniedStub);
+      await expect(load()).rejects.toThrow(
+        'NEXT_REDIRECT:/sso/login?returnTo=%2Fpass%2Ftarget-sources%2F321',
+      );
+    });
+
+    it('403 은 로그인으로 보내지 않는다 — 다시 로그인해도 답이 같다', async () => {
+      getTargetSourceMock.mockRejectedValue(new BffError(403, 'FORBIDDEN', 'denied'));
+      await load();
+      expect(redirectMock).not.toHaveBeenCalled();
     });
 
     it('분류 못 하는 실패는 기본 문구로 떨어진다', async () => {

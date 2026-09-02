@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation';
 
 import { passRoutes } from '@/lib/routes';
 import { bff } from '@/lib/bff/client';
+import { redirectIfSessionExpired } from '@/lib/bff/session-expired';
 import { schemas } from '@/lib/generated/install-v1';
 import { toAlertListPage, type AlertListRow, type AlertTargetKind } from '@/lib/types/task-queue';
 import { alertBucket } from '@/app/admin/pipelines/ops/alerts/_components/buckets';
@@ -56,6 +57,10 @@ export async function AlertWorklistSection({
     rows = list.content;
     totalPages = Math.max(1, list.totalPages);
   } catch (err) {
+    // A 401 is an expired session, not an empty bucket (ADR-008 §91) — it leaves
+    // for the login before the table gets a chance to say "불러오지 못했습니다".
+    // The `redirect()` below explains why this cannot move into the try.
+    await redirectIfSessionExpired(err);
     console.error(`[ops/alerts] ${kind} 목록 조회 실패`, err);
     failed = true;
   }

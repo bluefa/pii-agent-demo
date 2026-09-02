@@ -27,16 +27,27 @@ describe('classifyTargetSourceLoad', () => {
    * 아니라 kind 를 고정한다. kind 가 'other' 로 새면 page.tsx 가 빨간 오류 화면을 띄우고,
    * 사용자는 시스템이 고장 난 줄 안다.
    */
-  it('classifies 401/403 as forbidden and leaves the copy to the screen', () => {
-    for (const status of [401, 403]) {
-      expect(classifyTargetSourceLoad(bffError(status))).toMatchObject({
-        kind: 'forbidden',
-        message: '',
-        unexpected: false,
-      });
-    }
+  it('classifies 403 as forbidden and leaves the copy to the screen', () => {
+    expect(classifyTargetSourceLoad(bffError(403))).toMatchObject({
+      kind: 'forbidden',
+      message: '',
+      unexpected: false,
+    });
     expect(classifyTargetSourceLoad(bffError(404)).kind).toBe('other');
     expect(classifyTargetSourceLoad(bffError(500)).kind).toBe('other');
+  });
+
+  /**
+   * 401 은 판정이 아니라 만료다(ADR-008 §91). forbidden 과 한 칸에 두면 토큰만 상한
+   * 사용자가 "권한이 없어요" 를 읽고, 이미 가진 권한을 요청하러 간다 — 정작 필요한 건
+   * 재로그인이다. 그래서 화면이 아니라 kind 부터 갈린다.
+   */
+  it('keeps 401 apart from 403 — an expiry is not a permission verdict', () => {
+    expect(classifyTargetSourceLoad(bffError(401))).toMatchObject({
+      kind: 'unauthorized',
+      message: '',
+      unexpected: false,
+    });
   });
 
   it('falls back for anything it cannot classify', () => {
