@@ -1,13 +1,9 @@
-import { redirect } from 'next/navigation';
-
 import { TopNav } from '@/app/components/layout/TopNav';
 import { LockIcon, StatusWarningIcon } from '@/app/components/ui/icons';
-import { BffError } from '@/lib/bff/errors';
 import { getMe } from '@/lib/bff/current-user';
+import { redirectIfSessionExpired } from '@/lib/bff/session-expired';
 import { consoleUrls } from '@/lib/env';
-import { ssoLoginPath } from '@/lib/sso-login';
 import { isAdminRole } from '@/lib/roles';
-import { passRoutes } from '@/lib/routes';
 import { cn, textColors } from '@/lib/theme';
 
 /**
@@ -67,15 +63,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   } catch (err) {
     // ADR-008 §91: 401 is an expired SSO session — not an outage, not a verdict.
     // It gets the login, not the "권한을 확인하지 못했어요" notice. `redirect` throws,
-    // and throwing from a catch body propagates normally.
-    // ponytail: the deep link is lost — this layout does not know the request path,
-    // so returnTo falls back to the console dashboard. `/admin` itself would 404
-    // (there is no page at that segment). Add a pathname header from proxy.ts if
-    // returning to the exact admin page matters.
-    if (err instanceof BffError && err.status === 401) {
-      // `returnTo` travels as a literal query value, so it carries `/pass` itself.
-      redirect(ssoLoginPath(`/pass${passRoutes.pipelines.dashboard}`));
-    }
+    // and throwing from a catch body propagates normally — which is also why the
+    // call stays here rather than in a try of its own.
+    // The deep link survives: the returned-to path is the one proxy.ts put on the
+    // request, so re-logging in lands back on the admin page that was asked for.
+    await redirectIfSessionExpired(err);
     reachable = false;
   }
 

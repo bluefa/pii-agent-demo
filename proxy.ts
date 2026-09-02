@@ -1,8 +1,34 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isMock } from '@/lib/env';
+import { PATHNAME_HEADER } from '@/lib/sso-login';
 
 // Session cookie issued by the BFF on the AD SSO callback (PR #8646).
 const SESSION_COOKIE = 'pass-adsso-token';
+
+/**
+ * Where this request should come back to after logging in again.
+ *
+ * nextUrl.pathname has basePath stripped (`/services`). The redirect URL gets
+ * the basePath re-attached by NextURL itself, but returnTo travels as a literal
+ * query value, so it must carry the `/pass` prefix explicitly or the post-login
+ * redirect lands on a 404 (basePath, next.config.ts).
+ */
+const returnToOf = (request: NextRequest) =>
+  `/pass${request.nextUrl.pathname}${request.nextUrl.search}`;
+
+/**
+ * Let the request through, telling the server which path it is rendering.
+ *
+ * A server component has no request URL, so a 401 caught mid-render had nowhere
+ * to return to (`lib/bff/session-expired.ts`). `set`, never `append`: the value
+ * ends up as a redirect target, so a client-sent header must be overwritten
+ * rather than joined with the real path.
+ */
+const passThrough = (request: NextRequest) => {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(PATHNAME_HEADER, returnToOf(request));
+  return NextResponse.next({ request: { headers: requestHeaders } });
+};
 
 /**
  * AD SSO gate: page loads without a session cookie are sent to /sso/login,
@@ -13,17 +39,12 @@ const SESSION_COOKIE = 'pass-adsso-token';
  */
 export function proxy(request: NextRequest) {
   // Local mock dev has no BFF to log into.
-  if (isMock()) return NextResponse.next();
-  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  if (isMock()) return passThrough(request);
+  if (request.cookies.has(SESSION_COOKIE)) return passThrough(request);
 
-  // nextUrl.pathname has basePath stripped (`/services`). The redirect URL
-  // gets the basePath re-attached by NextURL itself, but returnTo travels as
-  // a literal query value, so it must carry the `/pass` prefix explicitly or
-  // the post-login redirect lands on a 404 (basePath, next.config.ts).
   const url = request.nextUrl.clone();
-  const returnTo = `/pass${request.nextUrl.pathname}${request.nextUrl.search}`;
   url.pathname = '/sso/login';
-  url.search = `returnTo=${encodeURIComponent(returnTo)}`;
+  url.search = `returnTo=${encodeURIComponent(returnToOf(request))}`;
   return NextResponse.redirect(url);
 }
 

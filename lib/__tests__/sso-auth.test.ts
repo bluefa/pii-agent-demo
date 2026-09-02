@@ -151,6 +151,13 @@ describe('POST /sso/adssoLogin', () => {
   });
 });
 
+/**
+ * `NextResponse.next({ request })` does not hand the header back on the response
+ * it returns — Next relays an override on `x-middleware-request-*`, and that is
+ * what the server component reads as its request header.
+ */
+const forwardedPathname = (res: Response) => res.headers.get('x-middleware-request-x-pathname');
+
 describe('proxy (auth gate)', () => {
   it('redirects a session-less page load to /sso/login with a /pass-prefixed returnTo', async () => {
     const { proxy } = await import('@/proxy');
@@ -165,12 +172,16 @@ describe('proxy (auth gate)', () => {
   it('passes through when the session cookie is present', async () => {
     const { proxy } = await import('@/proxy');
     const res = proxy(
-      new NextRequest('http://localhost:3000/services', {
+      new NextRequest('http://localhost:3000/services?tab=aws', {
         headers: { cookie: 'pass-adsso-token=abc' },
       }),
     );
 
     expect(res.headers.get('location')).toBeNull();
+    // The cookie is present but the BFF still owns validity: when it answers 401,
+    // this is the only record of which page the reader was on
+    // (`lib/bff/session-expired.ts`). Same shape as returnTo, `/pass` included.
+    expect(forwardedPathname(res)).toBe('/pass/services?tab=aws');
   });
 
   it('passes through in mock mode (no BFF to log into)', async () => {
@@ -179,6 +190,20 @@ describe('proxy (auth gate)', () => {
     const res = proxy(new NextRequest('http://localhost:3000/services'));
 
     expect(res.headers.get('location')).toBeNull();
+    expect(forwardedPathname(res)).toBe('/pass/services');
+  });
+
+  // The header feeds a redirect target, so an inbound one is overwritten rather
+  // than appended — otherwise a crafted link could pick where the login returns.
+  it('overwrites a client-sent x-pathname instead of trusting it', async () => {
+    const { proxy } = await import('@/proxy');
+    const res = proxy(
+      new NextRequest('http://localhost:3000/services', {
+        headers: { cookie: 'pass-adsso-token=abc', 'x-pathname': '/pass/evil?x=1' },
+      }),
+    );
+
+    expect(forwardedPathname(res)).toBe('/pass/services');
   });
 
   it('matcher excludes sso/, api/, _next/ and static files but matches pages', async () => {

@@ -37,3 +37,13 @@ export const redirectToSsoLogin = (): void => {
   const returnTo = `${window.location.pathname}${window.location.search}`;
   window.location.assign(`${BASE_PATH}${ssoLoginPath(returnTo)}`);
 };
+
+/**
+ * Request header `proxy.ts` sets on every pass-through: the path being served,
+ * already in `returnTo` shape (`/pass`-prefixed, query included).
+ *
+ * A server component cannot read the request URL, so this is the only way a 401
+ * caught mid-render knows which page to come back to (`lib/bff/session-expired.ts`).
+ * It is proxy-owned: an inbound value is overwritten, never trusted.
+ */
+export const PATHNAME_HEADER = 'x-pathname';

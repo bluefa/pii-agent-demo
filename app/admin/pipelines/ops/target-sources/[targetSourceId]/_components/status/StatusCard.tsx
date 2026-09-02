@@ -20,6 +20,7 @@ import type { ReactElement, ReactNode } from 'react';
 
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
+import { redirectIfSessionExpired } from '@/lib/bff/session-expired';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { normalizeCloudProvider } from '@/lib/types';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
@@ -153,6 +154,10 @@ async function settle<T>(what: string, run: Promise<T>): Promise<Settled<T | nul
     return { ok: true, value: await run };
   } catch (err) {
     if (err instanceof BffError && err.status === 404) return { ok: true, value: null };
+    // A 401 is an expired session, not a row that cannot be read (ADR-008 §91).
+    // The redirect it throws is raised inside this Suspense boundary, which Next
+    // honours while streaming — the navigation wins over the partial payload.
+    await redirectIfSessionExpired(err);
     console.warn(`[ops/status] ${what} 조회 실패 — 그 행만 모른다고 그린다`, err);
     return { ok: false };
   }

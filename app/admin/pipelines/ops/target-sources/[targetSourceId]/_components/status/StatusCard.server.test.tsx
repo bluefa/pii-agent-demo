@@ -19,8 +19,18 @@ const getTerraformStatus = vi.hoisted(() => vi.fn());
 const getDagStatus = vi.hoisted(() => vi.fn());
 
 // 「다시 시도」가 client 컴포넌트라 라우터가 필요하다 — 이 축이 보는 것은 그 버튼의
-// 존재이지 동작이 아니므로 최소한만 세운다.
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+// 존재이지 동작이 아니므로 최소한만 세운다. `redirect` 는 진짜처럼 던진다: 만료된
+// 세션은 카드를 그리다 말고 렌더를 풀고 나간다.
+const redirectMock = vi.hoisted(() =>
+  vi.fn((url: string): never => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
+);
+const inbound = vi.hoisted(() => ({ current: new Headers() }));
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }), redirect: redirectMock }));
+// proxy.ts 가 실어 주는 요청 경로 — 재로그인 뒤 돌아올 자리다.
+vi.mock('next/headers', () => ({ headers: async () => inbound.current }));
 
 vi.mock('@/lib/bff/client', () => ({
   bff: {
@@ -43,6 +53,7 @@ const draw = async (): Promise<void> => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  inbound.current = new Headers();
   get.mockResolvedValue({ target_source_id: 1029, cloud_provider: 'AWS', metadata: {} });
   getHistory.mockImplementation(notFound);
   getTestConnectionLatest.mockImplementation(notFound);
@@ -96,6 +107,26 @@ describe('StatusCard — 서버가 무엇을 묻는가', () => {
     expect(screen.getByText('실행 없음')).toBeTruthy();
     expect(screen.getByText('조회 실패')).toBeTruthy();
     expect(screen.getByRole('button', { name: '연결 테스트 다시 조회' })).toBeTruthy();
+  });
+
+  /**
+   * 만료된 세션은 「조회 실패」가 아니다(ADR-008 §91). 이 탭은 브라우저 fetch 가 없어서
+   * soft navigation 으로 들어오면 레이아웃도 다시 안 돌고 — 여기서 안 잡으면 운영자는
+   * 다시 로그인만 하면 되는 화면 앞에서 다섯 행짜리 실패를 읽는다.
+   *
+   * 던져진 이동은 이 `Suspense` 경계 안에서 나지만 Next 가 스트리밍 중에도 받는다.
+   */
+  it('401 은 행을 그리지 않고 보던 경로로 돌아오는 로그인을 연다', async () => {
+    // 헤더는 ByteString 이라 한글 탭 슬러그는 퍼센트 인코딩된 채로 실린다 —
+    // `nextUrl.search` 가 주는 것이 이미 그 모양이다.
+    const path = `/pass/admin/pipelines/ops/target-sources/1029?tab=${encodeURIComponent('진행 상태')}`;
+    inbound.current = new Headers({ 'x-pathname': path });
+    get.mockRejectedValue(new BffError(401, 'UNAUTHORIZED', 'token expired'));
+
+    await expect(draw()).rejects.toThrow(
+      `NEXT_REDIRECT:/sso/login?returnTo=${encodeURIComponent(path)}`,
+    );
+    expect(screen.queryByText('조회 실패')).toBeNull();
   });
 
   it('terraform 이 죽어도 IDC 판정은 상세가 진다 — 없는 스캔 행이 서지 않는다', async () => {
