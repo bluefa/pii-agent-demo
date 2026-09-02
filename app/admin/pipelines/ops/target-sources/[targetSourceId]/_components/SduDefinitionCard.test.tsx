@@ -104,4 +104,19 @@ describe('SduDefinitionCard', () => {
     expect(await screen.findByText('연동 대상 정의를 불러오지 못했습니다.')).toBeTruthy();
     expect(screen.queryByText('등록된 연동 대상이 없습니다.')).toBeNull();
   });
+
+  // 조회가 도는 동안 본문 슬롯이 흰 여백이었다 — 고정 높이라 자리는 그대로여서, 읽는 쪽은
+  // 정의가 비어 있다고 읽었다.
+  it('정의를 기다리는 동안 표의 자국을 그린다', () => {
+    // 끝나지 않는 조회 — 로딩 프레임을 붙잡아 둔다.
+    getSduDefinition.mockReturnValue(new Promise(() => {}));
+    const { container } = render(<SduDefinitionCard targetSourceId={1100} />);
+
+    const busy = container.querySelector('[aria-busy]');
+    expect(busy).not.toBeNull();
+    expect(busy?.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    // 열 이름은 `COLUMNS` 가 이미 아는 고정 사실이라 기다리는 동안에도 실물로 선다.
+    expect(screen.getByText('DB 종류')).toBeTruthy();
+    expect(screen.queryByText('등록된 연동 대상이 없습니다.')).toBeNull();
+  });
 });

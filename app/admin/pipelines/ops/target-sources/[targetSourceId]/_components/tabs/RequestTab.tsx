@@ -17,7 +17,7 @@
  * A missing snapshot (404) is an empty state, not a failure.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn, pipelineStyles, textColors } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { normalizeCloudProvider } from '@/lib/types';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -34,7 +34,10 @@ import {
   type ResourceNlbMappings,
 } from '@/app/lib/api/task-queue-requests';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
-import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
+import {
+  ResourceSection,
+  ResourceSectionSkeleton,
+} from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { NlbListenerModal } from '@/app/admin/pipelines/queue/requests/_components/NlbListenerModal';
 import { ServiceAssignmentModal } from '@/app/admin/pipelines/queue/requests/_components/ServiceAssignmentModal';
 import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
@@ -247,9 +250,42 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
       </p>
 
       {request.state === 'loading' ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-2')} aria-busy>
-          불러오는 중…
-        </p>
+        /* The settled card's own frame: the meta row over the resource list. Field labels
+           are fixed strings, so they are drawn for real (`StatusCardSkeleton`'s rule) and
+           the heights come from the same classes — StatusTag = py-0.5(4) + a 12px line
+           box(16.8, the admin shell sets leading-1.4) ≈ 25px, and a MetaField = an 18px
+           label line + gap-1(4) + a 12px/leading-1.3 value line(15.6) ≈ 37.6px, which the
+           16px value bar rounds to 38.
+           Not drawn: 처리자 · 처리일시 (whether this request was processed at all is what is
+           loading), and the empty state a request with no resources settles into — the
+           common case is a list, and `ResourceSectionSkeleton` is that list's own footprint,
+           so the two surfaces cannot drift apart. */
+        <div aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+            <span
+              className={cn(opsStyles.skeletonBar, 'block h-[25px] w-[92px] rounded')}
+              aria-hidden
+            />
+            {[
+              { label: '요청자', width: 'w-[88px]' },
+              { label: '요청일시', width: 'w-[124px]' },
+            ].map((field) => (
+              <div key={field.label} className="flex min-w-0 flex-col gap-1">
+                {/* `MetaField` 의 라벨 그대로 (12 / 400 / tertiary) — 라벨은 지금 오는
+                    값이 아니라 이 카드가 이미 아는 이름이라 실물로 선다. */}
+                <span className={cn('text-[12px] font-normal', textColors.tertiary)}>
+                  {field.label}
+                </span>
+                <span className={cn(opsStyles.skeletonBar, 'block h-4', field.width)} aria-hidden />
+              </div>
+            ))}
+          </div>
+          {/* `ResourceList` 가 세우는 그 여백 그대로 — 목록이 도착해도 y 가 움직이지 않는다. */}
+          <div className="mt-6">
+            <ResourceSectionSkeleton />
+          </div>
+        </div>
       ) : request.state === 'failed' ? (
         <div className={cn(pipelineStyles.empty.base, 'mt-2')}>
           <p>승인 요청 정보를 불러오지 못했습니다.</p>

@@ -315,11 +315,15 @@ describe('OpsTargetView — SDU 진행 상태 탭', () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1099} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
 
-    const firewall = await screen.findByText('방화벽 결재 확인');
-    const firewallValue = firewall.nextElementSibling;
-    expect(firewallValue?.textContent).toContain('아니오');
+    // 라벨은 대기 프레임(스켈레톤)도 실물로 그린다 — 라벨의 등장이 아니라 **값의 도착**을
+    // 기다려야 정착본의 `dd` 를 읽는다.
+    await waitFor(() =>
+      expect(screen.getByText('방화벽 결재 확인').nextElementSibling?.textContent).toContain(
+        '아니오',
+      ),
+    );
     // 답이 있으면 누가·언제도 같이 선다.
-    expect(firewallValue?.textContent).toContain('홍길동');
+    expect(screen.getByText('방화벽 결재 확인').nextElementSibling?.textContent).toContain('홍길동');
 
     const commands = screen.getByText('데이터 업로드 확인');
     expect(commands.nextElementSibling?.textContent).toBe('미답');

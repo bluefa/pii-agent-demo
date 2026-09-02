@@ -160,4 +160,19 @@ describe('SduRecipientsCard — 명부가 길 때', () => {
     await screen.findByText('홍길동');
     expect(screen.getByRole('navigation', { name: '페이지' })).toBeTruthy();
   });
+
+  // 조회가 도는 동안 본문 슬롯이 흰 여백이었다 — 「등록된 수신자가 없습니다」와 구별되지
+  // 않는 자리다.
+  it('명부를 기다리는 동안 표의 자국을 그린다', () => {
+    // 끝나지 않는 조회 — 로딩 프레임을 붙잡아 둔다.
+    getSduUpload.mockReturnValue(new Promise(() => {}));
+    const { container } = render(<SduRecipientsCard targetSourceId={1100} />);
+
+    const busy = container.querySelector('[aria-busy]');
+    expect(busy).not.toBeNull();
+    expect(busy?.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    // 머리글 둘은 고정 문자열이라 기다리는 동안에도 실물로 선다.
+    expect(screen.getByText('이메일')).toBeTruthy();
+    expect(screen.queryByText('등록된 수신자가 없습니다.')).toBeNull();
+  });
 });
