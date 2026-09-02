@@ -14,7 +14,7 @@ export interface WizardRailStep<TStep extends number = number> {
 interface WizardRailProps<TStep extends number> {
   /** The dialog's title — the rail carries it, so it names the whole flow, not a step. */
   title: string;
-  /** One line under the title. See the width note below before writing a longer one. */
+  /** A short line under the title. The rail wraps it inside a 200px column. */
   subtitle: string;
   /** Accessible name for the step nav — it is a second landmark inside the dialog. */
   navLabel: string;
@@ -77,14 +77,11 @@ export const WizardRail = <TStep extends number>({
         <h2 id={titleId} className={cn('text-base font-bold', textColors.primary)}>
           {title}
         </h2>
-        {/* One line, deliberately. At 14px the column gives this text 200px; the longer
-            「PII 모니터링을 시작할 인프라를 등록해요.」 measures 220 and wrapped. 인프라 등록's
-            wording lands at ~181, leaving 18px for a wider fallback face — a caller's
-            subtitle has to fit the same budget. Note the overflow is silent: the rail has
-            no clipping box, so text that outgrew this would run into the 30px of padding
-            and gutter beside it before touching the card. The margin is the guarantee
-            here, not the box. */}
-        <p className={cn('mt-1 whitespace-nowrap text-sm', textColors.secondary)}>{subtitle}</p>
+        {/* The column gives this text 200px. Korean fits on one line at ~181px; the English
+            subtitle measures 321 and needs two. So it wraps here — held to one line it would
+            run out of the 248px rail and under the content card, which has no clipping box to
+            stop it. break-keep so Korean breaks between words, not inside one. */}
+        <p className={cn('mt-1 break-keep text-sm', textColors.secondary)}>{subtitle}</p>
       </div>
 
       <nav aria-label={navLabel} className="flex flex-1 flex-col">
