@@ -4,6 +4,7 @@ import {
   IVT_RESOURCE_IDS,
   LGS_RESOURCE_IDS,
   cpnAthenaRegionId,
+  getProjectByTargetSourceId,
 } from '@/lib/mock-data';
 import type { DagAgentStatus, DagDatabaseStatus, DagDayStatus, DagStatusResponse } from '@/lib/types/dag-status';
 
@@ -317,7 +318,16 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
         ],
       };
     }
-    default: // Targets flipped to COMPLETED at runtime still get a working gate.
+    default: {
+      // Targets flipped to COMPLETED at runtime still get a working gate.
+      //
+      // 에이전트 id 는 그 대상의 확정 정보가 부르는 이름이어야 한다 — 확정 목(confirm.ts 의
+      // 최종 폴백)은 project.resources 의 selected 행을 `resourceId` 로 내보내므로, 같은
+      // 명부의 첫 selected 리소스를 쓴다. 지어낸 id(`mock-agent-…`)는 조인이 영영 빗나가
+      // 이름·엔진·리전이 대시 셋으로 서는데, 그것은 "확정 전"이 아니라 목의 흔적이다.
+      // 리소스가 없는 과제만 지어낸 id 로 남는다 — 그 대상은 조인할 행 자체가 없다.
+      const project = getProjectByTargetSourceId(targetSourceId);
+      const joined = project?.resources.find((r) => r.isSelected) ?? project?.resources[0];
       return {
         targetSourceId,
         connectionStatus: 'SUCCESS',
@@ -327,7 +337,7 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
           agent(
             targetSourceId,
             0,
-            `mock-agent-${targetSourceId}`,
+            joined?.resourceId || `mock-agent-${targetSourceId}`,
             null,
             'SUCCESS',
             Array.from({ length: 6 }, (_, i) =>
@@ -336,17 +346,41 @@ const buildResponse = (targetSourceId: number): DagStatusResponse => {
           ),
         ],
       };
+    }
   }
 };
+
+/** dag-status 픽스처가 고정된 대상들 — `buildResponse` 의 case 절과 같은 목록. */
+const FIXTURE_TARGETS = [1642, 1511, 1801, 1799, 1583] as const;
+
+/**
+ * 이 uri 의 행이 §10 응답에서 DAG 이름 없이(unscheduled) 서는가 — 주소 목이 지어내는 것이
+ * 아니라 **같은 목이 이미 만든 사실**을 되묻는다. uri 하나만 받아 대상 id 를 모르므로
+ * 고정 픽스처 다섯을 다 훑는다(uri 는 픽스처마다 고유하다). 기본 분기 대상은 전 행
+ * success 라 여기 걸릴 것이 없다. 매 호출 다시 계산한다 — 이 파일은 저장소가 없다.
+ */
+const isUnscheduledUri = (databaseUri: string): boolean =>
+  FIXTURE_TARGETS.some((id) =>
+    buildResponse(id).agents.some((a) =>
+      a.databaseStatuses.some((d) => d.databaseUri === databaseUri && d.dagName === null),
+    ),
+  );
 
 /**
  * 논리 DB 한 건의 DAG 주소 (assumed §11). 목은 uri 하나만 받으므로 실제 DAG id 를 알
  * 수 없다 — 주소의 마지막 조각은 데이터베이스 이름이고, 300자짜리 dagName 과 일치하지
- * 않는다(그 매핑은 업스트림만 안다). rollup 계열은 빈 문자열: "주소 확인 불가" 화면은
- * 그 사실을 만들 수 있는 목이 없으면 검증되지 않는다.
+ * 않는다(그 매핑은 업스트림만 안다).
+ *
+ * 빈 문자열을 돌려주는 경우가 둘이다 — DAG 상세 모달의 '없음' 갈래가 둘로 갈리기 때문이다:
+ *   - **DAG 이름이 없는 행 전부**(unscheduled: 1511 billing_v2 · comment_archive, 1583
+ *     ivt_archive, 1801 의 미스케줄 행) → "DAG가 아직 생성되지 않았어요". 보드가 `DAG 없음`
+ *     이라 한 행에 모달이 주소를 지어 주면 한 화면이 두 사실을 말한다 — 그래서 substring
+ *     이 아니라 응답의 dagName 으로 고른다(`isUnscheduledUri`).
+ *   - `rollup` (1511 rating_rollup, dagName 있음) → "Airflow 주소가 없어요"
+ * `moderation` (1511) 은 아래에서 502 로 터진다 → "주소를 확인하지 못했어요" + 다시 시도.
  */
 const airflowHost = (databaseUri: string): string => {
-  if (databaseUri.includes('rollup')) return '';
+  if (databaseUri.includes('rollup') || isUnscheduledUri(databaseUri)) return '';
   const dbName = databaseUri.split('/').pop() || 'unknown';
   return `https://airflow-prod.pii.internal/dags/pii_scan_${dbName}/grid`;
 };
