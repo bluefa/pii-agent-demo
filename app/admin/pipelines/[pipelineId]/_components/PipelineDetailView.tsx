@@ -508,9 +508,15 @@ export function PipelineDetailView(): ReactElement {
                 )}
               </span>
               <span className="whitespace-nowrap tabular-nums">
-                작업 등록 {fmtDateTime(detail.created_at)}
+                <span className={h.klabel}>작업 등록</span>{' '}
+                <span className={h.kvalue}>{fmtDateTime(detail.created_at)}</span>
               </span>
-              {requester && <span className="whitespace-nowrap">수행 담당자 {requester}</span>}
+              {requester && (
+                <span className="whitespace-nowrap">
+                  <span className={h.klabel}>수행 담당자</span>{' '}
+                  <span className={h.kvalue}>{requester}</span>
+                </span>
+              )}
               {detail.restarted_by_pipeline_id != null && (
                 <Link
                   href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}

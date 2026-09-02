@@ -64,6 +64,10 @@ export const improvedStyles = {
      *  Labels stay visible during load — the value slot is what skeletons. */
     nameRow: 'flex items-baseline gap-x-2 gap-y-1 min-w-0 min-h-[20px] flex-wrap',
     klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
+    /** The value half of a labelled pair in the quiet tiers (작업 등록 · 수행 담당자):
+     *  one step darker and heavier than its label so the two read as key → value,
+     *  not as one run-on phrase (owner 2026-09-02). */
+    kvalue: 'font-medium text-[var(--pl-text-medium)]',
     name: 'text-[14px] font-medium text-[var(--pl-text-strong)] truncate',
     /** Service code — a classifier, not a value, so it takes the SDU chip's
      *  grammar (primary-tinted tag) rather than plain text. */

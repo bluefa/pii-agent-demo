@@ -343,7 +343,9 @@ describe('CurrentPipelineCard — meta line', () => {
 
     // Seconds survive: the run's start is an instant an operator matches against
     // a log line. The stage phrase is NOT here — it labels the flow now.
-    const meta = screen.getByText('시작 26.07.29 09:00:00 · 경과 5분', { selector: 'p' });
+    const meta = screen.getByText(
+      (_, node) => node?.tagName === 'P' && node.textContent === '시작 26.07.29 09:00:00 · 경과 5분',
+    );
     // One clock, and it marks 시작 — the line opens with it.
     expect(meta.firstElementChild?.tagName.toLowerCase()).toBe('svg');
     expect(meta.querySelectorAll('svg')).toHaveLength(1);
@@ -353,7 +355,11 @@ describe('CurrentPipelineCard — meta line', () => {
   it('counts a live run from its creation instant', () => {
     renderCard(makeDetail(['APPLY', 'APPLY'], { current_task_sequence: 1 }));
 
-    expect(screen.getByText(/^시작 26\.07\.29 09:00:00 · 경과 /, { selector: 'p' })).toBeTruthy();
+    expect(
+      screen.getByText(
+        (_, node) => node?.tagName === 'P' && /^시작 26\.07\.29 09:00:00 · 경과 /.test(node.textContent ?? ''),
+      ),
+    ).toBeTruthy();
   });
 });
 

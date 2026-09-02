@@ -511,6 +511,27 @@ function seedPipelines(): MockPipeline[] {
   });
 
   return [
+    // ── 134 RUNNING — Azure target 1004, the orchestrator's OWN auto-install. ──
+    //     The target entered 4단계 and the install-event subscriber opened this run with
+    //     requested_by SYSTEM, so the 현재 작업 card and the detail header must print
+    //     「수행 담당자 시스템」 while it is live (the human-started #130 prints an id).
+    {
+      pipeline_id: 134, type: 'INSTALL', target_source_id: '1004', ...resolveService('1004'), cloud_provider: 'AZURE',
+      recipe_definition: 'AZURE_INSTALL_V1', status: 'RUNNING',
+      requested_by: SYSTEM_REQUESTER, request_note: '4단계 진입 자동 설치',
+      created_at: ago(12), last_activity_at: ago(1), next_due_at: ahead(4), leased: true,
+      cancel_requested: false, due_lag_millis: 0,
+      tasks: [
+        mkTask(134, 0, 'AZURE_BDC_PLAN_V1', 'DONE', {
+          started_at: ago(12), finished_at: ago(9),
+          attempts: [attempt(1, 'DONE', null, 12, '{"job_id":"tf-z40","terraformState":"COMPLETED"}', 9)],
+        }),
+        mkTask(134, 1, 'AZURE_BDC_APPLY_V1', 'IN_PROGRESS', {
+          started_at: ago(9),
+          attempts: [attempt(1, 'IN_PROGRESS', null, 9, '{"job_id":"tf-z41","terraformState":"RUNNING"}', null)],
+        }),
+      ],
+    },
     // ── 133 FAILED (EXECUTION_TIMEOUT — the limit expired, no job ever failed) — AWS target 1009. ──
     //     The apply attempt polled for the full PT30M `effective_execution_timeout`:
     //     five jobs completed, three were still RUNNING at the last poll, and with no
@@ -643,7 +664,7 @@ function seedPipelines(): MockPipeline[] {
     {
       pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
-      requested_by: '관리자', request_note: null,
+      requested_by: 'admin-1', request_note: null,   // the signed-in user's id, as the proxy route stamps it
       created_at: ago(30), last_activity_at: ago(2), next_due_at: ahead(6), leased: true,
       cancel_requested: false, due_lag_millis: 0,
       tasks: [
