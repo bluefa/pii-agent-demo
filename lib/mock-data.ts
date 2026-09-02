@@ -23,6 +23,10 @@ import {
   awsWireApprovalResources,
   awsWireSampleResources,
 } from "@/lib/bff/mock/aws-wire-sample";
+import {
+  APPROVAL_QUEUE_TARGETS,
+  approvalQueueAccount,
+} from "@/lib/bff/mock/approval-queue-fixtures";
 
 /**
  * ProcessStatus에 맞는 ProjectStatus를 생성합니다.
@@ -361,6 +365,18 @@ export const mockServiceCodes: ServiceCode[] = [
     code: "NTF",
     name: "알림 발송 허브",
     description: "알림 도메인 PII Agent 연동",
+  },
+  // 연동 요청 큐가 보여주는 대상의 서비스. 없으면 그 대상의 운영 헤더가 서비스 이름
+  // 자리에 코드를 그대로 적는다 (위 MDA 주석과 같은 이유).
+  {
+    code: "PNT",
+    name: "포인트 적립 및 소멸",
+    description: "포인트 도메인 PII Agent 연동",
+  },
+  {
+    code: "CHT",
+    name: "고객 상담 채팅",
+    description: "채팅 도메인 PII Agent 연동",
   },
   // EOS 표기를 실제로 볼 수 있는 한 건. 나머지는 필드를 아예 두지 않아 "모름"으로
   // 남는다 — 목이 전부 false 를 실어 보내면 계약이 나가기 전 상태를 재현하지 못한다.
@@ -2687,6 +2703,91 @@ mockProjects.push(
         extra: { description },
       })
   )
+);
+
+// ===== 연동 요청 큐 대상 =====
+// INVARIANT: 연동 요청 큐(대기 / 반려 / 이력)의 모든 행은 실재하는 타겟 소스다. 세 뷰가
+// 각 행을 그 대상의 운영 상세로 링크하므로, 여기 없는 id 는 곧바로 끊긴 링크가 된다 —
+// 화면은 "Target Source #1031 정보를 불러오지 못했습니다" 를 그린다.
+//
+// 명단은 큐 픽스처에서 뽑아 온다(APPROVAL_QUEUE_TARGETS). 손으로 옮겨 적으면 다음에
+// 큐에 행을 한 줄 더 넣는 순간 그 행만 조용히 404 가 된다.
+//
+// 이미 시드된 id 는 건드리지 않는다. 위에서 태어난 대상은 리소스·단계·이력을 갖고 있고,
+// 큐가 아는 것보다 늘 많이 안다 — 큐 쪽 사실로 덮어쓰면 그것들을 잃는다.
+const queueConfirmStatusToProcessStatus = (cs: string | null): ProcessStatus => {
+  switch (cs) {
+    // 승인 대기 / 반려 — 둘 다 2단계에 머문 대상이다(반려는 isRejected 로 갈린다).
+    case "PENDING":
+    case "REJECTED":
+      return ProcessStatus.WAITING_APPROVAL;
+    case "CONFIRMING":
+      return ProcessStatus.APPLYING_APPROVED;
+    case "CONFIRMED":
+      return ProcessStatus.INSTALLING;
+    // NO_REQUEST 와 이력에만 있는 대상 — 지금 걸려 있는 요청이 없으니 1단계다.
+    default:
+      return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  }
+};
+
+const queueProviderToCloudProvider = (pv: string): CloudProvider => {
+  switch (pv.toUpperCase()) {
+    case "AZURE":
+      return "Azure";
+    case "GCP":
+      return "GCP";
+    case "IDC":
+      return "IDC";
+    default:
+      return "AWS";
+  }
+};
+
+mockProjects.push(
+  ...APPROVAL_QUEUE_TARGETS.filter(
+    (t) => !mockProjects.some((p) => p.targetSourceId === t.ts)
+  ).map((t): Project => {
+    const processStatus = queueConfirmStatusToProcessStatus(t.cs);
+    const at = t.at ?? "2026-06-28T09:00:00Z";
+    // 계정 식별자는 큐 응답과 **같은** 함수에서 온다. 서비스 운영 목록은 한 대상을
+    // 카탈로그 쪽에서 받을 수도, 큐 쪽에서 받을 수도 있어서(task-queue.ts 의
+    // serviceCode 분기), 여기서 따로 지어내면 경로에 따라 계정 줄이 달라진다.
+    const account = approvalQueueAccount(t.ts, t.pv);
+    return {
+      id: `queue-proj-${t.ts}`,
+      targetSourceId: t.ts,
+      projectCode: `${t.code}-${String(t.ts).slice(-3)}`,
+      name: `${t.svc} PII Agent`,
+      // 큐가 그 대상을 두고 적는 문장 그대로. 큐에 설명이 없는 대상은 여기서도 비운다 —
+      // 목록에 없던 문장이 상세에서 생겨나면 두 화면이 한 대상을 두고 다른 말을 한다.
+      description: t.description ?? "",
+      serviceCode: t.code,
+      cloudProvider: queueProviderToCloudProvider(t.pv),
+      processStatus,
+      status: createStatusForProcessStatus(processStatus, {
+        isRejected: t.cs === "REJECTED",
+      }),
+      // 리소스는 비운다. 이 대상들의 리소스를 아는 곳은 승인 요청 픽스처
+      // (task-queue.ts SEED_APPROVAL_DEMO / NLB_INDEX_MAPPINGS)뿐이고, 여기서 따로
+      // 지어내면 같은 대상의 리소스 id 를 두 목이 다르게 부르게 된다.
+      resources: [],
+      terraformState: { serviceTf: "PENDING", bdcTf: "PENDING" },
+      ...(account.awsAccountId ? { awsAccountId: account.awsAccountId } : {}),
+      ...(account.tenantId ? { tenantId: account.tenantId } : {}),
+      ...(account.subscriptionId ? { subscriptionId: account.subscriptionId } : {}),
+      ...(account.gcpProjectId ? { gcpProjectId: account.gcpProjectId } : {}),
+      ...(account.awsAccountId
+        ? {
+            isChinaRegion: account.isChinaRegion,
+            awsRegionType: account.isChinaRegion ? ("china" as const) : ("global" as const),
+          }
+        : {}),
+      createdAt: at,
+      updatedAt: at,
+      isRejected: t.cs === "REJECTED",
+    };
+  })
 );
 
 // ===== 최초 연동 시각 =====
