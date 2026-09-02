@@ -97,7 +97,7 @@ export const ScanPermissionResult = ({ state }: { state: ScanPermissionState }) 
     return (
       <span
         className={cn(
-          'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[12px] font-semibold',
+          'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[12px] font-semibold break-words',
           statusColors.error.bg,
           statusColors.error.border,
           statusColors.error.textDark,

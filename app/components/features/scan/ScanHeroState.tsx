@@ -81,41 +81,40 @@ export const ScanHeroState = ({
           수 있으므로 화면은 "확인 실패"까지만 말한다. */}
       <div
         className={cn(
-          'mx-auto mt-6 flex max-w-[430px] items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left',
+          'mx-auto mt-6 max-w-[430px] rounded-xl border px-4 py-3 text-left',
           borderColors.default,
         )}
       >
-        <div className="min-w-0">
-          <div className={cn('text-[13.5px] font-semibold', textColors.primary)}>{t.permissionTitle}</div>
-          <div className={cn('mt-0.5 text-[12px]', textColors.tertiary)}>
-            {SCAN_CREDENTIAL_LABELS[provider]}
-          </div>
-          {/* 종류 아래 줄에 그 종류의 값. 확인 버튼이 무엇을 확인하는지가 이름으로 서고,
-              실패했을 때 어디를 고쳐야 하는지도 이 한 줄이 답한다. */}
-          {scanPrincipal ? (
-            <div
-              className={cn('mt-1 truncate font-mono text-[12px]', textColors.secondary)}
-              title={scanPrincipal}
-            >
-              {scanPrincipal}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className={cn('text-[13.5px] font-semibold', textColors.primary)}>{t.permissionTitle}</div>
+            <div className={cn('mt-0.5 text-[12px]', textColors.tertiary)}>
+              {SCAN_CREDENTIAL_LABELS[provider]}
             </div>
-          ) : null}
-        </div>
-        {permission.status === 'idle' || permission.status === 'checking' ? (
-          <button
-            type="button"
-            onClick={onCheckPermission}
-            disabled={permission.status === 'checking'}
-            className={cn(
-              'flex-shrink-0 text-[12.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-              primaryColors.text,
-            )}
-          >
-            {permission.status === 'checking' ? t.checking : t.checkNow}
-          </button>
-        ) : (
-          <div className="flex min-w-0 flex-shrink items-center gap-2">
-            <ScanPermissionResult state={permission} />
+            {/* 종류 아래 줄에 그 종류의 값. 확인 버튼이 무엇을 확인하는지가 이름으로 서고,
+                실패했을 때 어디를 고쳐야 하는지도 이 한 줄이 답한다. */}
+            {scanPrincipal ? (
+              <div
+                className={cn('mt-1 truncate font-mono text-[12px]', textColors.secondary)}
+                title={scanPrincipal}
+              >
+                {scanPrincipal}
+              </div>
+            ) : null}
+          </div>
+          {permission.status === 'idle' || permission.status === 'checking' ? (
+            <button
+              type="button"
+              onClick={onCheckPermission}
+              disabled={permission.status === 'checking'}
+              className={cn(
+                'flex-shrink-0 text-[12.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                primaryColors.text,
+              )}
+            >
+              {permission.status === 'checking' ? t.checking : t.checkNow}
+            </button>
+          ) : (
             <button
               type="button"
               onClick={onCheckPermission}
@@ -123,8 +122,15 @@ export const ScanHeroState = ({
             >
               {t.checkAgain}
             </button>
+          )}
+        </div>
+        {/* The result sits on its own row: a server fail message can be long, and a
+            row slot on the right cannot hold it without pushing the button out. */}
+        {permission.status !== 'idle' && permission.status !== 'checking' ? (
+          <div className="mt-2.5">
+            <ScanPermissionResult state={permission} />
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-7">
