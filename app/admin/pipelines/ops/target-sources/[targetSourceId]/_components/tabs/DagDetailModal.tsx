@@ -125,9 +125,19 @@ function DagDetailBody({ row, timezone }: { row: DagDbRow; timezone: string }): 
         )}
       </Field>
 
-      {(url || host.phase === 'failed') && (
+      {/* 주소 조회가 도는 동안에도 이 줄은 선다 — 정착본이 여기 md 버튼 하나를 세우므로,
+          안 그리면 응답이 도착하는 순간 모달이 이 블록(mt-5 + 선 + pt-4 + h-8)만큼 통째로
+          자란다. 어느 버튼이 올지는 말하지 않는다: 바는 md 버튼의 자국일 뿐이다.
+          ⚠️ 한 경우가 남는다 — 'loaded' 인데 url 이 빈 답이면(주소 확인 불가) 누를 것이
+          없어 줄이 걷힌다. 아무것도 없는 규칙 줄을 남겨 두는 편이 더 나쁘다. */}
+      {(url || host.phase !== 'loaded') && (
         <div className="mt-5 flex justify-end border-t border-[var(--pl-gray-100)] pt-4">
-          {url ? (
+          {host.phase === 'loading' ? (
+            <span
+              className={cn(opsStyles.skeletonBar, 'block h-8 w-[132px] rounded-lg')}
+              aria-hidden
+            />
+          ) : url ? (
             <a
               href={url}
               target="_blank"

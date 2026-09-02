@@ -12,9 +12,12 @@ import { formatDate } from '@/lib/utils/date';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
 import { StatTile } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import { toRequestResourceRow } from '@/app/lib/api/task-queue-requests';
-import { ResourceSection } from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
+import {
+  ResourceSection,
+  ResourceSectionSkeleton,
+} from '@/app/admin/pipelines/queue/requests/_components/ResourceSection';
 import { useResourceListState } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
-import { borderColors, cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import { useLocale } from '@/app/components/LocaleProvider';
 import {
   STATUS_COPY,
@@ -248,9 +251,14 @@ export const ApprovalRequestDetailModal = ({
           assignment is locked: the request being read here is already decided. */}
       <div className="mt-6">
         {fetchLoading ? (
-          <p className={cn('rounded-lg border p-6 text-center text-sm', borderColors.default, textColors.tertiary)}>
-            {t.detail.loadingResources}
-          </p>
+          /* The list's own footprint, not one centred line in a ~70px box: the settled
+             section is tiles + toolbar + table + pager, so the modal body grew by several
+             hundred px the moment the detail landed. Reused from the 연동 요청 정보 tab
+             (RequestTab), which renders this same section in this same `mt-6` — the two
+             surfaces cannot drift apart. The pager is deliberately undrawn there (nothing
+             sits under it), and so is the counts-only fallback this modal settles into
+             when the detail cannot be read — that failure is what is loading. */
+          <ResourceSectionSkeleton />
         ) : resources != null ? (
           <ResourceSection
             resources={rows}
