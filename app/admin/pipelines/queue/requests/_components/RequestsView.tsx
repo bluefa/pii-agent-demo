@@ -594,10 +594,13 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
     window.history.replaceState(null, '', `${window.location.pathname}?view=${next}`);
   }, []);
 
-  // 두 뷰가 모두 도착해야 합이 사실이다 — 하나라도 로딩 중이면 수를 말하지
-  // 않는다(스켈레톤 옆에서 32px 볼드로 '0건'은 모르는 값을 아는 척하는 것).
-  const counted = pending.paged != null && rejected.paged != null;
-  const todo = (pending.paged?.totalElements ?? 0) + (rejected.paged?.totalElements ?? 0);
+  // 작업 묶음 세 뷰가 모두 도착해야 합이 사실이다 — 하나라도 로딩 중이면 수를 말하지
+  // 않는다(스켈레톤 옆에서 32px 볼드로 부분합은 모르는 값을 아는 척하는 것).
+  const counted = pending.paged != null && rejected.paged != null && recent.paged != null;
+  const todo =
+    (pending.paged?.totalElements ?? 0) +
+    (rejected.paged?.totalElements ?? 0) +
+    (recent.paged?.totalElements ?? 0);
 
   const counts: Record<RequestView, number | null> = {
     pending: pending.paged?.totalElements ?? null,
@@ -610,8 +613,10 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
     <div className={rq.page}>
       <div className={rq.body}>
         <h1 className={rq.h1}>연동 요청</h1>
+        {/* 갓 만들어진 대상은 '서비스가 보낸 승인 요청'이 아니다 — 세 집단을 한
+            수로 접는 이 줄은 셋이 공유하는 것만 말한다: 확인이 필요한 대상. */}
         <p className={rq.context}>
-          서비스가 보낸 연동 승인 요청 중 확인이 필요한 건이 총
+          확인이 필요한 대상이 총
           {counted ? (
             <strong className={rq.contextTotal}>{todo}</strong>
           ) : (
