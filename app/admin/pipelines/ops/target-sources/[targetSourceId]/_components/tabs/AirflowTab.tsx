@@ -10,7 +10,7 @@
  * 탭을 오갈 때마다 다시 부르지 않는다.
  */
 import { useMemo, useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 import { fmtDateTimeShort } from '@/lib/pipeline/format';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
@@ -138,7 +138,60 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
               {fmtDateTimeShort(dag.fetchedAt)} ({dag.data.timezone})
             </p>
           )}
+          {dag.phase === 'loading' && (
+            // 이 줄은 정착본에만 있어서, 값이 도착하는 순간 머리 오른쪽이 비었다가 찬다.
+            // 자리만 잡아 둔다 — 스코프도 시각도 지금 오는 것이라 값은 그리지 않는다.
+            // 높이는 정착본 줄 그대로: `scopeTag` 의 py-0.5(4) + 12px 줄 상자(16.8, 관리자
+            // 셸의 leading-1.4) ≈ 25px 이고, 그 태그가 이 줄에서 가장 높다.
+            <span
+              className={cn(opsStyles.skeletonWash, 'mt-1 block h-[25px] w-[200px] flex-none')}
+              aria-hidden
+            />
+          )}
         </div>
+
+        {dag.phase === 'loading' && (
+          /* 판정 문장만 남고 본문이 통째로 없으면 값이 도착할 때 탭이 통째로 뛴다 — 카운트
+             줄과 에이전트 표의 자국을 정착본과 같은 슬롯(mt-5 · mt-4)에 세운다.
+             바닥 위의 바는 `skeletonWash` 다: 이 탭에는 카드가 없어 카운트 줄이 바닥
+             (gray-200) 위에 서고, 거기서 gray-100 바는 1.00:1 로 사라진다(ConfirmTab 의
+             같은 자리와 같은 이유). 표는 제 흰 면을 가지므로 그 안은 `skeleton` 이 진다 —
+             머리 밴드만 예외로, `approvalHeaderFlat` 의 파란 워시 위에서는 gray-100 이
+             다시 사라져 한 칸 더 진한 워시가 간다(`ResourceSectionSkeleton` 의 판례).
+             높이: 카운트 줄 = 그 줄에서 가장 큰 글자인 `countValue`(14px × leading-1.4)의
+             19.6px 줄 상자 → h-5. 표 머리 = approvalHeaderCell 의 py-3(24) + 19.6 ≈ 44px,
+             본문 행 = AgentDagTable 의 py-5(40) + 19.6 + 경계선 ≈ 61px.
+             행은 셋만 그린다 — 에이전트가 몇인지가 바로 지금 오는 값이다. */
+          /* `aria-busy` 와 낭독 한 줄은 이 상자가 진다 — 로딩 갈래에만 있는 요소라야
+             정착 뒤에 「불러오는 중」이 남지 않는다. 상자는 정착본의 mt-5 슬롯 그대로이고
+             카운트 줄은 그 안에서 여백 없이 서므로, 감싼다고 y 가 움직이지 않는다. */
+          <div className="mt-5" aria-busy>
+            <span className="sr-only">불러오는 중</span>
+            <span className={cn(opsStyles.skeletonWash, 'block h-5 w-[420px]')} aria-hidden />
+            <div className={cn('mt-4', idcStyles.table.framePaged)} aria-hidden>
+              <div
+                className={cn(
+                  'flex items-center gap-10 px-[18px] py-3',
+                  idcStyles.table.approvalHeaderFlat,
+                )}
+              >
+                {['w-[112px]', 'w-[88px]', 'w-[64px]', 'w-[96px]'].map((width) => (
+                  <span key={width} className={cn(opsStyles.skeletonWash, 'h-5', width)} />
+                ))}
+              </div>
+              {Array.from({ length: 3 }, (_, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-10 border-t border-[var(--pl-gray-100)] px-[18px] py-5"
+                >
+                  {['w-[160px]', 'w-[96px]', 'w-[48px]', 'w-[72px]'].map((width) => (
+                    <span key={width} className={cn(opsStyles.skeleton, 'h-5', width)} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {dag.phase === 'loaded' && agg && (
           <>

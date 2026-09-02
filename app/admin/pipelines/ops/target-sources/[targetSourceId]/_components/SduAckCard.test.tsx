@@ -87,8 +87,14 @@ describe('SduAckCard — 답과 출처', () => {
     // 계약 §5: `acked: false` 하나로는 둘이 구별되지 않는다. 가르는 것은 `ackedAt` 이다.
     draw();
 
-    const firewall = await screen.findByText('방화벽 결재 확인');
-    expect(firewall.nextElementSibling?.textContent).toContain('아니오');
+    // 라벨은 대기 프레임(스켈레톤)도 실물로 그린다 — 라벨의 등장이 아니라 **값의 도착**을
+    // 기다려야 정착본의 `dd` 를 읽는다.
+    await waitFor(() =>
+      expect(screen.getByText('방화벽 결재 확인').nextElementSibling?.textContent).toContain(
+        '아니오',
+      ),
+    );
+    const firewall = screen.getByText('방화벽 결재 확인');
     expect(firewall.nextElementSibling?.textContent).toContain('홍길동');
     expect(screen.getByText('데이터 업로드 확인').nextElementSibling?.textContent).toBe('미답');
   });
@@ -106,7 +112,12 @@ describe('SduAckCard — 답과 출처', () => {
     );
     draw();
 
-    const value = (await screen.findByText('방화벽 결재 확인')).nextElementSibling;
+    await waitFor(() =>
+      expect(screen.getByText('방화벽 결재 확인').nextElementSibling?.textContent).toContain(
+        '홍길동',
+      ),
+    );
+    const value = screen.getByText('방화벽 결재 확인').nextElementSibling;
     // 여백은 눈에만 있다 — 낭독과 복사가 읽는 것은 이 문자열이다.
     expect(value?.textContent).not.toContain('예홍길동');
     expect(value?.textContent).toContain('예 · 홍길동');
@@ -115,8 +126,9 @@ describe('SduAckCard — 답과 출처', () => {
   it('미답에는 붙일 사람도 시각도 없다 — 구분자도 서지 않는다', async () => {
     draw();
 
-    await screen.findByText('방화벽 결재 확인');
-    expect(screen.getByText('데이터 업로드 확인').nextElementSibling?.textContent).toBe('미답');
+    await waitFor(() =>
+      expect(screen.getByText('데이터 업로드 확인').nextElementSibling?.textContent).toBe('미답'),
+    );
   });
 });
 
@@ -394,5 +406,19 @@ describe('SduAckCard — BDC 구축 완료 단언 (델타 §1·§3)', () => {
     fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
     await waitFor(() => expect(putSduBdcCompletion).toHaveBeenCalledWith(1100, false));
     await waitFor(() => expect(onBdcChanged).toHaveBeenCalled());
+  });
+
+  // 기다리는 동안 카드 본문이 빈 상자였다 — `aria-busy` 만 붙은 72px 짜리 여백이라
+  // 화면에는 제목 둘 밑에 아무것도 없었고, 답이 도착하는 순간 두 줄이 튀어나왔다.
+  it('답을 기다리는 동안 kv 격자의 자국을 그린다', () => {
+    // 끝나지 않는 조회 — 로딩 프레임을 붙잡아 둔다.
+    getSduUpload.mockReturnValue(new Promise(() => {}));
+    const { container } = render(<SduAckCard targetSourceId={1100} />);
+
+    const busy = container.querySelector('[aria-busy]');
+    expect(busy).not.toBeNull();
+    expect(busy?.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    // 라벨은 고정 문자열이라 기다리는 동안에도 실물로 선다.
+    expect(screen.getByText('방화벽 결재 확인')).toBeTruthy();
   });
 });

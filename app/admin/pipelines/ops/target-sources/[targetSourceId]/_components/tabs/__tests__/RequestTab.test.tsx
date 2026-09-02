@@ -247,4 +247,19 @@ describe('RequestTab 요청 리소스', () => {
       expect(screen.queryByText('Instance')).toBeNull();
     });
   });
+
+  // 기다리는 동안 카드가 「불러오는 중…」 한 줄이었다 — 목록이 도착하면 그 줄 자리에
+  // 메타 행 + 리소스 섹션이 통째로 들어서면서 탭이 뛰었다.
+  it('요청을 기다리는 동안 메타 행과 리소스 목록의 자국을 그린다', () => {
+    // 끝나지 않는 조회 — 로딩 프레임을 붙잡아 둔다.
+    getApprovalRequestLatest.mockReturnValue(new Promise(() => {}));
+    const { container } = render(<RequestTab targetSourceId={1642} detail={CSP} />);
+
+    const busy = container.querySelector('[aria-busy]');
+    expect(busy).not.toBeNull();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByText('불러오는 중…')).toBeNull();
+    // 라벨은 고정 문자열이라 기다리는 동안에도 실물로 선다.
+    expect(screen.getByText('요청일시')).toBeTruthy();
+  });
 });

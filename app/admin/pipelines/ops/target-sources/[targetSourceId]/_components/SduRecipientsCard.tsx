@@ -77,6 +77,17 @@ export function SduRecipientsCard({ targetSourceId }: SduRecipientsCardProps): R
   const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
   const rows = users.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
+  // 정착본과 스켈레톤이 **한 머리**를 쓴다 — 두 벌로 적으면 열이 바뀌는 날 한쪽만 따라가고,
+  // 스켈레톤은 조용히 이 표의 자국이 아니게 된다.
+  const head = (
+    <thead>
+      <tr>
+        <th className={cn(table.headCell, 'w-[132px]')}>이름</th>
+        <th className={table.headCell}>이메일</th>
+      </tr>
+    </thead>
+  );
+
   return (
     <section className={cn(pipelineStyles.card.base, opsStyles.pagedCard)} aria-label="S3 Access Key 수신자">
       {/* 수는 제목이 진다 — 페이지에 다섯 명이 보인다고 다섯 명인 것이 아니다. 접근명
@@ -93,7 +104,34 @@ export function SduRecipientsCard({ targetSourceId }: SduRecipientsCardProps): R
       {/* Fixed body slot — see opsStyles.pagedCardBody. */}
       <div className={opsStyles.pagedCardBody}>
         {!loaded ? (
-          <div className="h-full" aria-busy />
+          /* 정착본 표의 자국. 머리글 둘은 고정 문자열이라 실물로 그리고(`StatusCardSkeleton`
+             과 같은 규칙) 값 자리만 바가 대신한다.
+             높이는 **실측**이다 — 브라우저가 이 표(대상 1100, 수신자 2명)의 정착본 본문
+             행을 44.7px 로 보고한다: py-3(24) + 14px 글줄(19.6) + 헤어라인(1). 그래서 바가
+             h-[19.6px] 다.
+             ⚠️ 형제 「승인 요청 내역」의 46.0px 를 여기 옮겨 적지 말 것 — 그 1.4px 은 알약과
+             「상세 보기」 버튼을 든 칸에서 오지, 14px 글줄에서 오지 않는다. 이 표에는 둘 다
+             없다.
+             ⛔ 「마지막 등록」 줄은 그리지 않는다 — 그 줄이 서는지 자체가 지금 오는 값이다
+             (`recipients.updatedAt` 이 없으면 정착본에도 없다). */
+          <div className={pipelineStyles.card.tableWrap} aria-busy>
+            <span className="sr-only">불러오는 중</span>
+            <table className={table.base}>
+              {head}
+              <tbody className="[&>tr:last-child>td]:border-b-0" aria-hidden>
+                {Array.from({ length: 3 }, (_, index) => (
+                  <tr key={index}>
+                    <td className={cn(table.cell, 'w-[132px]')}>
+                      <span className={cn(opsStyles.skeletonBar, 'block h-[19.6px] w-[72px]')} />
+                    </td>
+                    <td className={table.cell}>
+                      <span className={cn(opsStyles.skeletonBar, 'block h-[19.6px] w-[196px]')} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : failed ? (
           <p className={pipelineStyles.empty.base}>수신자 정보를 불러오지 못했습니다.</p>
         ) : users.length === 0 ? (
@@ -102,12 +140,7 @@ export function SduRecipientsCard({ targetSourceId }: SduRecipientsCardProps): R
           <>
             <div className={pipelineStyles.card.tableWrap}>
               <table className={table.base}>
-                <thead>
-                  <tr>
-                    <th className={cn(table.headCell, 'w-[132px]')}>이름</th>
-                    <th className={table.headCell}>이메일</th>
-                  </tr>
-                </thead>
+                {head}
                 <tbody className="[&>tr:last-child>td]:border-b-0">
                   {rows.map((user) => (
                     <tr key={user.id}>

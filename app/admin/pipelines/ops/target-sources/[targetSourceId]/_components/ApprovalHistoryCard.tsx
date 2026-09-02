@@ -100,6 +100,19 @@ export function ApprovalHistoryCard({
 
   const { table } = opsStyles;
 
+  // The settled table and its skeleton share ONE head: written twice, a column change
+  // follows only one of them and the skeleton silently stops being the table's footprint.
+  const head = (
+    <thead>
+      <tr>
+        <th className={table.headCell}>요청 일시</th>
+        <th className={table.headCell}>상태</th>
+        <th className={table.headCell}>요청자</th>
+        <th className={cn(table.headCell, 'w-24')} aria-label="상세" />
+      </tr>
+    </thead>
+  );
+
   return (
     <section className={cn(pipelineStyles.card.base, opsStyles.pagedCard)} aria-label="승인 요청 내역">
       <h2 className={opsStyles.cardTitle}>승인 요청 내역</h2>
@@ -108,7 +121,43 @@ export function ApprovalHistoryCard({
       {/* Fixed body slot — see opsStyles.pagedCardBody. */}
       <div className={opsStyles.pagedCardBody}>
       {loading ? (
-        <div className="h-full" aria-busy />
+        /* The settled table's own footprint. Column names are fixed strings this screen
+           already knows, so they are drawn for real (`StatusCardSkeleton`'s rule) and only
+           the values are bars.
+           Heights are MEASURED, not derived — the browser reports a settled head row at
+           37.3px and a settled body row at 46.0px, and the same classes reproduce the head
+           exactly. The body row is what the bars have to hold up: py-3(24) + hairline(1)
+           leaves 21px of content, so the text bars are h-[21px] and only the pill's stays
+           h-5, its real height.
+           ⚠️ That 21px is NOT the 14px line box. The sibling 수신자 table uses the same
+           `table.cell` at the same 14px but carries neither a pill nor a 상세 보기 button,
+           and it measures 44.7px a row — a 19.6px line box. The extra 1.4px here is bought
+           by this table's two control cells, so do not carry the 21 to a plain text table.
+           Five rows because that is the page size — how many rows exist is what is loading. */
+        <div className={pipelineStyles.card.tableWrap} aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <table className={table.base}>
+            {head}
+            <tbody className="[&>tr:last-child>td]:border-b-0" aria-hidden>
+              {Array.from({ length: PAGE_SIZE }, (_, index) => (
+                <tr key={index}>
+                  <td className={table.cell}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[128px]')} />
+                  </td>
+                  <td className={table.cell}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[62px] rounded-full')} />
+                  </td>
+                  <td className={table.cell}>
+                    <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[84px]')} />
+                  </td>
+                  <td className={cn(table.cell, 'w-24')}>
+                    <span className={cn(opsStyles.skeletonBar, 'ml-auto block h-[21px] w-[62px]')} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : failed ? (
         <p className={pipelineStyles.empty.base}>승인 요청 내역을 불러오지 못했습니다.</p>
       ) : rows.length === 0 ? (
@@ -116,14 +165,7 @@ export function ApprovalHistoryCard({
       ) : (
         <div className={pipelineStyles.card.tableWrap}>
           <table className={table.base}>
-            <thead>
-              <tr>
-                <th className={table.headCell}>요청 일시</th>
-                <th className={table.headCell}>상태</th>
-                <th className={table.headCell}>요청자</th>
-                <th className={cn(table.headCell, 'w-24')} aria-label="상세" />
-              </tr>
-            </thead>
+            {head}
             <tbody className="[&>tr:last-child>td]:border-b-0">
               {rows.map((row, index) => (
                 <tr key={`${row.request?.id ?? 'row'}-${index}`}>

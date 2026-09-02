@@ -38,7 +38,9 @@ import { SduBdcCompleteModal } from '@/app/admin/pipelines/ops/target-sources/[t
 const NOTE_WARN =
   'flex flex-col gap-1 rounded-lg px-3.5 py-3 mt-4 text-[14px] leading-[1.5] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
 
-const KV_GRID = 'grid grid-cols-[140px_1fr] items-baseline gap-x-4 gap-y-2.5 mt-4';
+/** 바깥 여백(mt-4)은 부르는 쪽이 준다 — 스켈레톤은 이 격자를 제 상자 안에 넣기 때문에
+ *  같은 자리에 두 번 붙게 되고, `cn` 은 단순 join 이라 `mt-0` 을 덧대도 이기지 못한다. */
+const KV_GRID = 'grid grid-cols-[140px_1fr] items-baseline gap-x-4 gap-y-2.5';
 
 /** 두 확인과 BDC 사이의 이음매. BDC 는 담당자가 답한 것이 아니라 그 답들 **위에서** 일어난
  *  일이라, 같은 kv 격자에 넣으면 세 번째 확인 답변으로 읽힌다. */
@@ -177,12 +179,34 @@ export function SduAckCard({ targetSourceId, onBdcChanged }: SduAckCardProps): R
       <p className={opsStyles.cardDesc}>업로드 전에 담당자가 답해야 하는 두 가지입니다.</p>
 
       {!loaded ? (
-        <div className="mt-4 min-h-[72px] flex-1" aria-busy />
+        /* 정착본의 kv 격자 그대로 — 라벨 둘은 고정 문자열이라 실물이고(`StatusCardSkeleton`
+           의 규칙) 답 자리만 바가 대신한다. 바가 `KvRow` 의 `dd` **안에** 인라인으로 서므로
+           줄 높이는 `kvValue`(14px × leading-1.4 = 19.6px)가 그대로 잡고, `items-baseline`
+           격자의 베이스라인도 그 줄 상자가 그대로 낸다 — 답이 도착해도 두 줄이 움직이지 않는다.
+           ⛔ 무효화 안내(§3.1)와 BDC 블록은 그리지 않는다: 안내는 그 줄이 서는지 자체가 지금
+           오는 값이고, BDC 블록의 버튼 라벨·잠긴 이유도 마찬가지다. */
+        <div className="mt-4 flex-1" aria-busy>
+          <span className="sr-only">불러오는 중</span>
+          <dl className={KV_GRID}>
+            <KvRow label="방화벽 결재 확인">
+              <span
+                className={cn(opsStyles.skeletonBar, 'inline-block h-[14px] w-[132px] align-middle')}
+                aria-hidden
+              />
+            </KvRow>
+            <KvRow label="데이터 업로드 확인">
+              <span
+                className={cn(opsStyles.skeletonBar, 'inline-block h-[14px] w-[168px] align-middle')}
+                aria-hidden
+              />
+            </KvRow>
+          </dl>
+        </div>
       ) : failed || !upload ? (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')}>담당자 확인 정보를 불러오지 못했습니다.</p>
       ) : (
         <>
-          <dl className={KV_GRID}>
+          <dl className={cn(KV_GRID, 'mt-4')}>
             <KvRow label="방화벽 결재 확인">
               <AckValue ack={upload.firewall} />
             </KvRow>
