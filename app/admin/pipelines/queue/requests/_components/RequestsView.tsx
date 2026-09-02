@@ -302,18 +302,33 @@ const HISTORY_COLUMNS: readonly Column[] = [
 ];
 
 /**
- * 행 전체를 덮는 이동 링크 — 세 뷰가 같은 곳으로 간다 (오너 지시): Target Source
- * 운영 상세. `tab` 을 붙이지 않으므로 진행 상태로 떨어진다.
+ * 행 전체를 덮는 이동 링크 — 목적지는 뷰가 고른다 (오너 지시). 요청 두 뷰(승인 대기 ·
+ * 반려 미확인)는 P3 연동 요청 상세로 간다: 그 행에 해야 할 일이 승인·반려이고, 반려
+ * 사유 전문도 거기 있다. 최근 생성 · 전체 이력은 Target Source 운영 상세로 간다 —
+ * `tab` 을 붙이지 않으므로 진행 상태로 떨어진다.
  *
  * 링크는 첫 셀 **안에** 둔다 — role=row 는 셀만 자식으로 가져야 해서, 행 직속 <a> 는
  * 스크린리더 순회에서 지워질 수 있다. absolute inset-0 이라 위치는 그대로 행 전체를
  * 덮는다.
  */
-function RowLink({ id, serviceName }: { id: number; serviceName: string | null }): ReactElement {
+function RowLink({
+  id,
+  serviceName,
+  to = 'ops',
+}: {
+  id: number;
+  serviceName: string | null;
+  to?: 'ops' | 'request';
+}): ReactElement {
+  const label = to === 'request' ? '연동 요청 상세' : '운영 상세';
   return (
     <Link
-      href={passRoutes.pipelines.ops.targetSource(id)}
-      aria-label={`${serviceName ?? `Target Source ${id}`} 운영 상세 보기`}
+      href={
+        to === 'request'
+          ? passRoutes.pipelines.queue.request(id)
+          : passRoutes.pipelines.ops.targetSource(id)
+      }
+      aria-label={`${serviceName ?? `Target Source ${id}`} ${label} 보기`}
       className="absolute inset-0"
     />
   );
@@ -535,8 +550,8 @@ function ViewCard<T>({ meta, state, children }: ViewCardProps<T>): ReactElement 
 }
 
 /** 두 작업 뷰의 행은 같은 골격이다 — 두 번째 flex 컬럼에 들어갈 값과, 대기·일자가
- *  읽는 날짜만 다르다. 행 전체가 Target Source 운영 상세로 가고, 사유 전문과 요청
- *  내역(리소스)은 그곳의 연동 요청 정보 탭에서 읽는다. */
+ *  읽는 날짜만 다르다. 행 전체가 P3 연동 요청 상세로 가고, 사유 전문과 요청
+ *  내역(리소스)도 승인·반려 버튼과 함께 그 화면에서 읽는다. */
 const actionRows = (
   rows: RequestListRow[],
   note: (row: RequestListRow) => string | null | undefined,
@@ -547,7 +562,7 @@ const actionRows = (
     return (
       <div key={id ?? row.serviceCode} role="row" className={cn(rq.row, id != null && rq.rowLink)}>
         <span role="cell" className={cn(rq.service, rq.serviceName)}>
-          {id != null && <RowLink id={id} serviceName={row.serviceName} />}
+          {id != null && <RowLink id={id} serviceName={row.serviceName} to="request" />}
           {row.serviceName ?? '—'}
         </span>
         <span role="cell" className={cn(rq.code, rq.mono)}>
@@ -556,7 +571,7 @@ const actionRows = (
         <span role="cell" className={rq.cloud}>
           <ProvTag provider={row.cloudProvider ?? ''} />
         </span>
-        {/* 미리보기 한 줄. 전문은 행을 눌러 운영 상세의 연동 요청 정보 탭에서 —
+        {/* 미리보기 한 줄. 전문은 행을 눌러 연동 요청 상세에서 —
             hover 툴팁은 두지 않는다: 툴팁을 띄우려면 이 셀이 포인터를 받아야 하고,
             그러면 같은 자리에서 행 링크 클릭이 죽는다. */}
         <span role="cell" className={rq.note}>
