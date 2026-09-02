@@ -121,6 +121,28 @@ describe('InfraStatusHead — Terraform 작업', () => {
   });
 });
 
+describe('InfraStatusHead — 불러오는 중', () => {
+  it('draws the card frame while the response is still in flight', () => {
+    // The loading branch used to be a blank reserved box, so the card appeared
+    // only when the data did. It now stands as itself with bars where the data
+    // goes — the title is a fixed string, the tasks are not.
+    render(
+      <InfraStatusHead
+        status={null}
+        loading
+        failed={false}
+        processStatus="INSTALLED"
+        onSelectTab={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Terraform 적용 상태' })).toBeTruthy();
+    expect(screen.getByText('연동 정보')).toBeTruthy();
+    expect(screen.queryByText('aws-vpc-peering')).toBeNull();
+    expect(screen.queryByText('작업 정보가 없습니다.')).toBeNull();
+  });
+});
+
 describe('InfraStatusHead — 연동 정보', () => {
   it('reads 미확정 and names the step the target is waiting at', () => {
     renderHead(UNCONFIRMED, 'IDLE');

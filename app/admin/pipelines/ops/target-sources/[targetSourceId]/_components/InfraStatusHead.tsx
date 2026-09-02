@@ -182,16 +182,79 @@ export function InfraStatusHead({
       </div>
 
       {loading ? (
-        /* 193px — this card with three task rows, measured rather than derived:
-           getBoundingClientRect on the rendered card of an AWS target (1440
-           viewport, 1160px card, three 30px rows). The old 146px belonged to the
-           two-column strip, which had no card head.
+        /* The settled card's own markup, so the reserved height is no longer a
+           magic number that a row change silently invalidates (the 193px it
+           replaces was measured once and never re-measured). Fixed strings the
+           screen already knows — the title, 연동 정보 — are drawn for real; only
+           the data is bars (`StatusCardSkeleton`'s rule).
+           Three rows because the head cannot know the task count before the
+           response lands, and three is the longest list the contract can produce
+           (AWS 3 · GCP/IDC/SDU 2 · Azure 1). A shorter provider settles 30/60px
+           upward, which is the side that never covers the cards below. */
+        <section
+          aria-label="Terraform 적용 상태"
+          aria-busy
+          className={cn(pipelineStyles.card.flush, 'mt-4')}
+        >
+          <span className="sr-only">Terraform 적용 상태를 불러오는 중</span>
+          <div className={detailStyles.sectionCard.head}>
+            <div className={detailStyles.sectionCard.titleRow}>
+              <h3 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">
+                Terraform 적용 상태
+              </h3>
+              {/* 조회 시각 is data. 16.8px is the settled meta's measured line box
+                  (12px text at the card's leading); `self-center` keeps it OUT of
+                  the row's baseline, since a bar's baseline is its bottom edge and
+                  hanging that on the h3's baseline grows the row by 3px. */}
+              <span
+                className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[124px] flex-none self-center')}
+                aria-hidden
+              />
+            </div>
 
-           The head cannot know the task count before the response lands, so the
-           tallest case (AWS, three tasks) is what gets reserved — a two- or
-           one-task provider settles 30 / 60px upward when it arrives, which is
-           the side that never covers the cards below. */
-        <div className="mt-4 h-[193px]" aria-busy />
+            <dl className="mt-2 flex items-baseline gap-2 pb-4 text-[12px]">
+              <dt className="flex-none font-medium text-[var(--pl-text-weak)]">연동 정보</dt>
+              <dd className="flex min-w-0 items-center gap-2 self-center">
+                {/* 확정됨/미확정 plus whatever follows it (the 확정 정보 link, or the
+                    step) — both data, so one bar covers the whole value. 19.6px is
+                    what the settled value measures: the link, not the 16.8px word,
+                    is what sets that line's height. */}
+                <span
+                  className={cn(opsStyles.skeletonBar, 'block h-[19.6px] w-[132px]')}
+                  aria-hidden
+                />
+              </dd>
+            </dl>
+          </div>
+
+          <div className="border-t border-[var(--pl-border)] px-6 py-2" aria-hidden>
+            {Array.from({ length: 3 }, (_, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'flex min-h-[30px] items-center gap-2',
+                  index > 0 && 'border-t border-[var(--pl-border)]',
+                )}
+              >
+                {/* Each bar is the footprint of the element it stands in for, so
+                    nothing moves sideways on arrival: the name column's fixed 240px
+                    (16.8px line box), the SIDE_TAG's 48px floor (22.8px = 16.8 line
+                    + py-0.5 + border), and the pill's own h-5 from
+                    `pipelineStyles.pill.md`. The 30px row holds all three. */}
+                <span className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[240px] flex-none')} />
+                <span
+                  className={cn(
+                    opsStyles.skeletonBar,
+                    'h-[22.8px] w-[48px] flex-none rounded-[4px]',
+                  )}
+                />
+                <span
+                  className={cn(opsStyles.skeletonBar, 'h-5 w-[84px] flex-none rounded-full')}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       ) : failed || !status ? (
         <p className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
           Terraform 상태를 불러오지 못했습니다.
