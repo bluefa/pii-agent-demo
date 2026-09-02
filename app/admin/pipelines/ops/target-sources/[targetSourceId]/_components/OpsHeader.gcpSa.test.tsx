@@ -44,6 +44,7 @@ const renderHeader = (d: RawTargetSourceDetail): void => {
       targetSourceId={1042}
       detail={d}
       processStatus={null}
+      processLoaded
       isAws={false}
       savedRoleArns={{}}
       grantTfExecution={false}

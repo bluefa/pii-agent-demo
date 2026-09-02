@@ -163,6 +163,14 @@ function useInstallDetail(
   }, [fetcher, targetSourceId]);
 
   useEffect(() => {
+    // 대상(또는 프로바이더)이 바뀌면 앞 대상의 스냅샷은 사실이 아니다 — 비우지 않으면
+    // 새 대상의 게이트가 앞 대상의 설치 판정으로 정착한 것처럼 답한다.
+    //
+    // 초기화가 `load()` 안이 아니라 이 자리인 이유: `reload()` 도 같은 `load()` 를 부르는데,
+    // 다시 읽는 동안 스냅샷을 버리면 「실패는 빈 결과가 아니다」(아래 catch)가 무너진다.
+    // 여기서만 비우면 대상이 바뀐 순간에만 비워진다 — `load` 의 정체가 곧 [fetcher, id] 다.
+    setDetail(null);
+    setLoading(true);
     void load();
   }, [load]);
 

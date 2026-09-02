@@ -62,6 +62,11 @@ export interface OpsHeaderProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
   processStatus: ProcessStatus | null;
+  /**
+   * false = 단계를 아직 조회 중 — `ticketLoaded` 와 같은 자리다. null 을 「단계 없음」으로
+   * 단정하지 않고, 그동안 머리 줄은 알약의 **자리만** 잡는다 (아래 seat).
+   */
+  processLoaded: boolean;
   isAws: boolean;
   /** 이 화면에서 방금 저장한 ARN만 — 그 외에는 detail.metadata 가 표시의 유일한 출처. */
   savedRoleArns: Partial<Record<RoleKind, string>>;
@@ -84,6 +89,7 @@ export function OpsHeader({
   targetSourceId,
   detail,
   processStatus,
+  processLoaded,
   isAws,
   savedRoleArns,
   grantTfExecution,
@@ -321,9 +327,24 @@ export function OpsHeader({
                 연동 대상
               </span>
               {/* 알약은 「연동 대상」 옆에 선다 (오너 08-26) — 지금 몇 단계인지는 이 블록이
-                  이름 붙인 그 대상의 상태이지 경로의 일부가 아니다. */}
-              {processStatus && <StepPill status={processStatus} framed />}
-              {partitionTag}
+                  이름 붙인 그 대상의 상태이지 경로의 일부가 아니다.
+
+                  단계는 상세보다 늦게 도착한다 — 그래서 이 줄은 상세만으로 한 번 그려지고,
+                  알약이 나중에 끼어들며 오른쪽의 파티션 태그를 밀었다(실측 344.72 → 445.44).
+                  자리를 **폭으로** 예약할 수는 없다: 알약의 폭은 단계 라벨이 정하고(「완료」
+                  92.72px ↔ 「연동 대상 승인 대기」 173.75px), 가장 넓은 폭으로 트랙을 고정하면
+                  대다수 대상에서 알약과 태그 사이에 80px 짜리 구멍이 영구히 남는다.
+                  그래서 자리는 **시점으로** 예약한다 — 조회 중에는 알약 자리에 막대 하나만
+                  서고, 태그는 알약의 폭이 정해지는 그 커밋에서 함께 선다. 태그를 숨기는 것이
+                  아니라 제 자리에서 처음 그린다(같은 머리 줄의 `ticketLoaded` 와 같은 규칙). */}
+              {processLoaded ? (
+                processStatus && <StepPill status={processStatus} framed />
+              ) : (
+                /* 20px = 알약의 실측 높이. 폭은 아무것도 주장하지 않는다 — 어느 라벨도
+                   아직 모르고, 이 자리 오른쪽에는 지금 아무것도 서 있지 않다. */
+                <span className={cn(opsStyles.skeletonWash, 'h-5 w-[92px] flex-none rounded-full')} aria-hidden />
+              )}
+              {processLoaded && partitionTag}
             </span>
             {/* 큐는 자기가 여는 블록과 같은 줄에 선다 (오너 판단 Q2) — 그래야 무엇이
                 열리는지 말한다. 파랑은 이 팔레트에서 "누를 수 있다"의 한 가지 색. */}
