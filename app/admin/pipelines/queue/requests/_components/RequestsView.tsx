@@ -15,11 +15,11 @@
  * item does (a white card chip on the recessed ground), so the rail ranks by
  * elevation rather than by a second fill.
  *
- * Only the selected view's rows are on screen, but all three counts are: each
- * view fetches its page 0 once, and only the selected one re-fetches as the
- * pager moves (the other two hold a page number that never changes). A count is
- * withheld until that view's first page lands — '0건' next to a skeleton is a
- * number we do not have yet.
+ * Only the selected view's rows are on screen, but every count is: each view
+ * fetches its page 0 once, and only the selected one re-fetches as the pager
+ * moves (the others hold a page number that never changes). A count is withheld
+ * until that view's first page lands — '0건' next to a skeleton is a number we
+ * do not have yet.
  */
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import Link from 'next/link';
@@ -37,7 +37,11 @@ import { accessStyles } from '@/app/admin/pipelines/access/_components/accessSty
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { HistoryStatusPill } from '@/app/admin/pipelines/queue/requests/_components/HistoryStatusPill';
 import type { RequestView } from '@/app/admin/pipelines/queue/requests/_views';
-import { getApprovalHistory, getRequestList } from '@/app/lib/api/task-queue-requests';
+import {
+  getApprovalHistory,
+  getRecentTargetSources,
+  getRequestList,
+} from '@/app/lib/api/task-queue-requests';
 import type { ApprovalHistoryRow, Paged, RequestListRow } from '@/lib/types/task-queue';
 
 /**
@@ -58,6 +62,8 @@ const fetchRejected = (page: number, opts: { signal: AbortSignal }): Promise<Pag
   getRequestList('REJECTED', page, { ...opts, size: PAGE_SIZE });
 const fetchHistory = (page: number, opts: { signal: AbortSignal }): Promise<Paged<ApprovalHistoryRow>> =>
   getApprovalHistory(page, { ...opts, size: PAGE_SIZE });
+const fetchRecent = (page: number, opts: { signal: AbortSignal }): Promise<Paged<RequestListRow>> =>
+  getRecentTargetSources(page, { ...opts, size: PAGE_SIZE });
 
 interface PagedSection<T> {
   /** 0-based server page — same base as the pager, so nothing converts. */
@@ -147,9 +153,10 @@ const rq = {
   // 더하면 적용되지 않는 클래스만 남는다.
   railItem:
     'flex w-full items-center justify-between gap-2 px-2.5 py-[7px] mb-0.5 rounded-md text-[14px] text-left transition-colors',
-  // hover 는 흰 칠의 절반이다 — 바닥(#E4E7EC)에서 #F2F3F6 으로 1.11:1 올라가고, 고른
-  // 항목의 흰 면은 1.24:1 올라간다. 60% 로 칠하면 hover 가 1.14 까지 올라와 고른 항목과
-  // 1.09 밖에 안 벌어진다: 스쳐 지나가는 상태가 '여기 있다'와 같은 급이 된다.
+  // hover 는 흰 칠의 절반이다 — white/50 이 --pl-gray-200 바닥 위에 합성된 값은 그
+  // 바닥에서 1.11:1 올라가고, 고른 항목의 흰 면은 1.24:1 올라간다. 60% 로 칠하면
+  // hover 가 1.14 까지 올라와 고른 항목과 1.09 밖에 안 벌어진다: 스쳐 지나가는 상태가
+  // '여기 있다'와 같은 급이 된다.
   railItemIdle: 'text-[var(--pl-text-medium)] hover:bg-white/50',
   railItemActive:
     'bg-[var(--pl-bg-card)] font-semibold text-[var(--pl-text-strong)] shadow-[var(--pl-shadow-xs)]',
@@ -167,8 +174,8 @@ const rq = {
   badge: 'inline-flex flex-none items-center rounded-full px-2 py-[3px] text-[12px] font-semibold tabular-nums',
   desc: 'mt-1.5 text-[14px] leading-[1.5] text-[var(--pl-gray-600)]',
 
-  // 열 이름은 faint(#98A2B3, 흰 면에서 2.58:1) 가 아니라 weak(4.97:1) 다 — 어느 값이
-  // 어느 열인지 못 읽으면 표가 아니라 문자열 격자다.
+  // 열 이름은 --pl-text-faint(흰 면에서 2.58:1) 가 아니라 --pl-text-weak(4.97:1) 다 —
+  // 어느 값이 어느 열인지 못 읽으면 표가 아니라 문자열 격자다.
   headRow: 'mt-3 flex items-center gap-3 py-2 text-[12px] font-medium text-[var(--pl-text-weak)]',
   row: 'group relative flex items-center gap-3 border-t border-[var(--pl-border)] py-2.5 text-[14px] text-[var(--pl-text-medium)] transition-colors',
   rowLink: 'hover:bg-[var(--pl-gray-50)]',
@@ -265,6 +272,24 @@ const actionColumns = (note: string, when: string): readonly Column[] => [
 const PENDING_COLUMNS = actionColumns('설명', '요청 일자');
 const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
 
+/**
+ * 최근 생성 — 두 작업 뷰의 골격에서 **대기**만 뺀 것이다. 갓 생긴 대상은 아직 아무
+ * 줄에도 서 있지 않으니 "얼마나 오래 서 있었나"에 답할 것이 없다. 나머지는 같은 열,
+ * 같은 폭이라 레일이 작업 묶음 안에서 움직여도 표의 신원 열이 안 흔들린다.
+ *
+ * 고정 열 합은 76 + 72 + 136 + 14 = 298 이고 다섯 gap 이 60 이라, 바닥(1080)의 카드
+ * 안쪽 558 에서 두 유연 열이 200 을 나눠 갖는다 — 각자의 바닥값 72 를 넘으므로
+ * rowsMinWidth 가 필요 없다(전체 이력만 그것을 쓴다).
+ */
+const RECENT_COLUMNS: readonly Column[] = [
+  { label: '서비스 이름', className: rq.service },
+  { label: '서비스 코드', className: rq.code },
+  { label: 'Cloud', className: rq.cloud },
+  { label: '설명', className: rq.note },
+  { label: '생성 일자', className: rq.when },
+  { className: rq.chev },
+];
+
 const HISTORY_COLUMNS: readonly Column[] = [
   { label: '서비스 이름', className: rq.service },
   { label: '서비스 코드', className: rq.code },
@@ -351,6 +376,21 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
       caption: '반려 처리한 요청이 여기에 모여요',
     },
   },
+  recent: {
+    // 앞 두 항목은 상태의 이름이고 이것은 기간의 이름이다. 창 길이를 라벨에 적는
+    // 이유는 운영 알림 타일과 같다 — '최근'만으로는 며칠인지 화면 어디에도 없고,
+    // 창은 서버가 고정해 두어 사용자가 바꿀 수 없다. 두 화면이 같은 목록을 같은
+    // 이름으로 부른다.
+    rail: '최근 14일 생성',
+    title: '최근 생성 대상 확인',
+    desc: '최근 14일 이내에 만들어진 연동 대상이에요 — 행을 눌러 지금 어디까지 왔는지 볼 수 있어요',
+    tone: 'muted',
+    columns: RECENT_COLUMNS,
+    empty: {
+      title: '최근 14일 안에 만들어진 대상이 없어요',
+      caption: '새 연동 대상이 만들어지면 여기에 표시돼요',
+    },
+  },
   history: {
     rail: '전체 이력',
     title: '전체 History 확인',
@@ -378,7 +418,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
 
 /** 레일의 두 묶음 — 해야 할 일과 남은 기록. */
 const RAIL_GROUPS: readonly { title: string; views: readonly RequestView[] }[] = [
-  { title: '작업', views: ['pending', 'rejected'] },
+  { title: '작업', views: ['pending', 'rejected', 'recent'] },
   { title: '기록', views: ['history'] },
 ];
 
@@ -542,6 +582,7 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
   const pending = usePagedSection(fetchPending);
   const rejected = usePagedSection(fetchRejected);
   const history = usePagedSection(fetchHistory);
+  const recent = usePagedSection(fetchRecent);
 
   const [view, setView] = useState<RequestView>(initialView);
 
@@ -562,6 +603,7 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
     pending: pending.paged?.totalElements ?? null,
     rejected: rejected.paged?.totalElements ?? null,
     history: history.paged?.totalElements ?? null,
+    recent: recent.paged?.totalElements ?? null,
   };
 
   return (
@@ -614,6 +656,43 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                   (row) => row.latestApprovalRequest?.reason,
                   (row) => row.latestApprovalRequest?.processedAt,
                 )
+              }
+            </ViewCard>
+          ) : view === 'recent' ? (
+            /* 최근 생성 — 승인 흐름과 무관한 목록이라 대기 알약도, 요청 일자도 없다.
+               행이 말하는 날짜는 하나뿐이다: 이 대상이 생긴 날. */
+            <ViewCard meta={VIEW_META.recent} state={recent}>
+              {(rows) =>
+                rows.map((row) => {
+                  const id = row.targetSourceId;
+                  return (
+                    <div
+                      key={id ?? row.serviceCode}
+                      role="row"
+                      className={cn(rq.row, id != null && rq.rowLink)}
+                    >
+                      <span role="cell" className={cn(rq.service, rq.serviceName)}>
+                        {id != null && <RowLink id={id} serviceName={row.serviceName} />}
+                        {row.serviceName ?? '—'}
+                      </span>
+                      <span role="cell" className={cn(rq.code, rq.mono)}>
+                        {row.serviceCode ?? '—'}
+                      </span>
+                      <span role="cell" className={rq.cloud}>
+                        <ProvTag provider={row.cloudProvider ?? ''} />
+                      </span>
+                      <span role="cell" className={rq.note}>
+                        {row.description ?? '—'}
+                      </span>
+                      <span role="cell" className={rq.when}>
+                        {fmtDateTime(row.createdAt)}
+                      </span>
+                      <span role="cell" className={rq.chev}>
+                        <Icon name="arrow-up-right" size="sm" />
+                      </span>
+                    </div>
+                  );
+                })
               }
             </ViewCard>
           ) : (

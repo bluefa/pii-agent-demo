@@ -1318,6 +1318,7 @@ const DashboardSummaryResponse = z
     need_install_count: Num,
     need_test_connection_count: Num,
     need_pii_agent_confirm_count: Num,
+    recently_created_count: Num,
     evaluated_at: Str,
   })
   .partial().passthrough();

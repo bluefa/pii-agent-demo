@@ -277,6 +277,25 @@ export async function putNlbIndex(
   if (!res.ok) throw new Error(`NLB 배정 저장에 실패했어요 (${res.status})`);
 }
 
+/**
+ * GET /dashboard/target-sources/recent — 최근 14일 이내 생성된 대상.
+ *
+ * 창은 서버가 소유한다 — 보낼 날짜가 없으니 페이지 쌍만 간다. 응답은 큐 목록과 같은
+ * PageTargetSourceInfo 라 route 가 같은 camel 도메인(Paged<RequestListRow>)으로 돌려준다.
+ */
+export async function getRecentTargetSources(
+  page: number,
+  opts?: { signal?: AbortSignal; size?: number },
+): Promise<Paged<RequestListRow>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(opts?.size ?? REQUEST_PAGE_SIZE),
+  });
+  return fetchInfraJson<Paged<RequestListRow>>(`/dashboard/target-sources/recent?${params}`, {
+    signal: opts?.signal,
+  });
+}
+
 /** GET /admin/queue/approval-history — global history (route returns camel
  *  domain; item fields are the documented contract gap in lib/types/task-queue).
  *  `toStatuses` omitted = 전체. */

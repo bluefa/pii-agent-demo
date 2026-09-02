@@ -62,6 +62,7 @@ const HEADER_ROW: RequestListRow = {
   serviceCode: 'ORD',
   cloudProvider: 'IDC',
   confirmStatus: 'CONFIRMED',
+  createdAt: '2026-07-10T09:00:00Z',
   latestApprovalRequest: null,
 };
 

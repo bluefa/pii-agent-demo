@@ -277,8 +277,10 @@ export interface BffClient {
       page: number;
       size: number;
     }) => Promise<z.infer<typeof schemas.PageTargetSourceInfo>>;
-    // GET /dashboard/target-sources/{kind} — 운영 알림 drill-down. Four sibling
-    // endpoints, one per kind; the slug is the path segment.
+    // GET /dashboard/target-sources/{kind} — 운영 알림 drill-down. Five sibling
+    // endpoints, one per kind; the slug is the path segment. `recent` is the
+    // 14-day creation window — the cutoff is server-side, so it takes no extra
+    // parameter beyond the page pair the others take.
     getAlertTargetSources: (query: {
       kind: AlertTargetKind;
       page: number;

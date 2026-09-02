@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
+import { getStore } from '@/lib/mock-store';
 import {
   ADS_REJECTED_AT,
   ADS_REJECT_REASON,
@@ -13,7 +14,7 @@ import {
   TS_DESCRIPTION,
 } from '@/lib/bff/mock/approval-queue-fixtures';
 import type { ApprovalHistoryFixture, RequestRow } from '@/lib/bff/mock/approval-queue-fixtures';
-import { cloudProviderToWireProvider } from '@/lib/types';
+import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider } from '@/lib/types';
 import type { AlertTargetKind } from '@/lib/types/task-queue';
 
 /**
@@ -31,6 +32,9 @@ import type { AlertTargetKind } from '@/lib/types/task-queue';
  * approval approve/reject/confirm reuse the existing `confirm.*` mock and are
  * intentionally NOT mirrored here (that state is owned by the confirm domain).
  */
+
+/** 진행 상태로 정의되는 알림 버킷 — '최근 생성'은 창이라 여기 들지 않는다. */
+type ProcessAlertKind = Exclude<AlertTargetKind, 'recent'>;
 
 // ── Process Status monitor (P1) ─────────────────────────────────────────────
 interface ProcRow {
@@ -598,15 +602,55 @@ function toProcessWire(p: ProcRow) {
  * Upstream owns this mapping; the mock reproduces it off the monitor fixture so
  * counts and drill-down lists stay consistent with each other.
  */
-const ALERT_KIND_STATUS: Record<AlertTargetKind, string> = {
+const ALERT_KIND_STATUS: Record<ProcessAlertKind, string> = {
   confirming: 'CONFIRMING',
   'need-install': 'CONFIRMED',
   'need-test-connection': 'INSTALLED',
   'need-pii-agent-confirm': 'CONNECTED',
 };
 
-const alertRows = (kind: AlertTargetKind): ProcRow[] =>
+const alertRows = (kind: ProcessAlertKind): ProcRow[] =>
   PROC.filter((p) => p.st === ALERT_KIND_STATUS[kind]);
+
+/**
+ * 단계 시연용 픽스처인가 — id 목록이 아니라 **모양**으로 가른다.
+ *
+ * 목에는 두 종류의 대상이 산다. 하나는 업무 서비스(RCM·RSV·MAI…)고, 다른 하나는 각
+ * 단계의 화면을 열어 보려고 만든 시연용 대상이다(makeIdcProject 의 1020~1028, 그 아래
+ * cloud step-coverage 시드). 후자는 서비스 코드 자리에 **플랫폼 이름**을 단다 — 'idc',
+ * 'gcp', 'aws', 'azure', 'SDU'. 이름 자리에는 "IDC", 설명 자리에는 "Step 4. 설치 진행 —
+ * …" 같은 화면 안내문이 온다. 운영 알림 목록에 서면 운영자는 그것을 방금 만들어진 연동
+ * 대상과 구별할 수 없다.
+ *
+ * 그래서 id 를 손으로 나열하지 않는다. 나열하면 시연 픽스처가 하나 더 생기는 날 목록에
+ * 조용히 끼어든다. 판정은 플랫폼 어휘 하나로 끝난다: 코드를 provider 로 정규화했을 때
+ * 자기 자신으로 돌아오면 그것은 서비스 이름이 아니라 플랫폼 이름이다. 어휘는
+ * `lib/types.ts` 의 별칭표가 소유하므로, 거기에 provider 가 늘어도 여기는 그대로 맞다.
+ */
+const isStepDemoFixture = (project: { serviceCode: string }): boolean => {
+  const code = project.serviceCode.trim().toUpperCase();
+  return isSduProvider(code) || normalizeCloudProvider(code).toUpperCase() === code;
+};
+
+/**
+ * 최근 생성 — 유일하게 진행 상태로 정의되지 않는 버킷이다. 나머지 넷은 "지금 어느
+ * 상태에 멈춰 있는가"를 묻고, 이것은 "언제 생겼는가"를 묻는다.
+ *
+ * 창(14일)은 서버가 소유하고 고정이다 — 요청에 날짜 파라미터가 없으니 목도 요청에서
+ * 날짜를 읽지 않는다. 카탈로그의 createdAt 하나만 보고 자른다. 창 안에 드는 대상은
+ * lib/mock-data.ts 가 상대 시각으로 시드한다.
+ *
+ * seed(mockProjects)가 아니라 store 에서 읽는다 — 사용자 흐름으로 방금 만든 대상도
+ * '최근 생성'이다. 시드만 보면 목이 자기가 만든 사실을 못 본다.
+ */
+const recentProjects = () => {
+  const cutoff = Date.now() - mockData.RECENT_CREATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return getStore()
+    .projects.filter(
+      (project) => !isStepDemoFixture(project) && Date.parse(project.createdAt) >= cutoff,
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+};
 
 /**
  * 절단 확인용 과장 길이 — **운영 알림 응답에서만** 덮어쓴다 (오너 2026-08-20:
@@ -754,12 +798,20 @@ export const mockTaskQueue = {
       need_install_count: alertRows('need-install').length,
       need_test_connection_count: alertRows('need-test-connection').length,
       need_pii_agent_confirm_count: alertRows('need-pii-agent-confirm').length,
+      recently_created_count: recentProjects().length,
       evaluated_at: new Date().toISOString(),
     }),
 
   // GET /dashboard/target-sources/{kind} — 운영 알림 drill-down (TargetSourceInfo
   // camel island, same page shape as /target-sources/page).
   getAlertTargetSources: async (query: { kind: AlertTargetKind; page: number; size: number }) => {
+    // 최근 생성만 카탈로그에서 온다 — 진행 상태 픽스처(PROC)는 "언제 생겼는가"를 모른다.
+    // 매퍼는 /target-sources/page 와 같은 것을 쓴다: 같은 대상을 두 목록이 다르게
+    // 말하지 않도록.
+    if (query.kind === 'recent') {
+      const rows = recentProjects().map(projectToTargetSourceInfoWire);
+      return NextResponse.json(wirePage(rows, query.page, query.size));
+    }
     const content = alertRows(query.kind).map((p) => ({
       targetSourceId: p.ts,
       serviceName: ALERT_OVERFLOW_FIXTURE[p.ts]?.serviceName ?? p.svc,

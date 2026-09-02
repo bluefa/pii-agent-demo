@@ -39,7 +39,7 @@ describe('Admin Task Queue routes', () => {
       confirming_count: 5,
       need_install_count: 6,
       need_test_connection_count: 7,
-      // absent need_pii_agent_confirm_count → 0 (loose codegen)
+      // absent need_pii_agent_confirm_count / recently_created_count → 0 (loose codegen)
       evaluated_at: '2026-07-20T00:00:00Z',
     });
 
@@ -54,6 +54,7 @@ describe('Admin Task Queue routes', () => {
       needInstallCount: 6,
       needTestConnectionCount: 7,
       needPiiAgentConfirmCount: 0,
+      recentlyCreatedCount: 0,
       evaluatedAt: '2026-07-20T00:00:00Z',
     });
   });
