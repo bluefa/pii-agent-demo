@@ -123,12 +123,14 @@ export function ApprovalHistoryCard({
       {loading ? (
         /* The settled table's own footprint. Column names are fixed strings this screen
            already knows, so they are drawn for real (`StatusCardSkeleton`'s rule) and only
-           the values are bars — which means the heights are not restated here, the same
-           classes produce them: head = py-2.5(20) + a 12px line box(16.8, the admin shell
-           sets leading-1.4) + hairline ≈ 37.8px, body row = py-3(24) + 20 + hairline = 45px.
-           The bars are h-5 because the 상태 cell's settled pill is exactly 20px and already
-           owns the row height (a 14px line box is 19.6). Five rows because that is the page
-           size — how many rows exist is what is loading. */
+           the values are bars.
+           Heights are MEASURED, not derived — the browser reports a settled head row at
+           37.3px and a settled body row at 46.0px, and the same classes reproduce the head
+           exactly. The body row is what the bars have to hold up: py-3(24) + hairline(1)
+           leaves 21px of content, which is the 14px line box, NOT the 20px 상태 pill — the
+           pill is the shorter of the two and never owned this row. So the three text bars
+           are h-[21px] and only the pill's stays h-5, which is its real height.
+           Five rows because that is the page size — how many rows exist is what is loading. */
         <div className={pipelineStyles.card.tableWrap} aria-busy>
           <span className="sr-only">불러오는 중</span>
           <table className={table.base}>
@@ -137,16 +139,16 @@ export function ApprovalHistoryCard({
               {Array.from({ length: PAGE_SIZE }, (_, index) => (
                 <tr key={index}>
                   <td className={table.cell}>
-                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[128px]')} />
+                    <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[128px]')} />
                   </td>
                   <td className={table.cell}>
                     <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[62px] rounded-full')} />
                   </td>
                   <td className={table.cell}>
-                    <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[84px]')} />
+                    <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[84px]')} />
                   </td>
                   <td className={cn(table.cell, 'w-24')}>
-                    <span className={cn(opsStyles.skeletonBar, 'ml-auto block h-5 w-[62px]')} />
+                    <span className={cn(opsStyles.skeletonBar, 'ml-auto block h-[21px] w-[62px]')} />
                   </td>
                 </tr>
               ))}

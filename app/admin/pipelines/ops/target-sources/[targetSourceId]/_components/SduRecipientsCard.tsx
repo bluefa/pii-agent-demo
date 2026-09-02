@@ -105,9 +105,11 @@ export function SduRecipientsCard({ targetSourceId }: SduRecipientsCardProps): R
       <div className={opsStyles.pagedCardBody}>
         {!loaded ? (
           /* 정착본 표의 자국. 머리글 둘은 고정 문자열이라 실물로 그리고(`StatusCardSkeleton`
-             과 같은 규칙) 값 자리만 바가 대신하므로, 높이는 여기서 셈하지 않고 같은 클래스가
-             낸다 — 머리 = py-2.5(20) + 12px 글줄(16.8, 관리자 셸의 leading-1.4) + 헤어라인
-             ≈ 37.8px, 본문 행 = py-3(24) + 20 + 헤어라인 = 45px.
+             과 같은 규칙) 값 자리만 바가 대신한다.
+             높이는 **실측**이다 — 형제 「승인 요청 내역」이 같은 `opsStyles.table` 을 쓰고,
+             브라우저가 그 표의 머리를 37.3px, 본문 행을 46.0px 로 보고한다. 머리는 같은
+             클래스가 그대로 내고, 본문 행에서 py-3(24)과 헤어라인(1)을 빼면 남는 21px 가
+             14px 글줄이다. 그래서 바가 h-[21px] 다 — h-5 로 두면 행이 45.1px 로 선다.
              ⛔ 「마지막 등록」 줄은 그리지 않는다 — 그 줄이 서는지 자체가 지금 오는 값이다
              (`recipients.updatedAt` 이 없으면 정착본에도 없다). */
           <div className={pipelineStyles.card.tableWrap} aria-busy>
@@ -118,10 +120,10 @@ export function SduRecipientsCard({ targetSourceId }: SduRecipientsCardProps): R
                 {Array.from({ length: 3 }, (_, index) => (
                   <tr key={index}>
                     <td className={cn(table.cell, 'w-[132px]')}>
-                      <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[72px]')} />
+                      <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[72px]')} />
                     </td>
                     <td className={table.cell}>
-                      <span className={cn(opsStyles.skeletonBar, 'block h-5 w-[196px]')} />
+                      <span className={cn(opsStyles.skeletonBar, 'block h-[21px] w-[196px]')} />
                     </td>
                   </tr>
                 ))}

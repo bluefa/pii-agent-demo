@@ -162,10 +162,12 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
              19.6px 줄 상자 → h-5. 표 머리 = approvalHeaderCell 의 py-3(24) + 19.6 ≈ 44px,
              본문 행 = AgentDagTable 의 py-5(40) + 19.6 + 경계선 ≈ 61px.
              행은 셋만 그린다 — 에이전트가 몇인지가 바로 지금 오는 값이다. */
-          <>
-            <div className="mt-5">
-              <span className={cn(opsStyles.skeletonWash, 'block h-5 w-[420px]')} aria-hidden />
-            </div>
+          /* `aria-busy` 와 낭독 한 줄은 이 상자가 진다 — 로딩 갈래에만 있는 요소라야
+             정착 뒤에 「불러오는 중」이 남지 않는다. 상자는 정착본의 mt-5 슬롯 그대로이고
+             카운트 줄은 그 안에서 여백 없이 서므로, 감싼다고 y 가 움직이지 않는다. */
+          <div className="mt-5" aria-busy>
+            <span className="sr-only">불러오는 중</span>
+            <span className={cn(opsStyles.skeletonWash, 'block h-5 w-[420px]')} aria-hidden />
             <div className={cn('mt-4', idcStyles.table.framePaged)} aria-hidden>
               <div
                 className={cn(
@@ -188,7 +190,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {dag.phase === 'loaded' && agg && (
