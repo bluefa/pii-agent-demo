@@ -220,6 +220,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   // line up across neighbouring columns; with one cell there is no neighbour, so it only
   // costs a line. Counted, not switched on the provider — see `factCellInline`.
   const cellCount = facts.length + (identity.installMode ? 1 : 0);
+  const trackCount = cellCount + facts.filter((fact) => fact.wide).length;
   const factClass = cellCount === 1 ? h.factCellInline : h.factCell;
   // Inline, the label loses the line break that used to mark it, so it takes a boundary
   // of its own instead — see `factLabelTag`. Stacked labels keep the plain `kvLabel`.
@@ -415,7 +416,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
             (`identifiers: []`, and no 설치 모드), and an empty grid still charges its
             `pt-[22px]` + `pb-1` — 26px of nothing between the block name and the drawer. */}
         {(facts.length > 0 || identity.installMode) && (
-          <div className={h.factGrid}>
+          <div className={h.factGrid} style={{ maxWidth: trackCount * 240 + (trackCount - 1) * 18 }}>
             {facts.map((fact) => (
               <div key={fact.label} className={cn(factClass, fact.wide && h.factCellWide)}>
                 <span className={labelClass}>{fact.label}</span>

@@ -629,7 +629,27 @@ describe('ProjectPageMeta — the fact grid', () => {
     // A 320px track max fixes it at full width and fails with the guide rail open
     // (~744px lane), where `auto-fit` then resolves three ~236px tracks and both values
     // clip again. A 2-track span still measures ~490px there.
-    expect(projectHeaderStyles.factGrid).toContain('minmax(200px,240px)');
+    expect(projectHeaderStyles.factGrid).toContain('minmax(200px,1fr)');
+  });
+
+  it('caps the grid width from the track count, so a wide cell buys a 5th track', () => {
+    // The cap has to come from the track count, not a fixed number: a wide cell spans
+    // two tracks (col-span-2), so four facts where one is wide need FIVE tracks, and a
+    // fixed 1014px (4 × 240 + 3 × 18) would wrap 설치 모드 to a second row at full width.
+    const { unmount } = render(<ProjectPageMeta project={projectFixture} identity={awsIdentity} />);
+    const plainGrid = within(scopeBlock()).getByText('계정').parentElement?.parentElement as HTMLElement;
+    expect(plainGrid.style.maxWidth).toBe('1014px');
+    unmount();
+
+    const wideIdentity: ProjectIdentity = {
+      ...awsIdentity,
+      identifiers: awsIdentity.identifiers.map((id) =>
+        id.label === '스캔 역할' ? { ...id, wide: true } : id,
+      ),
+    };
+    render(<ProjectPageMeta project={projectFixture} identity={wideIdentity} />);
+    const wideGrid = within(scopeBlock()).getByText('계정').parentElement?.parentElement as HTMLElement;
+    expect(wideGrid.style.maxWidth).toBe('1272px');
   });
 
   it('lays a LONE fact out inline, and two or more stacked (오너 2026-08-29)', () => {
@@ -777,7 +797,7 @@ describe('ProjectPageMeta — the fact grid', () => {
     // and at that width the fourth fixed track ellipses a role name that fits everywhere
     // else. `auto-fit` wraps to a second row instead of shrinking a cell below its
     // content.
-    expect(projectHeaderStyles.factGrid).toContain('repeat(auto-fit,minmax(200px,240px))');
+    expect(projectHeaderStyles.factGrid).toContain('repeat(auto-fit,minmax(200px,1fr))');
     expect(projectHeaderStyles.factGrid).not.toContain('repeat(4,');
   });
 
