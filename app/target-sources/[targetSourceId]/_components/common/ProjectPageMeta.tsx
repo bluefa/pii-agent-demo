@@ -277,9 +277,10 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
         {action}
       </div>
 
-      {/* 설치 대상 — the header's one named region. The card it replaced grouped these
-          facts visually and named them nowhere, so nothing but position said what they
-          were; the block that used to stand beside it is dissolved into this head row. */}
+      {/* 설치 대상 — the header's one named region, but the name is screen-reader-only
+          now (오너 2026-09-03). The head row already reads provider → step tag, and a
+          16px name wedged between them outranked the facts under it. It stays in the DOM
+          because it is what gives this section the accessible name the card never had. */}
       <section aria-labelledby={TARGET_LABEL_ID} className={h.targetGroup}>
         <div className={h.blockHead}>
           <span className={h.blockName}>
@@ -308,7 +309,7 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
                 </>
               )}
             </span>
-            <span id={TARGET_LABEL_ID} className={h.blockLabel}>
+            <span id={TARGET_LABEL_ID} className="sr-only">
               {t.installTarget}
             </span>
             {/* Region, on the block's own head row — the same slot logic as the step tag
