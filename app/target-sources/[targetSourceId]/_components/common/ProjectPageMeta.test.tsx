@@ -506,9 +506,10 @@ describe('ProjectPageMeta — path heading', () => {
   });
 
   it('sets the block name one rung above the path root (오너 2026-08-28)', () => {
-    // 「설치 대상」 is now the ONLY name in this header apart from the path's root, and the
-    // root reads at 14. A name sharing its size with the line above it introduces nothing.
-    // 16 is the rung `opsStyles.fmLabel` took after the same instruction.
+    // What is guarded is the RAMP, not any one string: the block eyebrow tier sits one
+    // rung above the 14px path root and two above the 12px crumb line, so an eyebrow can
+    // never share its size with the path. 16 is the rung `opsStyles.fmLabel` took after
+    // the same instruction.
     expect(projectHeaderStyles.blockLabel).toContain('text-[16px]');
     expect(projectHeaderStyles.crumbRoot).toContain('text-[14px]');
     expect(projectHeaderStyles.crumb).toContain('text-[12px]');

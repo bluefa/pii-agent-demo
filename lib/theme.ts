@@ -925,15 +925,18 @@ export const projectHeaderStyles = {
    * block stands on again. A re-tint keeps BOTH the step and the floor. The 0.02em
    * tracking is the second signal, and it matters more now that hue is not one.
    *
-   * This token names 「설치 대상」 as well as 「설명」 and 「설치 진행」 — the block name
-   * that replaced the card is the same tier as the block names beside it, which is
-   * the whole reason the header now reads as named blocks (오너 11차 지시).
+   * ⛔ This token has NO render site left. 「설치 대상」 was its last one and went
+   * `sr-only` on 2026-09-03 (오너 지시) — the head row already reads provider → step tag,
+   * and a 16px name between them outranked the facts under it. 「설명」 prints through
+   * `kvLabel`, and the 「설치 진행」 block was dissolved before that.
    *
-   * 16px (오너 2026-08-28) — up from 14. 「설치 대상」 is now the ONLY name in this header
-   * apart from the path's root, and the path root reads at 14: a name that shares its
-   * size with the line above it introduces nothing. This is the same rung and the same
-   * three-tier ramp `opsStyles.fmLabel` took after the same instruction (16 name /
-   * 14 value / 12 label), so the two screens' block heads read as one grammar.
+   * It survives as the REFERENCE the rest of the header is pinned to: `metaCue` and
+   * `factLabelTag` are asserted to carry this exact ink, the step tag is asserted not to,
+   * and the contrast gate measures this ink on the page wash (ProjectPageMeta.test.tsx
+   * :218 · :731 · :1094-1096, lib/design-guard.test.ts:543). The 16px is what the ramp
+   * assertion still measures — the same rung `opsStyles.fmLabel` took after the same
+   * instruction (16 name / 14 value / 12 label). ⛔ Do not delete the token and do not
+   * touch its class string: six assertions and the contrast gate read off it.
    */
   blockLabel: 'whitespace-nowrap text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
   block: 'mt-[18px]',
