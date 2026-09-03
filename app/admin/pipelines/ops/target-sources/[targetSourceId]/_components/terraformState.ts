@@ -1,7 +1,7 @@
 /**
  * Terraform state vocabulary — one pill per task, plus the tone/label lookup the
  * delete gate reads. Consumers are `InfraStatusHead` (the 인프라 작업 card's task
- * rows) and `ConfirmEditorModal` (the delete gate's `overall_state`).
+ * rows) and `ConfirmDeleteModal` (the delete gate's `overall_state`).
  *
  * It lives outside both so neither has to import the other. The 설치 현황 modal it
  * was originally written for is gone, and so is the combined `overall_state` pill

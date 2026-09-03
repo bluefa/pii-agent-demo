@@ -1,7 +1,11 @@
 'use client';
 
 /**
- * 확정 정보 편집기 — 입력·수정·삭제를 한 평면에서 처리하는 모달. **편집기는 편집만 한다.**
+ * 확정 정보 편집기 — 확정 정보를 입력하고 고치는 모달. **편집기는 편집만 한다.**
+ *
+ * 삭제는 여기 없다. 지우려는 사람이 편집기를 먼저 열 이유가 없어서, 삭제는 pane 머리의
+ * 제 문에서 열리는 별도 모달이 되었다(`ConfirmDeleteModal`) — 그 문법은 이 콘솔의 다른
+ * 파괴적 동작(연동 초기화)과 같은 `ConfirmStepModal` 이다.
  *
  * **왜 편집 표면이 JSON 인가.** 계약이 요청 본문을 `type: object` 로만 선언한다 — 속성이
  * 하나도 없다(swagger `create{Csp}ConfirmedResource`). 필드 폼을 그리려면 계약에 없는
@@ -27,15 +31,15 @@
  * `applyNLBSecurityGroup` 은 계약상 query 파라미터다 — 그래서 바닥 체크박스가 아니라
  * ③의 Parameters 행이고, 켜면 ②의 URL 에 `&applyNLBSecurityGroup=true` 가 실제로 붙는다.
  *
- * **모달 안에 모달을 열지 않는다** — 탭 → pane → 모달이 이미 3단이라 삭제 확인도, 미저장
- * 이탈 확인도, 초안 덮어쓰기 확인도 같은 평면의 영역 교체다.
+ * **모달 안에 모달을 열지 않는다** — 탭 → pane → 모달이 이미 3단이라 미저장 이탈 확인도,
+ * 초안 덮어쓰기 확인도 같은 평면의 영역 교체다.
  *
  * **왜 실행 후에 닫지 않는가.** 이 화면이 보내는 본문은 계약이 검사해 주지 않는 opaque
  * JSON 이라, 서버가 그것을 어떻게 받았는지는 응답을 봐야만 안다. 그래서 닫는 것도 지우는
  * 것도 사용자가 누른다. 뒤 화면 갱신(`onDone`)은 그래서 **닫을 때** 한 번이다 —
  * 이유는 `closeAndSync`.
  *
- * 진입 콜은 1회(추천값 유무 확인)다. 현재 확정·terraform 은 부모 탭이 이미 들고 있다.
+ * 진입 콜은 1회(추천값 유무 확인)다. 현재 확정은 부모 탭이 이미 들고 있다.
  */
 import {
   useCallback,
@@ -46,24 +50,17 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
-import { useApiAction, useApiMutation } from '@/app/hooks/useApiMutation';
+import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { metaOf } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
-import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
-import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
-import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
 import {
   confirmedResourcePath,
   createConfirmedResources,
-  deleteConfirmedResources,
   getApprovedRecommendations,
-  getTerraformStatus,
   type ConfirmedIntegrationResponse,
   type ConfirmedResourceProvider,
-  type TerraformStatusResponse,
 } from '@/app/lib/api';
 
 /** 서버가 준 말이 있으면 그것을, 없으면 한 줄 폴백 — 원인을 지어내지 않는다. */
@@ -113,14 +110,8 @@ type RecommendationLoad =
   | { state: 'absent' }
   | { state: 'failed' };
 
-interface GateLoad {
-  state: 'loading' | 'ready' | 'failed';
-  overallState: string | null;
-}
-
 /**
- * 계약이 이 두 오퍼레이션에 선언한 응답. 실패 8종은 둘이 같고 성공 코드만 갈린다
- * (swagger `create{Csp}ConfirmedResource` 201 / `delete{Csp}ConfirmedResource` 200).
+ * 계약이 이 오퍼레이션에 선언한 응답(swagger `create{Csp}ConfirmedResource`).
  * 두 곳이 이 표를 쓴다: 실행 전 응답 칸(Swagger UI 의 Responses)과, 응답이 온 뒤
  * 코드 옆의 reason phrase. **계약에 없는 코드에는 아무 말도 붙이지 않는다.**
  */
@@ -135,10 +126,7 @@ const FAILURES = [
   [503, 'Service Unavailable'],
 ] as const;
 
-const DECLARED: Readonly<Record<'POST' | 'DELETE', readonly (readonly [number, string])[]>> = {
-  POST: [[201, 'Created'], ...FAILURES],
-  DELETE: [[200, 'OK'], ...FAILURES],
-};
+const DECLARED: readonly (readonly [number, string])[] = [[201, 'Created'], ...FAILURES];
 
 /** 키(`"x":`)만 집는다 — 파서가 아니다. 나머지는 원문으로 흘린다. */
 const JSON_KEY = /("(?:[^"\\]|\\.)*")(\s*:)/g;
@@ -173,9 +161,8 @@ const colorize = (line: string): ReactNode[] => {
 
 /** 한 번의 실행과 그 응답. 실행 전에는 없다. */
 interface Exchange {
-  op: 'POST' | 'DELETE';
   /** 그 실행이 등록이었는지 저장이었는지 — 응답과 함께 굳는다. */
-  did: '등록' | '저장' | '삭제';
+  did: '등록' | '저장';
   /**
    * **보낸** URL. ②의 줄은 지금 설정을 따라 살아 움직이므로(체크박스를 끄면 query 가
    * 빠진다), 이 응답이 어느 URL 에서 왔는지는 실행 시점에 굳혀 둔다.
@@ -198,7 +185,6 @@ interface Exchange {
  * 없는 필드는 `JSON.stringify` 가 떨어뜨리므로 서버가 준 것만 남는다.
  */
 const errorExchange = (
-  op: Exchange['op'],
   did: Exchange['did'],
   url: string,
   ms: number,
@@ -206,7 +192,6 @@ const errorExchange = (
 ): Exchange =>
   error instanceof AppError
     ? {
-        op,
         did,
         url,
         ms,
@@ -220,11 +205,11 @@ const errorExchange = (
           timestamp: error.timestamp,
         }),
       }
-    : { op, did, url, ms, code: 0, ok: false, body: pretty({ detail: message(error) }) };
+    : { did, url, ms, code: 0, ok: false, body: pretty({ detail: message(error) }) };
 
 /** 계약이 선언한 코드면 그 description 을, 아니면 아무 말도 하지 않는다. */
-const phraseOf = (op: Exchange['op'], code: number): string | null =>
-  DECLARED[op].find(([declared]) => declared === code)?.[1] ?? null;
+const phraseOf = (code: number): string | null =>
+  DECLARED.find(([declared]) => declared === code)?.[1] ?? null;
 
 /**
  * 크기는 세 단뿐이다: **16 제목 / 14 데이터 / 12 라벨·메타.**
@@ -264,13 +249,12 @@ const styles = {
   /**
    * 배지는 **솔리드 + 폭 고정**이다. 직전 판은 `--pl-ok-bg` 를 `--pl-gray-50` 위에 얹어 면
    * 대비가 **1.02:1** — 색이 있는데 배지로 읽히지 않았다(옅은 칩은 ΔE 가 아니라 극성으로
-   * 검사한다). 폭도 가변이라 POST↔DELETE 를 오갈 때 경로 시작점이 흔들렸다.
-   * 64px = "DELETE" 6자(12/700)가 좌우 8px 패딩과 들어가는 최소 8배수.
+   * 검사한다).
+   * 64px = 6자(12/700)가 좌우 8px 패딩과 들어가는 최소 8배수.
    */
   method:
-    'w-16 flex-none rounded-[var(--pl-r-badge)] py-1 text-center text-[12px] font-bold tracking-[0.04em] text-[var(--pl-white)] [font-family:var(--pl-font-mono)]', // design-exempt: solid badge fill — 흰 글자가 --pl-ok-text 에서 5.42:1 / --pl-err-text 에서 6.57:1
+    'w-16 flex-none rounded-[var(--pl-r-badge)] py-1 text-center text-[12px] font-bold tracking-[0.04em] text-[var(--pl-white)] [font-family:var(--pl-font-mono)]', // design-exempt: solid badge fill — 흰 글자가 --pl-ok-text 에서 5.42:1
   methodPost: 'bg-[var(--pl-ok-text)]',
-  methodDelete: 'bg-[var(--pl-err-text)]',
   url: 'min-w-0 flex-1 truncate text-[14px] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
   /**
    * ③ | ④ 요청과 응답을 좌우로 나눈다. 두 칸 다 `min-w-0` — 없으면 긴 JSON 한 줄이
@@ -375,18 +359,6 @@ const styles = {
   foot: 'flex flex-none items-center justify-between gap-4 border-t border-[var(--pl-border)] bg-[var(--pl-gray-50)] px-6 py-2',
   footGroup: 'flex items-center gap-4 text-[12px] text-[var(--pl-gray-600)]',
   errText: 'font-semibold text-[var(--pl-err-text)]',
-  /**
-   * 삭제 영역 — 표는 구조 렌즈와 같은 것을 쓰고, 좌우 여백만 여기서 준다.
-   * 목록만 스크롤하고 확인 입력은 바닥에 고정한다: 삭제 버튼을 여는 유일한 컨트롤이
-   * 스크롤 아래에 있으면 버튼이 왜 꺼져 있는지 보이지 않는다.
-   */
-  del: 'flex min-h-0 flex-1 flex-col',
-  delHead: 'flex-none px-8 pt-7',
-  delTitle: 'text-[16px] font-bold text-[var(--pl-text-strong)]',
-  delDesc: 'mt-2 max-w-[76ch] text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
-  delList: 'min-h-0 flex-1 overflow-y-auto',
-  delConfirm: 'flex flex-none items-end gap-3 border-t border-[var(--pl-border)] px-8 py-4',
-  delLabel: 'text-[12px] font-semibold text-[var(--pl-text-medium)]',
 } as const;
 
 export interface ConfirmEditorModalProps {
@@ -395,10 +367,6 @@ export interface ConfirmEditorModalProps {
   provider: ConfirmedResourceProvider;
   /** 현재 등록된 확정 — null 이면 생성. 부모가 이미 들고 있다(진입 0콜). */
   current: ConfirmedIntegrationResponse | null;
-  /** 삭제 게이트의 초기값 — 확인 화면에 들어갈 때 한 번 다시 조회한다. */
-  terraform: TerraformStatusResponse | null;
-  /** 삭제가 막혔을 때의 유일한 출구. */
-  onOpenInfra: () => void;
   onDone: () => void;
 }
 
@@ -407,8 +375,6 @@ export function ConfirmEditorModal({
   targetSourceId,
   provider,
   current,
-  terraform,
-  onOpenInfra,
   onDone,
 }: ConfirmEditorModalProps): ReactElement {
   const currentText = useMemo(
@@ -424,12 +390,6 @@ export function ConfirmEditorModal({
   const [applyNlb, setApplyNlb] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
-  const [mode, setMode] = useState<'edit' | 'delete'>('edit');
-  const [gate, setGate] = useState<GateLoad>({
-    state: 'ready',
-    overallState: terraform?.overall_state ?? null,
-  });
-  const [typed, setTyped] = useState('');
   const [exchange, setExchange] = useState<Exchange | null>(null);
   // 마운트 시점의 초안 — dirty 판정의 기준. 렌더에서 읽으므로 ref 가 아니라 state 다
   // (마운트가 곧 열림이라 재설정할 일이 없고, setter 는 그래서 버린다).
@@ -474,13 +434,13 @@ export function ConfirmEditorModal({
   const did: Exchange['did'] = creating ? '등록' : '저장';
 
   // ② 가 적는 URL 은 **보내는 쪽과 같은 빌더**에서 나온다 — NLB 를 켜면 여기에 query 가
-  // 붙고, 그것이 곧 fetch 가 때리는 경로다. DELETE 에는 그 파라미터가 계약에 없다.
+  // 붙고, 그것이 곧 fetch 가 때리는 경로다.
   const nlb = provider === 'AWS' && applyNlb;
-  const requestUrl = confirmedResourcePath(targetSourceId, provider, mode === 'edit' && nlb);
+  const requestUrl = confirmedResourcePath(targetSourceId, provider, nlb);
 
   // 정할 수 있는 파라미터가 하나라도 있는가. `applyNLBSecurityGroup` 이 유일하고 계약이
-  // AWS POST 에만 두므로, 다른 provider·삭제 모드에서는 Parameters 구역째 없다.
-  const hasParams = provider === 'AWS' && mode === 'edit';
+  // AWS POST 에만 두므로, 다른 provider 에서는 Parameters 구역째 없다.
+  const hasParams = provider === 'AWS';
 
   const loadRecommendation = (): void => {
     if (recommendation.state === 'failed') {
@@ -514,7 +474,7 @@ export function ConfirmEditorModal({
     // `disabled={busy}` 이므로, 세 경로를 같은 규칙으로 맞춘다.
     if (busy) return;
     // 실행이 성공했으면 초안은 이미 서버로 갔다 — 이탈 확인은 보내지 않은 편집에만 묻는다.
-    if (mode === 'edit' && dirty && !exchange?.ok) {
+    if (dirty && !exchange?.ok) {
       setLeaving(true);
       return;
     }
@@ -532,14 +492,13 @@ export function ConfirmEditorModal({
 
   // AGENTS §6 — mutation 흐름은 useApiMutation/useApiAction. 성공이든 실패든 결과는 응답
   // 블록이 받으므로(setExchange) 전역 토스트로 흘리지 않는다. 성공 status 는 내부 라우트가
-  // 고정한다 — POST 201 / DELETE 200
+  // 고정한다 — POST 201
   // (app/api/v1/target-sources/[targetSourceId]/confirmed-resources/route.ts).
   const saveMutation = useApiMutation(
     (body: unknown) => createConfirmedResources(targetSourceId, provider, body, applyNlb),
     {
       onSuccess: (result) =>
         setExchange({
-          op: 'POST',
           did,
           url: requestUrl,
           ms: elapsed(),
@@ -548,24 +507,10 @@ export function ConfirmEditorModal({
           body: pretty(result ?? {}),
         }),
       onError: (mutationError) =>
-        setExchange(errorExchange('POST', did, requestUrl, elapsed(), mutationError)),
+        setExchange(errorExchange(did, requestUrl, elapsed(), mutationError)),
     },
   );
-  const removeAction = useApiAction(() => deleteConfirmedResources(targetSourceId, provider), {
-    onSuccess: (result) =>
-      setExchange({
-        op: 'DELETE',
-        did: '삭제',
-        url: requestUrl,
-        ms: elapsed(),
-        code: 200,
-        ok: true,
-        body: pretty(result ?? {}),
-      }),
-    onError: (mutationError) =>
-      setExchange(errorExchange('DELETE', '삭제', requestUrl, elapsed(), mutationError)),
-  });
-  const busy = saveMutation.loading || removeAction.loading;
+  const busy = saveMutation.loading;
 
   const save = (): void => {
     let body: unknown;
@@ -591,78 +536,33 @@ export function ConfirmEditorModal({
     void saveMutation.mutate(body);
   };
 
-  const openDelete = (): void => {
-    setMode('delete');
-    setError(null);
-    setExchange(null);
-    setTyped('');
-    setArmedSwap(false);
-    // 편집에서 띄워 둔 이탈 확인은 편집의 것이다 — 거두지 않으면 삭제 화면 바닥에
-    // "저장하지 않은 편집이 있습니다 / 계속 편집" 이 남고, 그 버튼이 삭제 화면에서 아무
-    // 것도 하지 않는다.
-    setLeaving(false);
-    // 모달이 오래 열려 있을 수 있으므로 게이트만 최신값으로 다시 본다.
-    setGate((prev) => ({ ...prev, state: 'loading' }));
-    void getTerraformStatus(targetSourceId)
-      .then((status) => setGate({ state: 'ready', overallState: status.overall_state ?? null }))
-      .catch(() => setGate({ state: 'failed', overallState: null }));
-  };
-
-  /**
-   * 삭제 화면에서 편집으로 — **삭제의 응답을 두고 오지 않는다.** 두고 오면 판정 문장이
-   * "삭제하지 못했습니다 · 다시 실행하세요" 인데 실행 버튼은 POST 저장이라, 문장이 가리키는
-   * 동작과 누를 수 있는 동작이 어긋난다. 보낸 URL 경고도 이걸 못 잡는다 — NLB 를 끈 상태의
-   * DELETE 와 POST 는 URL 이 글자까지 같다.
-   */
-  const backToEdit = (): void => {
-    setMode('edit');
-    setExchange(null);
-    setError(null);
-  };
-
-  const remove = (): void => {
-    setError(null);
-    setExchange(null);
-    setLeaving(false);
-    startedAt.current = Date.now();
-    void removeAction.execute();
-  };
-
   const confirmedCount = current?.resource_infos?.length ?? 0;
-  const applied = gate.overallState === 'APPLIED';
-  const deleteReady = !applied && typed.trim() === String(targetSourceId) && gate.state === 'ready';
-
-  // 삭제가 성공하면 지울 것이 남아 있지 않다 — 요청 칸을 접고 응답만 남긴다. 그 한 칸을
-  // "오른쪽" 이라고 부르면 거짓이 되므로, 판정 문장도 같은 값을 본다.
-  const showReq = !(mode === 'delete' && exchange?.ok);
 
   const verdict = exchange
     ? exchange.ok
       ? {
           tone: 'ok' as const,
           head: `확정 정보를 ${exchange.did}했습니다`,
-          why: showReq ? '오른쪽이 서버가 돌려준 응답입니다' : '아래가 서버가 돌려준 응답입니다',
+          why: '오른쪽이 서버가 돌려준 응답입니다',
         }
       : {
           tone: 'err' as const,
           head: `${exchange.did}하지 못했습니다`,
           why: '오른쪽 응답을 확인하고 다시 실행하세요',
         }
-    : mode === 'delete'
-      ? { tone: 'err' as const, head: '확정 정보를 삭제합니다', why: '되돌릴 수 없습니다' }
-      : creating
-        ? {
-            tone: 'idle' as const,
-            head: '확정 정보를 새로 등록합니다',
-            why: dirty ? '등록하면 이 초안이 확정 정보가 됩니다' : '직접 작성하거나 추천값을 불러오세요',
-          }
-        : {
-            tone: 'ok' as const,
-            head: '등록된 확정 정보를 고치고 있습니다',
-            why: dirty
-              ? `저장하면 ${confirmedCount}건이 이 초안으로 바뀝니다`
-              : '아직 바뀐 내용이 없습니다',
-          };
+    : creating
+      ? {
+          tone: 'idle' as const,
+          head: '확정 정보를 새로 등록합니다',
+          why: dirty ? '등록하면 이 초안이 확정 정보가 됩니다' : '직접 작성하거나 추천값을 불러오세요',
+        }
+      : {
+          tone: 'ok' as const,
+          head: '등록된 확정 정보를 고치고 있습니다',
+          why: dirty
+            ? `저장하면 ${confirmedCount}건이 이 초안으로 바뀝니다`
+            : '아직 바뀐 내용이 없습니다',
+        };
 
   const recommendationMeta =
     recommendation.state === 'loading'
@@ -704,9 +604,9 @@ export function ConfirmEditorModal({
           </div>
           {/* 머리는 **모달**에 대한 동작만 받는다 — 요청을 보내는 버튼은 ②의 URL 줄로 갔다.
               성공은 종점이다: 이 모달은 실행 뒤에 서버를 다시 읽지 않으므로, 편집으로
-              돌려보내면 CTA 가 실행 전 상태("등록", 삭제 없음)로 되살아나 거짓말을 한다.
-              되돌아가는 문은 [닫기] 하나고, 다시 하려면 새 모달이다. 실패는 서버를 바꾸지
-              않았으니 [초기화](Swagger 의 Clear)로 응답만 걷고 그 자리에서 고쳐 재실행한다. */}
+              돌려보내면 CTA 가 실행 전 상태("등록")로 되살아나 거짓말을 한다. 되돌아가는
+              문은 [닫기] 하나고, 다시 하려면 새 모달이다. 실패는 서버를 바꾸지 않았으니
+              [초기화](Swagger 의 Clear)로 응답만 걷고 그 자리에서 고쳐 재실행한다. */}
           <div className={styles.acts}>
             {exchange?.ok ? (
               <PlButton variant="primary" onClick={closeAndSync}>
@@ -719,23 +619,9 @@ export function ConfirmEditorModal({
                     초기화
                   </PlButton>
                 )}
-                {mode === 'edit' ? (
-                  <>
-                    {/* 케밥 대신 보이는 버튼 — 항목이 하나뿐인 메뉴는 감출 이유가 없다. */}
-                    {!creating && (
-                      <PlButton variant="danger" onClick={openDelete} disabled={busy}>
-                        삭제
-                      </PlButton>
-                    )}
-                    <PlButton variant="secondary" onClick={requestClose} disabled={busy}>
-                      취소
-                    </PlButton>
-                  </>
-                ) : (
-                  <PlButton variant="secondary" onClick={backToEdit} disabled={busy}>
-                    편집으로 돌아가기
-                  </PlButton>
-                )}
+                <PlButton variant="secondary" onClick={requestClose} disabled={busy}>
+                  취소
+                </PlButton>
               </>
             )}
           </div>
@@ -746,275 +632,229 @@ export function ConfirmEditorModal({
           만지면 URL 이 바뀌므로, 바뀐 URL 을 보내는 버튼이 같은 줄에 있어야 원인과 결과가
           붙는다(Postman·Insomnia·Hoppscotch·Bruno 가 공통으로 하는 것). */}
       <div className={styles.urlBar}>
-        <span
-          className={cn(
-            styles.method,
-            mode === 'delete' ? styles.methodDelete : styles.methodPost,
-          )}
-        >
-          {mode === 'delete' ? 'DELETE' : 'POST'}
-        </span>
+        <span className={cn(styles.method, styles.methodPost)}>POST</span>
         <span className={styles.url}>{requestUrl}</span>
         {/* 실행이 성공했으면 보낼 것이 남아 있지 않다 — 버튼째 빠진다. */}
-        {!exchange?.ok
-          && (mode === 'edit' ? (
-            <PlButton
-              variant="primary"
-              onClick={save}
-              disabled={busy || !parse.ok || emptyDraft || (creating && !dirty)}
-            >
-              {busy ? `${did} 중…` : did}
-            </PlButton>
-          ) : applied ? (
-            <PlButton variant="primary" onClick={onOpenInfra}>
-              인프라 철거로 이동
-            </PlButton>
-          ) : (
-            <PlButton
-              variant="dangerSolid"
-              onClick={remove}
-              disabled={busy || !deleteReady}
-            >
-              {busy ? '삭제 중…' : '삭제'}
-            </PlButton>
-          ))}
+        {!exchange?.ok && (
+          <PlButton
+            variant="primary"
+            onClick={save}
+            disabled={busy || !parse.ok || emptyDraft || (creating && !dirty)}
+          >
+            {busy ? `${did} 중…` : did}
+          </PlButton>
+        )}
       </div>
 
       {/* ③ | ④ 요청 | 응답 — 응답 칸은 실행 전에도 자리를 지킨다. 무엇을 보내서 이
           응답이 왔는지가 같은 눈높이에 있어야 두 JSON 이 대조된다. */}
       <div className={styles.split}>
-        {showReq && (
-          <div className={styles.reqCol}>
-            {/* ③ 설정 블록 — URL 줄과 같은 면이라 하나로 읽힌다. 안쪽 구역은 1px 선이
-                아니라 여백이 나눈다: 다섯 줄을 다 선으로 나누면 다섯 층이 같은 무게가 된다. */}
-            <div className={styles.reqChrome}>
-              {/* ③-a Parameters — 계약이 선언한 것 중 **사용자가 정할 수 있는 것만.**
-                  `targetSourceId` 는 path 에 박혀 바꿀 수 없고 ②의 URL 과 머리의 칩이 이미
-                  두 번 말하므로 행을 두지 않는다. 그래서 정할 것이 없는 provider·모드에서는
-                  구역째 없다 — 빈 표는 "여기서 뭘 정하는가"에 답하지 않는다. */}
-              {hasParams && (
-                <>
-                  <div className={cn(styles.secTitle, 'mb-2')}>Parameters</div>
-                  <div className={styles.paramHead}>
-                    <span className={styles.pCol1}>Name</span>
-                    <span className={styles.pCol2}>Value</span>
-                  </div>
-                  {/* 계약이 AWS POST path 에만 두는 파라미터 — 삭제에는 없다. */}
-                  <div className={styles.paramRow}>
-                    <span className={cn(styles.pCol1, styles.paramName)}>
-                      applyNLBSecurityGroup
-                    </span>
-                    <label className={cn(styles.pCol2, styles.paramCheck)}>
-                      <input
-                        type="checkbox"
-                        checked={applyNlb}
-                        disabled={busy || exchange?.ok === true}
-                        onChange={(event) => setApplyNlb(event.target.checked)}
-                      />
-                      {String(applyNlb)}
-                    </label>
-                  </div>
-                </>
-              )}
-
-              {/* ③-b Request body 이름표 — 파싱 판정은 본문의 성질이므로 이 줄이 진다.
-                  Parameters 가 없으면 이 줄이 구역의 첫 줄이라 위 여백을 지지 않는다. */}
-              {mode === 'edit' && (
-                <div className={cn(styles.bodyLabel, hasParams && 'mt-4')}>
-                  <span className={styles.secTitle}>Request body</span>
-                  <span className={styles.secMeta}>application/json</span>
-                  <span
-                    className={cn(
-                      styles.secStatus,
-                      !parse.ok || (emptyDraft && !creating)
-                        ? styles.errText
-                        : parse.ok && !emptyDraft
-                          ? styles.secOk
-                          : undefined,
-                    )}
-                    title={parse.ok ? undefined : parse.message}
-                  >
-                    {!parse.ok
-                      ? `JSON 파싱 실패 — ${parse.message}`
-                      : emptyDraft
-                        ? creating
-                          ? '리소스 0건 — 작성하거나 추천값을 불러오세요'
-                          : '리소스 0건 — 비우려면 삭제를 사용하세요'
-                        : parse.count != null
-                          ? `파싱 정상 · ${parse.count}건`
-                          : '파싱 정상'}
-                  </span>
+        <div className={styles.reqCol}>
+          {/* ③ 설정 블록 — URL 줄과 같은 면이라 하나로 읽힌다. 안쪽 구역은 1px 선이
+              아니라 여백이 나눈다: 다섯 줄을 다 선으로 나누면 다섯 층이 같은 무게가 된다. */}
+          <div className={styles.reqChrome}>
+            {/* ③-a Parameters — 계약이 선언한 것 중 **사용자가 정할 수 있는 것만.**
+                `targetSourceId` 는 path 에 박혀 바꿀 수 없고 ②의 URL 과 머리의 칩이 이미
+                두 번 말하므로 행을 두지 않는다. 그래서 정할 것이 없는 provider 에서는
+                구역째 없다 — 빈 표는 "여기서 뭘 정하는가"에 답하지 않는다. */}
+            {hasParams && (
+              <>
+                <div className={cn(styles.secTitle, 'mb-2')}>Parameters</div>
+                <div className={styles.paramHead}>
+                  <span className={styles.pCol1}>Name</span>
+                  <span className={styles.pCol2}>Value</span>
                 </div>
-              )}
+                    <div className={styles.paramRow}>
+                  <span className={cn(styles.pCol1, styles.paramName)}>
+                    applyNLBSecurityGroup
+                  </span>
+                  <label className={cn(styles.pCol2, styles.paramCheck)}>
+                    <input
+                      type="checkbox"
+                      checked={applyNlb}
+                      disabled={busy || exchange?.ok === true}
+                      onChange={(event) => setApplyNlb(event.target.checked)}
+                    />
+                    {String(applyNlb)}
+                  </label>
+                </div>
+              </>
+            )}
 
-              {/* ③-c 불러오기 줄 — 삭제 화면에는 불러올 초안이 없고, 실행이 끝난 평면은
-                  결과를 보는 자리지 초안을 갈아 끼우는 자리가 아니다. 초안 덮어쓰기 확인도
-                  이 줄이 받는다(영역 교체). */}
-              {mode === 'edit' && !exchange?.ok && (
-                <div className={styles.bar}>
-                  {armedSwap ? (
-                    <>
-                      <span className={styles.barWarn}>
-                        지금 적은 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
-                      </span>
-                      <div className={styles.acts}>
-                        <PlButton
-                          variant="secondary"
-                          onClick={() => setArmedSwap(false)}
-                        >
-                          유지
-                        </PlButton>
-                        <PlButton
-                          variant="danger"
-                          onClick={() => {
-                            if (recommendation.state === 'ready') setDraft(recommendation.text);
-                            setArmedSwap(false);
-                          }}
-                        >
-                          덮어쓰기
-                        </PlButton>
-                      </div>
-                    </>
-                  ) : (
-                    <>
+            {/* ③-b Request body 이름표 — 파싱 판정은 본문의 성질이므로 이 줄이 진다.
+                Parameters 가 없으면 이 줄이 구역의 첫 줄이라 위 여백을 지지 않는다. */}
+            <div className={cn(styles.bodyLabel, hasParams && 'mt-4')}>
+              <span className={styles.secTitle}>Request body</span>
+              <span className={styles.secMeta}>application/json</span>
+              <span
+                className={cn(
+                  styles.secStatus,
+                  !parse.ok || (emptyDraft && !creating)
+                    ? styles.errText
+                    : parse.ok && !emptyDraft
+                      ? styles.secOk
+                      : undefined,
+                )}
+                title={parse.ok ? undefined : parse.message}
+              >
+                {!parse.ok
+                  ? `JSON 파싱 실패 — ${parse.message}`
+                  : emptyDraft
+                    ? creating
+                      ? '리소스 0건 — 작성하거나 추천값을 불러오세요'
+                      : '리소스 0건 — 비우려면 삭제를 사용하세요'
+                    : parse.count != null
+                      ? `파싱 정상 · ${parse.count}건`
+                      : '파싱 정상'}
+              </span>
+            </div>
+
+            {/* ③-c 불러오기 줄 — 실행이 끝난 평면은 결과를 보는 자리지 초안을 갈아
+                끼우는 자리가 아니다. 초안 덮어쓰기 확인도 이 줄이 받는다(영역 교체). */}
+            {!exchange?.ok && (
+              <div className={styles.bar}>
+                {armedSwap ? (
+                  <>
+                    <span className={styles.barWarn}>
+                      지금 적은 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
+                    </span>
+                    <div className={styles.acts}>
                       <PlButton
                         variant="secondary"
-                        onClick={loadRecommendation}
-                        disabled={
-                          busy
-                          || recommendation.state === 'loading'
-                          || recommendation.state === 'absent'
-                        }
+                        onClick={() => setArmedSwap(false)}
                       >
-                        {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
+                        유지
                       </PlButton>
-                      <span className={styles.barMeta}>{recommendationMeta}</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ③-d 요청 본문 */}
-            <div className={styles.body}>
-              {mode === 'delete' ? (
-                <DeletePanel
-                  targetSourceId={targetSourceId}
-                  count={confirmedCount}
-                  wire={current}
-                  isIdc={provider === 'IDC'}
-                  gate={gate}
-                  typed={typed}
-                  onTyped={setTyped}
-                />
-              ) : (
-                /* 서버로 가는 것은 여기 적힌 원문 그대로다 — 숨은 변환이 없다. 실행이
-                   성공하면 읽기 전용이다: 성공은 종점이라, 고쳐도 보낼 문이 없다.
-                   gutter 는 textarea 의 형제라 같이 스크롤되지 않는다 — 세로 위치만
-                   따라가게 한다(가로는 줄 번호가 움직일 것이 없다). */
-                <div className={styles.editWrap}>
-                  <div ref={gutterRef} className={styles.editNos} aria-hidden="true">
-                    {Array.from({ length: lineCount }, (_, index) => (
-                      <div key={index}>{index + 1}</div>
-                    ))}
-                  </div>
-                  <textarea
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onScroll={(event) => {
-                      if (gutterRef.current) {
-                        gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                      <PlButton
+                        variant="danger"
+                        onClick={() => {
+                          if (recommendation.state === 'ready') setDraft(recommendation.text);
+                          setArmedSwap(false);
+                        }}
+                      >
+                        덮어쓰기
+                      </PlButton>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <PlButton
+                      variant="secondary"
+                      onClick={loadRecommendation}
+                      disabled={
+                        busy
+                        || recommendation.state === 'loading'
+                        || recommendation.state === 'absent'
                       }
-                    }}
-                    readOnly={exchange?.ok === true}
-                    spellCheck={false}
-                    wrap="off"
-                    className={styles.editor}
-                    aria-label="확정 정보 JSON 초안"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ④ 응답 — 편집에서는 실행 전에도 칸이 있다. 어디에 결과가 뜰지가 누르기 전에
-            보여야 이 화면이 두 JSON 을 대조하는 자리라는 것을 알 수 있다. 삭제는 다르다:
-            작성할 본문이 없고 왼쪽이 리소스 표라, 절반으로 접으면 무엇이 지워지는지가
-            잘린다 — 돌려받을 것이 생긴 뒤에 칸을 연다. */}
-        {(mode === 'edit' || exchange) && (
-          <div className={styles.resCol}>
-            <div className={styles.resHead}>
-              <span className={styles.resTitle}>Server response</span>
-              {exchange ? (
-                <>
-                  <span
-                    className={cn(
-                      styles.resCode,
-                      exchange.ok ? styles.resCodeOk : styles.resCodeErr,
-                    )}
-                  >
-                    {exchange.code > 0 ? exchange.code : '—'}
-                  </span>
-                  {/* ②는 지금 설정을, 이것은 **보낸** URL 을 말한다. 성공 뒤에는 파라미터가
-                      얼어 둘이 갈라질 수 없으므로, 실패 뒤에 다시 만졌을 때만 말한다 —
-                      같은 URL 을 두 줄에 적어 두면 잘린 꼬리가 서로를 흉내 낸다. */}
-                  {exchange.url !== requestUrl ? (
-                    <span className={styles.staleUrl} title={`${exchange.op} ${exchange.url}`}>
-                      보낸 URL 이 지금 설정과 다릅니다
-                    </span>
-                  ) : (
-                    /* reason phrase 는 계약의 description 이고, ms 는 **클라이언트가 관측한**
-                       왕복이다 — 서버 처리 시간이라고 말하지 않는다. */
-                    <span className={styles.resMeta}>
-                      {[phraseOf(exchange.op, exchange.code), `${exchange.ms} ms`]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  )}
-                </>
-              ) : (
-                /* 실행 전 상태와 아래 표가 무엇인지를 **한 줄**이 말한다 — 앞 판은 이 말을
-                   여기와 표 위 문단에서 두 번 했다. */
-                <span className={styles.resMeta}>
-                  아직 실행하지 않았습니다 · 계약이 선언한 응답 {DECLARED.POST.length}종
-                </span>
-              )}
-            </div>
-            {exchange ? (
-              <div className={styles.resBody}>
-                {exchange.body.split('\n').map((line, index) => (
-                  <div key={index} className={styles.codeRow}>
-                    <span className={styles.codeNo}>{index + 1}</span>
-                    <span className={styles.codeText}>{colorize(line)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* 여기는 편집에서만 온다 — 삭제는 응답이 생긴 뒤에야 이 칸을 연다.
-                 **칸을 비우지 않는다.** 지난 판은 두 줄만 두어 이 자리가 상시 공백이었다.
-                 채우는 것은 계약이 이 오퍼레이션에 선언한 응답 코드다 — 발명이 아니다. */
-              <div className={styles.declWrap}>
-                <div className={styles.declHead}>
-                  <span className={styles.declCode}>Code</span>
-                  <span className="min-w-0 flex-1">Description</span>
-                </div>
-                {DECLARED.POST.map(([code, description]) => (
-                  <div key={code} className={styles.declRow}>
-                    {/* 성공 코드만 색을 갖는다 — 아홉 줄 중 여덟이 실패라, 실패에 색을 주면
-                        표가 목록이 아니라 경고판이 된다. 판정은 응답이 온 뒤 알약이 낸다. */}
-                    <span
-                      className={cn(styles.declCode, code < 300 ? styles.declOk : styles.declDesc)}
                     >
-                      {code}
-                    </span>
-                    <span className={styles.declDesc}>{description}</span>
-                  </div>
-                ))}
+                      {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
+                    </PlButton>
+                    <span className={styles.barMeta}>{recommendationMeta}</span>
+                  </>
+                )}
               </div>
             )}
           </div>
-        )}
+
+          {/* ③-d 요청 본문 — 서버로 가는 것은 여기 적힌 원문 그대로다(숨은 변환이 없다).
+              실행이 성공하면 읽기 전용이다: 성공은 종점이라, 고쳐도 보낼 문이 없다.
+              gutter 는 textarea 의 형제라 같이 스크롤되지 않는다 — 세로 위치만 따라가게
+              한다(가로는 줄 번호가 움직일 것이 없다). */}
+          <div className={styles.body}>
+            <div className={styles.editWrap}>
+              <div ref={gutterRef} className={styles.editNos} aria-hidden="true">
+                {Array.from({ length: lineCount }, (_, index) => (
+                  <div key={index}>{index + 1}</div>
+                ))}
+              </div>
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onScroll={(event) => {
+                  if (gutterRef.current) {
+                    gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                  }
+                }}
+                readOnly={exchange?.ok === true}
+                spellCheck={false}
+                wrap="off"
+                className={styles.editor}
+                aria-label="확정 정보 JSON 초안"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ④ 응답 — 실행 전에도 칸이 있다. 어디에 결과가 뜰지가 누르기 전에 보여야 이
+            화면이 두 JSON 을 대조하는 자리라는 것을 알 수 있다. */}
+        <div className={styles.resCol}>
+          <div className={styles.resHead}>
+            <span className={styles.resTitle}>Server response</span>
+            {exchange ? (
+              <>
+                <span
+                  className={cn(
+                    styles.resCode,
+                    exchange.ok ? styles.resCodeOk : styles.resCodeErr,
+                  )}
+                >
+                  {exchange.code > 0 ? exchange.code : '—'}
+                </span>
+                {/* ②는 지금 설정을, 이것은 **보낸** URL 을 말한다. 성공 뒤에는 파라미터가
+                    얼어 둘이 갈라질 수 없으므로, 실패 뒤에 다시 만졌을 때만 말한다 —
+                    같은 URL 을 두 줄에 적어 두면 잘린 꼬리가 서로를 흉내 낸다. */}
+                {exchange.url !== requestUrl ? (
+                  <span className={styles.staleUrl} title={`POST ${exchange.url}`}>
+                    보낸 URL 이 지금 설정과 다릅니다
+                  </span>
+                ) : (
+                  /* reason phrase 는 계약의 description 이고, ms 는 **클라이언트가 관측한**
+                     왕복이다 — 서버 처리 시간이라고 말하지 않는다. */
+                  <span className={styles.resMeta}>
+                    {[phraseOf(exchange.code), `${exchange.ms} ms`].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </>
+            ) : (
+              /* 실행 전 상태와 아래 표가 무엇인지를 **한 줄**이 말한다 — 앞 판은 이 말을
+                 여기와 표 위 문단에서 두 번 했다. */
+              <span className={styles.resMeta}>
+                아직 실행하지 않았습니다 · 계약이 선언한 응답 {DECLARED.length}종
+              </span>
+            )}
+          </div>
+          {exchange ? (
+            <div className={styles.resBody}>
+              {exchange.body.split('\n').map((line, index) => (
+                <div key={index} className={styles.codeRow}>
+                  <span className={styles.codeNo}>{index + 1}</span>
+                  <span className={styles.codeText}>{colorize(line)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* **칸을 비우지 않는다.** 지난 판은 두 줄만 두어 이 자리가 상시 공백이었다.
+               채우는 것은 계약이 이 오퍼레이션에 선언한 응답 코드다 — 발명이 아니다. */
+            <div className={styles.declWrap}>
+              <div className={styles.declHead}>
+                <span className={styles.declCode}>Code</span>
+                <span className="min-w-0 flex-1">Description</span>
+              </div>
+              {DECLARED.map(([code, description]) => (
+                <div key={code} className={styles.declRow}>
+                  {/* 성공 코드만 색을 갖는다 — 아홉 줄 중 여덟이 실패라, 실패에 색을 주면
+                      표가 목록이 아니라 경고판이 된다. 판정은 응답이 온 뒤 알약이 낸다. */}
+                  <span
+                    className={cn(styles.declCode, code < 300 ? styles.declOk : styles.declDesc)}
+                  >
+                    {code}
+                  </span>
+                  <span className={styles.declDesc}>{description}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ⑤ 바닥 — 이탈 확인과 오류만 받는다. 말할 것이 없으면 줄 자체가 없다: 파싱 판정은
@@ -1039,81 +879,5 @@ export function ConfirmEditorModal({
         </div>
       )}
     </ModalShell>
-  );
-}
-
-// ── 삭제 ────────────────────────────────────────────────────────────────────
-
-function DeletePanel({
-  targetSourceId,
-  count,
-  wire,
-  isIdc,
-  gate,
-  typed,
-  onTyped,
-}: {
-  targetSourceId: number;
-  count: number;
-  /** 지워질 확정 정보 — 확정 pane 과 **같은 표**로 그린다(같은 응답, 같은 매퍼). */
-  wire: ConfirmedIntegrationResponse | null;
-  /** IDC 는 접속 주소·Port·출발지 IP·NLB 배정이 정체다 — 표째로 갈린다. */
-  isIdc: boolean;
-  gate: GateLoad;
-  typed: string;
-  onTyped: (next: string) => void;
-}): ReactElement {
-  const structureRows = useMemo(
-    () => (wire ? confirmedIntegrationToConfirmed(wire) : []),
-    [wire],
-  );
-  const applied = gate.overallState === 'APPLIED';
-
-  return (
-    <div className={styles.del}>
-      <div className={styles.delHead}>
-        <h3 className={styles.delTitle}>확정된 리소스 {count}건이 지워집니다</h3>
-        {/* Terraform 은 상태만 말한다 — "철거할 인프라가 없다" 는 NEVER_APPLIED 에서만
-            사실이고, 그 밖의 상태에서 같은 말을 하면 계약에 없는 것을 단정하는 것이 된다. */}
-        <p className={styles.delDesc}>
-          삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.
-          {gate.state === 'loading'
-            ? ' Terraform 상태를 확인하는 중입니다.'
-            : gate.state === 'failed'
-              ? ' Terraform 상태를 불러오지 못했습니다.'
-              : applied
-                ? ' Terraform 이 인프라를 올린 상태라 확정 정보만 지울 수 없습니다 — 철거가 먼저입니다.'
-                : gate.overallState === 'NEVER_APPLIED'
-                  ? ' Terraform 은 아직 적용된 적이 없어 철거할 인프라가 없습니다.'
-                  : ` Terraform 은 ${metaOf(gate.overallState).label} 상태입니다.`}
-        </p>
-      </div>
-
-      {/* 무엇이 지워지는지는 조회 화면과 같은 문법으로 읽혀야 한다 — 검색·필터·페이지가
-          그대로 붙으므로 600건이어도 "내 DB 가 이 목록에 있나" 를 확인할 수 있다. */}
-      <div className={styles.delList}>
-        {isIdc ? (
-          <ConfirmedIdcTable rows={wire?.resource_infos ?? []} className="mt-5 pb-6" />
-        ) : (
-          <ConfirmedResourceTable resources={structureRows} className="mt-5 pb-6" />
-        )}
-      </div>
-
-      <div className={styles.delConfirm}>
-        <div className="min-w-0 flex-1">
-          <label className={styles.delLabel} htmlFor="confirm-delete-typed">
-            확인을 위해 <b>{targetSourceId}</b> 을(를) 입력하세요.
-          </label>
-          <input
-            id="confirm-delete-typed"
-            value={typed}
-            onChange={(event) => onTyped(event.target.value)}
-            disabled={applied || gate.state !== 'ready'}
-            placeholder="Target Source ID"
-            className={cn(pipelineStyles.input, 'mt-2 w-full max-w-[280px]')}
-          />
-        </div>
-      </div>
-    </div>
   );
 }

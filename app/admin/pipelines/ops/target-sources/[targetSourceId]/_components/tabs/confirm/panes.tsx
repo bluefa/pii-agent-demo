@@ -164,14 +164,19 @@ export interface ConfirmPaneProps {
    */
   confirmedAtFailed?: boolean;
   /**
-   * 확정 정보 입력·수정·삭제 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
-   * 삭제는 편집기 안의 영역 교체이므로 pane 에 두 번째 입구를 두지 않는다.
+   * 확정 정보 입력·수정 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
    */
   onEdit?: () => void;
+  /**
+   * 확정 정보 삭제 — **편집과 나란한 두 번째 문**이다. 지우려는 사람이 편집기를 먼저
+   * 열 이유가 없고, 삭제 확인은 이 콘솔의 다른 파괴적 동작(연동 초기화)과 같은 문법을
+   * 쓴다. 지울 것이 있고(확정 등록됨) 쓰기 경로가 있을 때만 내려온다.
+   */
+  onDelete?: () => void;
 }
 
 /**
- * 현재 확정 정보만 보여 준다 — 표는 편집기의 삭제 확인 화면과 같은 표이고, provider 로
+ * 현재 확정 정보만 보여 준다 — 표는 provider 로
  * 갈린다: 클라우드는 Step 6·7 의 `ConfirmedResourceTable`, IDC 는 옆 칸(연동 요청 확인)의
  * `IdcResourceTable`. 승인 스냅샷과의 비교·Raw 렌즈는 라이브 리뷰에서 제거됐다
  * ("뭘 비교한다는 건지"가 전달되지 않았다). 승인 내역이 필요하면 옆 칸(연동 요청
@@ -184,6 +189,7 @@ export function ConfirmPane({
   hasApproval,
   confirmedAtFailed,
   onEdit,
+  onDelete,
 }: ConfirmPaneProps): ReactElement {
   const resources = wire?.resource_infos ?? [];
   const empty = resources.length === 0;
@@ -205,11 +211,20 @@ export function ConfirmPane({
                 : `리소스 ${resources.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)} 등록` : ''}`}
           </span>
         </p>
-        {onEdit && (
+        {(onEdit || onDelete) && (
+          /* 두 문은 같은 눈금(32px)이다 — 이 pane 안의 검색 입력이 32px 이라, 액션만
+             28px 로 내려가면 머리줄에서 셋이 서로 다른 높이로 선다. */
           <div className={paneStyles.actions}>
-            <PlButton variant="primary" size="sm" onClick={onEdit}>
-              {empty ? '확정 정보 입력' : '확정 정보 수정'}
-            </PlButton>
+            {!empty && onDelete && (
+              <PlButton variant="danger" onClick={onDelete}>
+                확정 정보 삭제
+              </PlButton>
+            )}
+            {onEdit && (
+              <PlButton variant="primary" onClick={onEdit}>
+                {empty ? '확정 정보 입력' : '확정 정보 수정'}
+              </PlButton>
+            )}
           </div>
         )}
       </div>
