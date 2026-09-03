@@ -95,18 +95,23 @@ export const jobStyles = {
    *  by id and nothing tells the operator which one to open. */
   jobMeta: 'ml-auto min-w-0 truncate text-[12px] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)] tabular-nums',
   jobChev: 'flex-none text-[var(--pl-text-weak)]',
-  /** `last_fail_reason`'s head clause under a failed job — the cause the panel used
-   *  to keep three hops away (attempt row → job row → log viewer). ONE line: a
-   *  two-line clamp cut the tail mid-word, and `failHead` already drops the detail
-   *  the log viewer's header carries. The bottom gap is a MARGIN, not padding —
-   *  a clipping box paints the clipped remainder into its own padding box. */
-  jobFailReason: '-mt-1.5 px-3 mb-3 truncate text-[14px] leading-[1.6] text-[var(--pl-err-text)]',
-  /** 폴 호출 실패(`last_error`) — job 의 판정이 아니라 우리 호출이 못 닿은 것이다.
-   *  앞머리가 늘 같아 자르면 남는 게 없으므로 한 줄 clamp 대신 줄바꿈으로 전부
-   *  싣는다. URL 이 들어와도 상자를 밀지 않게 break-words 를 건다. 12px·mono 는
-   *  "사람이 쓴 사유"가 아니라 "호출 기록"임을 톤으로 구분한다. */
-  jobCallError:
-    '-mt-1.5 px-3 mb-3 text-[12px] leading-[1.55] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)] break-words',
+  /** 실패한 job 밑에 붙는 실패 줄 — 패널이 세 홉(시도 행 → job 행 → 로그 뷰어)
+   *  뒤에 숨겨 두던 원인을 여기서 바로 읽는다. 접히면 한 줄, 펴면 전문:
+   *  한 줄만 두면 상태 코드도 URL 도 화면 밖으로 나가고, 늘 펴 두면 목록이 오류
+   *  문단으로 밀린다. `respFold` 와 같은 ▼ 문법이되 요약 줄 자체가 내용이라 별도
+   *  라벨을 두지 않는다. 아래 여백은 padding 이 아니라 MARGIN 이다 — 클리핑
+   *  상자는 잘려 나간 나머지를 자기 padding 상자에 그린다. */
+  errFold: 'group -mt-1.5 px-3 mb-3',
+  /** 목록 안이라 요약 줄 전체가 토글이다. summary 기본 마커는 지운다. */
+  errSummary:
+    'flex cursor-pointer list-none items-start gap-1.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] [&::-webkit-details-marker]:hidden',
+  /** 폴 호출 기록은 "사람이 쓴 사유"가 아니라 기계가 남긴 줄이라 톤으로 가른다. */
+  errMono: '!text-[12px] !leading-[1.55] [font-family:var(--pl-font-mono)]',
+  errTri: 'mt-[5px] flex-none text-[10px] leading-none transition-transform group-open:rotate-180',
+  /** 접힌 줄 — 넘치면 말줄임. 펴지면 전문 쪽에 자리를 내준다. */
+  errHead: 'min-w-0 truncate group-open:hidden',
+  /** 편 줄 — URL 이 들어와도 상자를 밀지 않게 break-words. */
+  errFull: 'hidden min-w-0 whitespace-pre-wrap break-words group-open:block',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code

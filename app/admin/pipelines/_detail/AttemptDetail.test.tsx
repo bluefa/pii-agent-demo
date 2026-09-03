@@ -169,13 +169,14 @@ describe('AttemptDetail — Job 현황', () => {
     // The other buckets are in the list the trigger opens, not in the markup.
     expect(out).not.toContain('성공 20');
     // The failure and the KIND of failure are on screen without opening anything —
-    // the detail after the colon belongs to the log viewer's header, not this row.
+    // 콜론 뒤 상세는 접힌 채로 대기한다.
     expect(out).toContain('>bad-1<');
-    expect(out).toContain('>Error acquiring the state lock</p>');
-    // The detail after the colon is not visible text — it survives only as the
-    // title, so a hover (and a screen reader) still reaches the whole reason.
-    expect(out).toContain('title="Error acquiring the state lock: ConditionalCheckFailedException');
-    expect(out).not.toContain('>Error acquiring the state lock: Conditional');
+    expect(out).toContain('>Error acquiring the state lock</span>');
+    // 전문은 폴드 안에 마크업으로 들어 있다 — 펴면 읽히고, 접힌 동안은 안 보인다.
+    expect(out).toContain('>Error acquiring the state lock: ConditionalCheckFailedException');
+    expect(out).toContain('group-open:block');
+    // 접힌 상태에서 기본으로 열려 있으면 안 된다.
+    expect(out).not.toContain('<details open');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -209,13 +210,13 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('RUNNING · 6회 폴링 · 09:00');
   });
 
-  // The reason column is one line. A clipping box also paints the clipped remainder
-  // into its own padding box, so the bottom gap has to be a margin — with `pb-3` a
-  // real three-line terraform error rendered a sliced third line under a two-line clamp.
-  it('keeps the failure reason to one line, with no bottom padding', () => {
-    expect(j.jobFailReason).toContain('truncate');
-    expect(j.jobFailReason).not.toContain('line-clamp');
-    expect(j.jobFailReason).not.toMatch(/\bp[by]-/);
+  // 접힌 줄은 한 줄이다. 클리핑 상자는 잘려 나간 나머지를 자기 padding 상자에
+  // 그리므로 아래 여백은 margin 이어야 한다 — `pb-3` 일 때 실제 세 줄짜리 terraform
+  // 오류가 두 줄 clamp 밑으로 잘린 세 번째 줄을 흘렸다.
+  it('keeps the collapsed reason to one line, with no bottom padding', () => {
+    expect(j.errHead).toContain('truncate');
+    expect(j.errHead).not.toContain('line-clamp');
+    expect(j.errFold).not.toMatch(/\bp[by]-/);
   });
 
   // A terraform error names its class first and details itself after the colon.
@@ -252,9 +253,10 @@ describe('AttemptDetail — Job 현황', () => {
       }),
     );
 
+    // 전문이 마크업 안에 있고(펴면 읽힌다), 앞 절만 남기고 버리지 않는다 —
+    // 이 단언이 이 테스트의 존재 이유다.
     expect(out).toContain(message);
-    // 앞 절만 남기고 버리던 회귀 — 이 단언이 이 테스트의 존재 이유다.
-    expect(out).not.toContain('>infra-manager call failed</p>');
+    expect(out).not.toContain('>infra-manager call failed</span>');
   });
 
   /**
@@ -287,7 +289,7 @@ describe('AttemptDetail — Job 현황', () => {
       }),
     );
 
-    expect(out).toContain('>Error acquiring the state lock</p>');
+    expect(out).toContain('>Error acquiring the state lock</span>');
     expect(out).not.toContain('infra-manager call failed');
   });
 });

@@ -75,6 +75,29 @@ export function failHead(reason: string): string {
   return body || reason;
 }
 
+/**
+ * 실패 한 줄을 접었다 펴는 폴드. 접힌 상태는 `head` 한 줄(넘치면 말줄임), 편 상태는
+ * `full` 전문을 줄바꿈해 싣는다 — 두 텍스트를 겹쳐 두고 열림 여부로 바꿔 끼우므로
+ * 열었을 때 같은 문장이 두 번 나오지 않는다.
+ *
+ * terraform 사유는 `head` 가 앞 절(`failHead`)이라 접힌 줄이 실패의 종류를 말하고,
+ * 폴 호출 실패는 앞 절이 늘 같아 자를 것이 없으므로 `head`·`full` 이 같은 문자열이다
+ * (접힘 = 그 한 줄, 펴짐 = 전문).
+ */
+function ErrorFold({ head, full, mono }: { head: string; full: string; mono?: boolean }): ReactElement {
+  return (
+    <details className={j.errFold}>
+      <summary className={cn(j.errSummary, mono && j.errMono)}>
+        <span className={j.errTri} aria-hidden="true">
+          ▼
+        </span>
+        <span className={j.errHead}>{head}</span>
+        <span className={j.errFull}>{full}</span>
+      </summary>
+    </details>
+  );
+}
+
 function JobItem({
   row,
   verdict,
@@ -106,23 +129,15 @@ function JobItem({
         {meta ? <span className={j.jobMeta}>{meta}</span> : <span className="ml-auto" />}
         <Icon name="chev-r" size="sm" className={j.jobChev} />
       </button>
-      {/* `title` carries what both the clause cut and the CSS ellipsis drop — the
-          whole reason is otherwise only in the viewer this row opens. */}
+      {/* 접힌 채로는 한 줄, 펴면 전문 — 목록이 오류 문단으로 밀리지 않으면서도
+          원문이 이 화면 밖으로 나가지 않는다(오너 2026-09-03). */}
       {verdict === 'failed' && failReason && (
-        <p className={j.jobFailReason} title={failReason}>
-          {failHead(failReason)}
-        </p>
+        <ErrorFold head={failHead(failReason)} full={failReason} />
       )}
-      {/* 자르지 않고 통째로 — 줄바꿈해 다 보여준다. 판정과 무관하게 그린다:
-          폴이 못 닿은 job 은 상태를 못 읽어 verdict 가 failed 가 아니라
-          none/running 이고, 실패 판정에 걸어 두면 정작 호출이 실패한 그 job 에서만
-          이 줄이 안 나온다. 이 줄이 없으면 상태 코드도 URL 도 화면 어디에도
-          남지 않는다. */}
-      {callError && (
-        <p className={j.jobCallError} title={callError}>
-          {callError}
-        </p>
-      )}
+      {/* 판정과 무관하게 그린다: 폴이 못 닿은 job 은 상태를 못 읽어 verdict 가
+          failed 가 아니라 none/running 이고, 실패 판정에 걸어 두면 정작 호출이
+          실패한 그 job 에서만 이 줄이 안 나온다. */}
+      {callError && <ErrorFold head={callError} full={callError} mono />}
     </div>
   );
 }
