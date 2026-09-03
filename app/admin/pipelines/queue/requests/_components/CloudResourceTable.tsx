@@ -288,18 +288,17 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                   {excluded && <ReasonChip row={row} />}
                 </td>
               </tr>
-              {/* The member instances — the app's own accordion body in read-only mode, the
-                  same one steps 1·2·3 open (owner, 2026-08-13). Everything the cluster answers
-                  for (id, verdict, reason) stays on the parent, which is exactly why they are
-                  not rows of this table: half its columns were the cluster's single decision
-                  and sat blank on every member, the endpoint had no column at all, and the AZ
-                  was filed under the Region header for want of anywhere else to put it. */}
+              {/* The member instances — rows of this table, in read-only mode, the same ones
+                  steps 1·2·3 open (owner, 2026-08-13). Everything the cluster answers for (id,
+                  verdict, reason) stays on the parent and those cells sit empty, exactly as a
+                  folded region's member rows leave them. Until 2026-09-03 this was a colspan
+                  band carrying a 3-column grid of its own, which put the AZ under the Resource
+                  ID column of the very table whose Region column it belongs in. */}
               {instancesOpen && (
                 <RdsInstancePanel
                   clusterId={rowKey}
-                  clusterName={row.resourceName ?? rowKey}
-                  showCheckboxColumn={false}
-                  colSpan={6}
+                  // `CLOUD_COLUMNS`, in order — the AZ goes under Region.
+                  columns={['name', 'blank', 'blank', 'availabilityZone', 'blank', 'blank']}
                   instances={instances}
                   chosenResourceId={row.selectedRdsInstanceResourceId ?? undefined}
                   selectable={false}

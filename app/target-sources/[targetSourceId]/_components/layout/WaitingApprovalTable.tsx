@@ -1303,22 +1303,22 @@ export const WaitingApprovalTable = memo(
         return (
           <Fragment key={rowKey}>
             {row}
-            {/* The cluster's member instances — the SAME accordion body step 1 opens, in its
-                read-only mode: the choice was made there and this surface exists to review it,
-                so the radios are gone and the 선택됨 chip states the pick (owner, 2026-08-13:
-                "모든 Step에 적용").
+            {/* The cluster's member instances — the SAME rows step 1 opens, in read-only mode:
+                the choice was made there and this surface exists to review it, so the radios
+                are gone and the 선택됨 chip states the pick (owner, 2026-08-13: "모든 Step에
+                적용").
 
-                They used to be rows of this table, which cost more than the swap saved: three
-                of the six columns are the cluster's own answer (id, verdict, reason — one
-                decision, not one per member) so they sat empty, the endpoint had no column at
-                all, and the AZ was filed under the "Region" header for want of anywhere else.
-                Inside the body those three have their own labelled columns. */}
+                Rows of THIS table, on its own columns (2026-09-03). They were a colspan band
+                with a 3-column grid of its own, and that grid landed the AZ under this table's
+                Resource ID column while the Athena children a row above put their region under
+                Region — one class of value on two axes. The columns that are the cluster's
+                single answer (id, verdict, reason) stay empty here for the same reason an
+                Athena child's do. */}
             {instancesOpen && (
               <RdsInstancePanel
                 clusterId={rowKey}
-                clusterName={resource.resourceName ?? resource.resourceId}
-                showCheckboxColumn={false}
-                colSpan={6}
+                // `approvalColumns`, in order — the AZ goes under Region.
+                columns={['name', 'blank', 'blank', 'availabilityZone', 'blank', 'blank']}
                 instances={instances}
                 chosenResourceId={resource.selectedRdsInstanceResourceId ?? undefined}
                 selectable={false}

@@ -31,7 +31,6 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 import { RequestTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
-import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 
 const row = (index: number, selected = true): RequestResourceRow => ({
   resourceId: `res-${index}`,
@@ -224,18 +223,20 @@ describe('RequestTab 요청 리소스', () => {
 
       expect(await screen.findByText('demo-cluster')).toBeTruthy();
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
-      // The members live in the accordion body (`RdsInstancePanel`) — one colspan cell, not rows
-      // of this table — so the lookups scope to it.
-      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
-      expect(band.getByText('demo-1')).toBeTruthy();
-      expect(band.getByText('demo-2')).toBeTruthy();
+      // The members are ROWS of this table (2026-09-03), so they are read off a row query —
+      // the cluster's own row is excluded by name, since it restates the chosen member.
+      const instanceRows = [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
+        (tr) => !tr.textContent?.includes('demo-cluster') && /demo-\d/.test(tr.textContent ?? ''),
+      );
+      const members = instanceRows.map((tr) => within(tr));
+      expect(members.flatMap((member) => member.queryAllByText(/^demo-\d$/))).toHaveLength(2);
       // Prettified from the contract's uppercase WRITER / READER.
-      expect(band.getByText('Writer')).toBeTruthy();
-      expect(band.getByText('Reader')).toBeTruthy();
+      expect(members.flatMap((member) => member.queryAllByText('Writer'))).toHaveLength(1);
+      expect(members.flatMap((member) => member.queryAllByText('Reader'))).toHaveLength(1);
       // Exactly one instance is the choice, and it is the one the request named.
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
-      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
-      // The cluster row names it too, so folding the band away cannot delete the choice.
+      expect(screen.getByText('선택됨').closest('tr')?.textContent).toContain('demo-2');
+      // The cluster row names it too, so folding the rows away cannot delete the choice.
       expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
     });
 

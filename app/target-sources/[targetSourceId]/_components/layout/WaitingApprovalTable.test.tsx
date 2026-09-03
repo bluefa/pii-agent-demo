@@ -7,7 +7,6 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { required } from '@/lib/test-dom';
 import { tableRowLift, textColors, verdictRail } from '@/lib/theme';
@@ -613,17 +612,27 @@ describe('WaitingApprovalTable', () => {
     });
 
     /**
-     * The instance names, in render order. They are not rows of the OUTER table — the members
-     * live in the accordion body (`RdsInstancePanel`), which carries its own table roles, so
-     * they are read out of that band and never off a page-wide row query.
+     * The opened instance ROWS, in render order — rows of this table since 2026-09-03, so they
+     * are found by a plain row query. The cluster's own row is excluded by name: it restates
+     * the chosen member on its ↳ line, which this surface keeps in both fold states.
      */
-    const instanceNames = () => {
-      const band = screen.queryByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
-      if (!band) return [];
-      return Array.from(band.querySelectorAll('span'))
-        .map((span) => span.textContent ?? '')
-        .filter((text) => /^demo-\d$/.test(text));
-    };
+    const instanceRows = (): HTMLTableRowElement[] =>
+      [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
+        (row) => !row.textContent?.includes('demo-cluster') && /demo-\d/.test(row.textContent ?? ''),
+      );
+
+    /** The instance names, in render order. */
+    const instanceNames = () =>
+      instanceRows().flatMap((row) =>
+        Array.from(row.querySelectorAll('span'))
+          .map((span) => span.textContent ?? '')
+          .filter((text) => /^demo-\d$/.test(text)),
+      );
+
+    const columnKeys = (): string[] =>
+      [...document.querySelectorAll<HTMLElement>('thead th[data-col-key]')].map(
+        (th) => th.dataset.colKey ?? '',
+      );
 
     /**
      * Open the member band. EVERY cluster starts folded now (owner, 2026-08-23) — being part of
@@ -644,49 +653,55 @@ describe('WaitingApprovalTable', () => {
       openBand();
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
-      // The chip rides the chosen instance's own LINE inside the band.
-      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
+      // The chip rides the chosen instance's own ROW.
+      expect(
+        required(screen.getByText('선택됨').closest('tr'), "the chosen instance's row").textContent,
+      ).toContain('demo-2');
     });
 
-    // colSpan is hand-passed by each host table (`colSpan={6}` here), so a column added to or
-    // removed from the header silently leaves the band short or overflowing. `lib/theme.ts`
-    // names this exact failure mode as the reason a separate verdict column was rejected.
-    it('spans the band across every column of this table', () => {
+    // The column layout is hand-passed by each host table, so a column added to or removed from
+    // the header silently knocks every instance cell one place out of register — the exact
+    // defect this shape replaced.
+    it('gives every instance row one cell per column of this table', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       openBand();
-      const band = required(
-        screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
-        "the band's spanning cell",
-      );
-      expect(Number(band.getAttribute('colspan'))).toBe(
-        document.querySelectorAll('thead th').length,
-      );
+      const keys = columnKeys();
+      const rows = instanceRows();
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        const cells = [...row.querySelectorAll('td')];
+        expect(cells).toHaveLength(keys.length);
+        // The cluster's own answers stay blank on a member, as on an Athena child row.
+        expect(cells[keys.indexOf('id')]?.textContent).toBe('');
+        expect(cells[keys.indexOf('dbType')]?.textContent).toBe('');
+        expect(cells[keys.indexOf('reason')]?.textContent).toBe('');
+      }
+      expect(document.querySelectorAll('table [role="table"]')).toHaveLength(0);
     });
 
-    it('shows the member role on every instance line', () => {
+    it('shows the member role on every instance row', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       openBand();
-      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
-      expect(band.getAllByText('Reader')).toHaveLength(2);
-      expect(band.getAllByText('Writer')).toHaveLength(1);
-      // Scoped to the band because the cluster row now carries the chosen member's role too —
-      // a document-wide count would be 3 Readers and pin nothing in particular.
+      const rows = instanceRows().map((row) => within(row));
+      expect(rows.flatMap((row) => row.queryAllByText('Reader'))).toHaveLength(2);
+      expect(rows.flatMap((row) => row.queryAllByText('Writer'))).toHaveLength(1);
+      // Scoped to the rows because the cluster row carries the chosen member's role too — this
+      // surface renders no radio, so its ↳ line stays open (시안 B is step 1 only).
       expect(screen.getAllByText('Reader')).toHaveLength(3);
     });
 
-    // The band is why the columns can say this at all: as rows of this table the AZ was filed
-    // under the Region header (the one column left that could hold it) and the endpoint — the
-    // other thing a reviewer compares — had nowhere to go.
-    it('gives each instance its own labelled AZ and endpoint columns', () => {
+    // The whole point of the 2026-09-03 shape: the AZ is read DOWN this table's own Region
+    // column, against the regions above it, instead of off a grid of the band's own that
+    // landed it under Resource ID.
+    it('puts each instance’s AZ in this table’s Region column', () => {
       render(<WaitingApprovalTable resources={[cluster()]} />);
       openBand();
-      expect(screen.getByText('가용 영역')).toBeTruthy();
-      expect(screen.getByText('엔드포인트')).toBeTruthy();
-      // The table's Region column stays the CLUSTER's region — one row, one value.
+      const region = columnKeys().indexOf('region');
+      expect(
+        instanceRows().map((row) => row.querySelectorAll('td')[region]?.textContent),
+      ).toEqual(['ap-northeast-2b', 'ap-northeast-2c', 'ap-northeast-2a']);
+      // The cluster row's own Region cell still says the cluster's region — one row, one value.
       expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
-      expect(screen.getByText('ap-northeast-2a')).toBeTruthy();
-      expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
-      expect(screen.getByText('ap-northeast-2c')).toBeTruthy();
     });
 
     // The cluster row NAMES the member it connects through, exactly as step 1 does (owner,
@@ -787,11 +802,11 @@ describe('WaitingApprovalTable', () => {
           resources={[cluster({ selected: false, selectedRdsInstanceResourceId: undefined })]}
         />,
       );
-      // Every cluster starts folded — open it to read the lines.
+      // Every cluster starts folded — open it to read the rows.
       openBand();
-      const band = screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
-      expect(instanceNames()).toHaveLength(3);
-      expect(band.innerHTML).not.toContain(textColors.tertiary);
+      const rows = instanceRows();
+      expect(rows).toHaveLength(3);
+      expect(rows.map((row) => row.innerHTML).join('')).not.toContain(textColors.tertiary);
     });
 
     // An excluded cluster chose nothing, so nothing is marked; the list is still the evidence,

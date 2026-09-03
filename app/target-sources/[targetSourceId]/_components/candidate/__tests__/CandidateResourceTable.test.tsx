@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { CandidateResource } from '@/lib/types/resources';
 import { CandidateResourceTable } from '@/app/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
-import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { required } from '@/lib/test-dom';
 import { textColors, verdictRail } from '@/lib/theme';
 
@@ -268,10 +267,11 @@ describe('CandidateResourceTable — EC2 kind tag', () => {
   });
 });
 
-// An RDS cluster connects through ONE of its member instances. The instances are NOT rows —
-// three of the table's columns say nothing about them and the two things a user compares
-// (endpoint, AZ) have no column at all — so the row states the chosen one and the comparison
-// happens in a band the row's chevron opens under it.
+// An RDS cluster connects through ONE of its member instances. The instances ARE rows of this
+// table (2026-09-03) — the chevron opens them under the cluster, and the table's own columns
+// align them: the AZ lands under Region, the endpoint rides the name, and the columns the
+// CLUSTER answers for (id, engine, 설치 구분, 제외 사유) stay empty exactly as an Athena
+// child's do.
 describe('CandidateResourceTable — RDS cluster instances', () => {
   // Uppercase WRITER / READER, as the contract sends them.
   const wireOrder = [
@@ -310,18 +310,48 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
       .find((radio) => radio.checked)
       ?.value;
 
-  // colSpan is hand-passed by each host table (`showCheckboxColumn ? 7 : 5` here), so a column
-  // added to or removed from the header silently leaves the band short or overflowing.
-  it('spans the band across every column of this table', () => {
+  /**
+   * The opened instance ROWS — rows of this table since 2026-09-03, so they are found by a
+   * plain row query. The cluster's own row is excluded by name: it restates the chosen member
+   * on its ↳ line whenever that line is showing.
+   */
+  const instanceRows = (): HTMLTableRowElement[] =>
+    [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
+      (row) => !row.textContent?.includes('demo-cluster') && /demo-\d/.test(row.textContent ?? ''),
+    );
+
+  const columnKeys = (): string[] =>
+    [...document.querySelectorAll<HTMLElement>('thead th[data-col-key]')].map(
+      (th) => th.dataset.colKey ?? '',
+    );
+
+  // The column layout is hand-passed by each host table, so a column added to or removed from
+  // the header silently knocks every instance cell one place out of register — which is the
+  // exact defect this shape replaced (the old band put the AZ under Resource ID).
+  it('gives every instance row one cell per column, with the AZ under Region', () => {
     renderCluster();
     openBand();
-    const band = required(
-      screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
-      "the band's spanning cell",
-    );
-    expect(Number(band.getAttribute('colspan'))).toBe(
-      document.querySelectorAll('thead th').length,
-    );
+    const keys = columnKeys();
+    const rows = instanceRows();
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      const cells = [...row.querySelectorAll('td')];
+      expect(cells).toHaveLength(keys.length);
+      expect(cells[keys.indexOf('region')]?.textContent).toMatch(/^ap-northeast-2[abc]$/);
+      // The cluster's own answers, not the member's — blank, as on an Athena child row.
+      expect(cells[keys.indexOf('id')]?.textContent).toBe('');
+      expect(cells[keys.indexOf('dbType')]?.textContent).toBe('');
+      expect(cells[keys.indexOf('reason')]?.textContent).toBe('');
+    }
+  });
+
+  // The band used to be a `role="table"` inside the table — three loose columns on their own
+  // axes. Nothing nested survives.
+  it('nests no second table inside the resource table', () => {
+    renderCluster();
+    openBand();
+    expect(document.querySelectorAll('table [role="table"]')).toHaveLength(0);
+    expect(screen.getAllByRole('table')).toHaveLength(1);
   });
 
   // The owner's rule (2026-08-11): folding cuts row COUNT, never information. A cluster row
@@ -338,16 +368,16 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
 
   // The chevron is what says the cluster holds a choice at all — a row without one reads as a
   // plain row and nobody looks inside it (owner, 2026-08-12).
-  it('opens the instance band from the cluster row’s chevron, folded on load', () => {
+  it('opens the instance rows from the cluster row’s chevron, folded on load', () => {
     renderCluster();
-    expect(screen.queryByText('엔드포인트')).toBeNull();
+    expect(instanceRows()).toHaveLength(0);
 
     openBand();
-    expect(screen.getByText('엔드포인트')).toBeTruthy();
+    expect(instanceRows()).toHaveLength(3);
     expect(screen.getAllByRole('radio')).toHaveLength(3);
 
     fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
-    expect(screen.queryByText('엔드포인트')).toBeNull();
+    expect(instanceRows()).toHaveLength(0);
   });
 
   it('lists instances Reader-first then by ARN, regardless of wire order', () => {
@@ -377,6 +407,31 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
   });
 
+  // The band's line was one `<label>`, so anywhere on it picked the instance. As rows the
+  // name cell is 250px of a ~1040px row, so the whole row has to stay the target — a cell
+  // that says nothing about the choice (the AZ) is the honest thing to press here.
+  it('picks the instance from anywhere on its row, not just the name cell', () => {
+    const selectRdsInstance = vi.fn();
+    renderCluster({ actions: { ...defaultProps.actions, selectRdsInstance } });
+    openBand();
+    const region = columnKeys().indexOf('region');
+    const row = required(
+      instanceRows().find((candidate) => /ap-northeast-2a/.test(candidate.textContent ?? '')),
+      "demo-1's row",
+    );
+    fireEvent.click(required(row.querySelectorAll('td')[region], "the row's AZ cell"));
+    expect(selectRdsInstance).toHaveBeenCalledWith('cluster-1', 'arn:db:demo-1');
+  });
+
+  // A review surface has no choice to make, so its rows must not behave as if they had one.
+  it('leaves the rows inert where there is no radio', () => {
+    const selectRdsInstance = vi.fn();
+    renderCluster({ readonly: true, actions: { ...defaultProps.actions, selectRdsInstance } });
+    openBand();
+    fireEvent.click(required(instanceRows()[0], 'an instance row'));
+    expect(selectRdsInstance).not.toHaveBeenCalled();
+  });
+
   it('honours the draft over the default', () => {
     renderCluster({
       drafts: { endpointDrafts: {}, rdsInstanceDrafts: { 'cluster-1': 'arn:db:demo-1' } },
@@ -387,9 +442,8 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(checkedInstanceValue()).toBe('arn:db:demo-1');
   });
 
-  // Endpoint and AZ are exactly what the table has no column for — they are the reason the
-  // band exists, so it must be the place they finally appear.
-  it('shows the endpoint and AZ the table has no column for', () => {
+  // The endpoint rides the name (the table has no column for it); the AZ has one and uses it.
+  it('shows the endpoint under the name and the AZ in the Region column', () => {
     renderCluster();
     openBand();
     expect(screen.getByText('demo-2.cluster-ro.rds:3306')).toBeTruthy();
@@ -403,8 +457,9 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   it('prettifies the member role on each instance chip', () => {
     renderCluster();
     openBand();
-    // 2 Readers + 1 Writer in the panel, plus the chosen Reader restated on the row.
-    expect(screen.getAllByText('Reader')).toHaveLength(3);
+    // 2 Readers + 1 Writer, one per row. The cluster row's own line is gone while the rows
+    // answer with radios (시안 B) — the checked radio is the only statement of the choice.
+    expect(screen.getAllByText('Reader')).toHaveLength(2);
     expect(screen.getAllByText('Writer')).toHaveLength(1);
     expect(screen.queryByText('READER')).toBeNull();
     expect(screen.queryByText('WRITER')).toBeNull();
@@ -431,8 +486,7 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     );
     openBand();
     expect(screen.getAllByRole('radio')).toHaveLength(8);
-    // Every line fills all three of the band's own columns — no wrapping into a second grid row.
-    expect(screen.getAllByText('demo-8.cluster-ro.rds:3306')).toHaveLength(1);
+    expect(instanceRows()).toHaveLength(8);
   });
 
   it('tags the cluster row RDS Cluster, before the name', () => {
@@ -467,6 +521,40 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(screen.queryByText('기본')).toBeNull();
   });
 
+  /**
+   * 시안 B (2026-09-03). Open and answerable, the checked radio IS the answer; the cluster
+   * row's own ↳ line said it a second time 75.1px away on the same surface, wearing the same
+   * role chip. Collapsed, the line is the ONLY thing that holds the answer, so it stays —
+   * the 2026-08-11 precedent is untouched.
+   */
+  it('drops the cluster row’s ↳ line only while the rows answer with radios', () => {
+    renderCluster();
+    const nameCell = () => screen.getByText('demo-cluster').closest('td');
+    expect(nameCell()?.textContent).toContain('demo-2');
+
+    openBand();
+    expect(nameCell()?.textContent).not.toContain('demo-2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+    expect(nameCell()?.textContent).toContain('demo-2');
+  });
+
+  // Read-only renders no radio, so the row's line is the only thing naming the selection —
+  // it must survive opening the rows there.
+  it('keeps the ↳ line open on a read-only surface', () => {
+    renderCluster({ readonly: true });
+    openBand();
+    expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+  });
+
+  // An unchecked cluster submits no instance, so no radio is offered and the line stays.
+  it('keeps the ↳ line open on an unchecked cluster', () => {
+    renderCluster({ selectedIds: new Set<string>() });
+    openBand();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('인스턴스 3건');
+  });
+
   // A cluster the backend sent no instance list for is old data — it must stay a flat row.
   it('leaves a cluster with no instance list exactly as it was', () => {
     render(
@@ -483,8 +571,8 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
 
 /**
  * The console-table spec (LIN-98). Floors are the LIN-96 ledger's — the assertions quote them
- * (select 52 [the legacy column's real min-content, 18+16+18 — the px the RdsInstancePanel
- * tier constants are built on] · name 250 · id 186 · dbType 142 · region 156 · category 112
+ * (select 52 [the legacy column's real min-content, 18+16+18 — the px the tree-rail tier
+ * constants are built on] · name 250 · id 186 · dbType 142 · region 156 · category 112
  * [measured on TS 1006] · reason 160). name+id flex; id, the declaration-order last, is the
  * sink and renders `auto`; name renders its floor's share of the sum to 4 decimals (CSSOM
  * re-serializes `style.width`, dropping trailing zeros — neither shape's share has one).

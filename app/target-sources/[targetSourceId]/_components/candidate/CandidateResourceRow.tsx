@@ -187,6 +187,15 @@ export const CandidateResourceRow = ({
   const chosenInstance = sortedInstances.find(
     (instance) => instance.resource_id === chosenInstanceResourceId,
   );
+  // 시안 B (2026-09-03): while the band is OPEN and answering with radios, the checked radio is
+  // the answer and this line is a second voice saying it — measured 75.1px apart on one
+  // `bgColors.panel` surface, both wearing the same `RdsMemberChip`. Collapsed it stays exactly
+  // as before: a folded parent has to hold the answer (owner, 2026-08-11).
+  //
+  // Read-only surfaces (step 1 read-only, steps 2·3, the admin queue) keep the line in BOTH
+  // states — they render no radio, so this is the only thing there that names the selection.
+  const instancesAnswerable = isSelected && !readonly;
+  const showChosenInstanceLine = !(instancesExpanded && instancesAnswerable);
 
   // 제외·설치 불가 행도 본문은 대상 행과 같은 강도로 읽힌다: 표시는 왼쪽 레일이 맡고,
   // 흐리게 하는 처리는 "덜 중요하다"는 뜻이라 검토해야 하는 행에는 정반대의 신호였다.
@@ -285,14 +294,15 @@ export const CandidateResourceRow = ({
           )}
         >
           {isRdsClusterRow ? (
-            // Three-line identity: kind tag → cluster name → the instance it connects through.
+            // Identity stack: kind tag → cluster name → the instance it connects through.
             //
             // The third line is what folding the instances away would otherwise delete. Which
             // member the agent connects through is the whole point of the row, so the collapsed
             // row states it, and the ROLE rides directly beside the instance name (owner: it is the
-            // information that matters most on the line) rather than in a column of its own. No positional lift: with three
-            // lines the name is already the middle one, which is the line `lead` centres the
-            // chevron on.
+            // information that matters most on the line) rather than in a column of its own. It
+            // drops back out while the band is open and answering with radios — see
+            // `showChosenInstanceLine`. No positional lift either way: `lead` centres the chevron
+            // on the stack, whichever height it is.
             //
             // The line names the SELECTION and never a count: a parent that tallies its members
             // says what the open band already says one line at a time, and a summary that only
@@ -335,13 +345,15 @@ export const CandidateResourceRow = ({
                 >
                   <span className={NAME_TEXT}>{displayName || '—'}</span>
                 </Tooltip>
-                {/* `secondary`, not `tertiary`, in BOTH fold states: opening the row flips its
-                    background to `bgColors.panel`, and that token's contract says gray-500 reads
-                    4.37:1 there — under AA. One value for both states rather than a conditional,
-                    because a line that changes weight when you open the row is a hierarchy that
-                    moves for no reason. It stays the quiet tier by size (12 vs 14) and by being
-                    the third line. */}
-                <RdsChosenInstanceLine chosen={chosenInstance} total={sortedInstances.length} />
+                {/* `secondary`, not `tertiary`, wherever it renders: a read-only surface still
+                    shows this line with the band open, and that flips the row's background to
+                    `bgColors.panel`, whose contract says gray-500 reads 4.37:1 there — under AA.
+                    One value rather than a conditional, because a line that changes weight when
+                    you open the row is a hierarchy that moves for no reason. It stays the quiet
+                    tier by size (12 vs 14) and by being the last line. */}
+                {showChosenInstanceLine && (
+                  <RdsChosenInstanceLine chosen={chosenInstance} total={sortedInstances.length} />
+                )}
               </span>
             </span>
           ) : isEc2 ? (
@@ -560,15 +572,23 @@ export const CandidateResourceRow = ({
       {isRdsClusterRow && instancesExpanded && (
         <RdsInstancePanel
           clusterId={candidate.id}
-          clusterName={displayName}
-          showCheckboxColumn={showCheckboxColumn}
-          // Editable: checkbox + 5 data columns + 제외 사유; read-only drops the two.
-          colSpan={showCheckboxColumn ? 7 : 5}
+          // This table's own ledger, in its own order (`CANDIDATE_COLUMN_WIDTHS`): the AZ goes
+          // under Region, the id / engine / 설치 구분 / 제외 사유 are the CLUSTER's answers and
+          // stay empty. Editable adds the checkbox gutter and the 제외 사유 column; read-only
+          // drops both.
+          columns={
+            showCheckboxColumn
+              ? ['select', 'name', 'blank', 'blank', 'availabilityZone', 'blank', 'blank']
+              : ['name', 'blank', 'blank', 'availabilityZone', 'blank']
+          }
           instances={sortedInstances}
           chosenResourceId={chosenInstanceResourceId}
-          // Radios exist only inside a checked cluster: an unchecked cluster submits no
-          // instance, so offering the choice would promise something the payload never sends.
-          selectable={isSelected && !readonly}
+          // ONE predicate, shared with the ↳ line above (`showChosenInstanceLine`): if the two
+          // ever diverged so that the line hides while no radio renders, nothing on screen
+          // would name the selection. Radios exist only inside a checked cluster — an
+          // unchecked one submits no instance, so offering the choice would promise something
+          // the payload never sends.
+          selectable={instancesAnswerable}
           readonly={readonly}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
         />

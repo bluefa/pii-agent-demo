@@ -61,11 +61,12 @@ const categoryTooltipContent = (t: CandidateCopy) => (
  * `select` is 52 by MEASUREMENT, not the legacy `w-10` declaration: in the old auto-layout
  * table that 40 was never obeyed — the column rendered its min-content, `approvalCell`'s
  * 18px padding + 16px box + 18px = 52 — and the tier family's absolute px are built on the
- * real 52: `RdsInstancePanel`'s pl-[106px] is 52+30+24, and the instance band's trunk
- * (`-left-[38px]`) drops exactly from the fold chevron's center at 52+16. Landing 40 pulled
- * everything right of the gutter 12px left of those constants, so an expanded cluster's tree
- * line visibly missed its chevron (user report, 2026-08-23). Ledger method (a) 실측 beats
- * (b) 선언 재사용 whenever the declaration never actually governed.
+ * real 52: the name column starts at 52+30, its fold chevron centres at 52+30−14, and the
+ * tree rail every child hangs off (`group.childCell`, and the RDS instance rows that reuse it)
+ * drops from that centre. Landing 40 pulled everything right of the gutter 12px left of those
+ * constants, so an expanded cluster's tree line visibly missed its chevron (user report,
+ * 2026-08-23). Ledger method (a) 실측 beats (b) 선언 재사용 whenever the declaration never
+ * actually governed.
  *
  * `category` (설치 구분) was the ledger's one [실측→LIN-98] hole. Measured 2026-08-23 on
  * TS 1006: the vocabulary is closed (`CATEGORY_LABELS` + the 설치 불가 guide button), the

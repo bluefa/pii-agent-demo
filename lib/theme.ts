@@ -2788,39 +2788,36 @@ export const idcStyles = {
       railActive: '[--rail:#0064FF]',
     },
     /**
-     * RDS instance band — the accordion body's tree rail.
+     * RDS instance rows — the rows a cluster row opens under itself.
      *
-     * The band is ONE colspan cell holding its own lines, not a run of child rows, so it cannot
-     * reuse `group.childCell`: that token's offsets are measured from a name cell that starts at
-     * the checkbox column's right edge, and this cell starts at the table's left edge. The rail
-     * it draws is the same rail, re-anchored.
+     * There is ONE rail vocabulary here, and it is `group`'s. Until 2026-09-03 the members were
+     * a colspan cell that started at the table's left edge, so the band re-anchored every rail
+     * offset off its own box (trunk at -38px) and two tokens had to be kept in agreement for the
+     * line to come out straight. As rows of the host table the name cell IS a `group.childCell`:
+     * same 16px trunk, same 54px tier an Athena database hangs at, same elbow on the row's middle.
      *
-     * Geometry — the band's content box starts at the CLUSTER's own name x (52 + 30 = 82; 30 in a
-     * table with no checkbox column), and every offset below is negative from there:
-     *   68   trunk        = the cluster chevron's centre, so the parent's segment and the band's
-     *                       are one unbroken line (`group.parentCell` carries the first stretch)
-     *   68..76  elbow     — 8px, then a 6px gap. `group`'s 22px elbow ends 16px short of its
-     *                       child's name; this tier has to fit a radio in the same span, so both
-     *                       shrink together rather than the gap closing to a touch
-     *   82   radio        (the 16px control the elbow points at)
-     *   106  instance name = 82 + 24, the same tier an Athena database hangs at. The name is what
-     *                       the eye scans down, so it is the thing that has to land on the tier;
-     *                       the radio lives in the gap the tier opens up, the way the group
-     *                       chevron lives in the name cell's padding.
-     *
-     * The trunk rides each line rather than the container so the LAST line can cut it at its own
-     * elbow (`lineLast`) — a rail that runs past the last thing it connects reads as a group that
-     * continues below, which is exactly what this band does not do.
+     * What is left below is the one thing the editable surface adds — a radio, which has to seat
+     * itself between the elbow and the name without moving either:
+     *   16      trunk — the cluster chevron's centre, so `group.parentCell`'s first segment and
+     *           these rows draw one unbroken line
+     *   16..24  elbow — 8px, then a 6px gap. `group`'s own elbow is 22px and ends 16px short of
+     *           its child name; this tier has to fit a 16px control in that same span, so the
+     *           elbow yields rather than the gap closing to a touch
+     *   30      radio
+     *   54      instance name — `group.childCell`'s tier, untouched. The name is what the eye
+     *           scans down, so the name is what holds the tier; the radio lives in the gap the
+     *           tier opens up, the way the group chevron lives in the name cell's padding.
      */
     instanceBand: {
-      /** Column-header strip — trunk only, no elbow: it labels the lines, it is not one of them. */
-      headerStrip:
-        "relative before:absolute before:-left-[38px] before:bottom-0 before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-['']",
-      /** One instance line — trunk through the full height, elbow reaching the radio. */
-      line:
-        "relative before:absolute before:-left-[38px] before:bottom-0 before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:-left-[38px] after:top-1/2 after:h-px after:w-[8px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
-      /** Last line — the trunk stops at its elbow, closing the band. */
-      lineLast: 'before:bottom-1/2',
+      /**
+       * `group.childCell` with the shorter elbow. A FULL duplicate rather than a modifier on it:
+       * `cn` has no tailwind-merge, so two `after:w-*` utilities in one class list would be
+       * settled by stylesheet order — the same trade `group.parentCellLow` documents. Read-only
+       * surfaces render no radio and wear `group.childCell` verbatim; the closing
+       * `group.childCellLast` is shared by both.
+       */
+      nameCell:
+        "relative pl-[54px] before:absolute before:bottom-0 before:left-[16px] before:top-0 before:w-px before:bg-[var(--rail,#C4CEDA)] before:content-[''] after:absolute after:left-[16px] after:top-1/2 after:h-px after:w-[8px] after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
        * The radio, hung in the tier gap instead of standing in the flow.
        *
@@ -2828,8 +2825,13 @@ export const idcStyles = {
        * eye scans started at a different x from the Athena children directly above it. Out of the
        * flow the name keeps the tier and the control reads as a margin affordance — the same
        * trade `group.toggle` makes with the chevron.
+       *
+       * Anchored to the NAME CELL (`nameCell` is the `relative` box), not to the name's own line:
+       * an instance row is a two-line stack, and the elbow points at the row's middle — the only
+       * point a one-line Athena child and a two-line stack share (see `group.childCell`). A radio
+       * centred on the name line would sit ~10px above the line drawn to reach it.
        */
-      radio: 'absolute -left-6 top-1/2 h-4 w-4 -translate-y-1/2',
+      radio: 'absolute left-[30px] top-1/2 h-4 w-4 -translate-y-1/2',
     },
   },
 } as const;
