@@ -170,6 +170,7 @@ export function PipelineTab({
         loading={loading}
         failed={failed}
         processStatus={processStatus}
+        manualInstall={isManualInstall(detail)}
         onSelectTab={onSelectTab}
       />
       <TargetPipelineSections

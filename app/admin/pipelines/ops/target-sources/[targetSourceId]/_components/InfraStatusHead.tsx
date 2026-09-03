@@ -144,6 +144,9 @@ export interface InfraStatusHeadProps {
   failed: boolean;
   /** Names the step the target is at while 연동 정보 is still 미확정. */
   processStatus: ProcessStatus | null;
+  /** True when the service applies the service-level Terraform in their own
+   *  account — the AWS manual-install path. Drops that task's row (see `tasks`). */
+  manualInstall: boolean;
   /** Opens another tab — 확정됨 offers the 확정 정보 tab as its detail. */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
@@ -153,10 +156,25 @@ export function InfraStatusHead({
   loading,
   failed,
   processStatus,
+  manualInstall,
   onSelectTab,
 }: InfraStatusHeadProps): ReactElement {
   const confirmed = status?.has_confirmed_infra === true;
-  const tasks = status?.tasks ?? [];
+  /* On an AWS manual install the SERVICE-level Terraform is applied by the
+     service inside their own account, outside InfraManager. These rows come from
+     …/terraform-status, which is InfraManager's OWN job record, so that job never
+     exists and the row reads 미적용 forever — a fact we do not have, drawn as a
+     fact we do. Same class of defect #869 removed elsewhere on this screen.
+
+     Matched by task NAME, never by `terraform_execution_side === 'SERVICE'`:
+     GCP_SERVICE_LEVEL carries that same side value and is out of scope. Note
+     `manualInstall` is already true for every non-AWS provider (the helper
+     defaults to manual when the permission flag is absent), so the name match is
+     the ONLY thing keeping this AWS-only — do not "fix" it later by adding a
+     provider check. */
+  const tasks = (status?.tasks ?? []).filter(
+    (task) => !(manualInstall && task.terraform_task_name === 'AWS_SERVICE_LEVEL'),
+  );
   const step = processStatus ? STEP[processStatus] : null;
 
   return (
@@ -188,9 +206,10 @@ export function InfraStatusHead({
            screen already knows — the title, 연동 정보 — are drawn for real; only
            the data is bars (`StatusCardSkeleton`'s rule).
            Three rows because the head cannot know the task count before the
-           response lands, and three is the longest list the contract can produce
-           (AWS 3 · GCP/IDC/SDU 2 · Azure 1). A shorter provider settles 30/60px
-           upward, which is the side that never covers the cards below. */
+           response lands, and three is the longest list that can settle here
+           (AWS auto 3 · AWS manual/GCP/IDC/SDU 2 · Azure 1 — an AWS manual
+           install drops its service-level row, see `tasks`). A shorter list settles
+           30/60px upward, which is the side that never covers the cards below. */
         <section
           aria-label="Terraform 적용 상태"
           aria-busy

@@ -13,6 +13,10 @@
  *      label line carries the verdict plus the 확정 정보 link — the link only when
  *      there IS confirmed detail to open.
  *   5. Both facts live in ONE card, and the rows carry no column header.
+ *   6. On an AWS 수동 설치 the AWS_SERVICE_LEVEL row is not drawn at all — that
+ *      script runs in the service's own account, so InfraManager's job record
+ *      (which is what these rows are) never exists and the row would read 미적용
+ *      forever.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -48,6 +52,7 @@ const renderHead = (
   status: TerraformStatusResponse,
   processStatus: InfraStatusHeadProps['processStatus'] = 'INSTALLED',
   onSelectTab: InfraStatusHeadProps['onSelectTab'] = vi.fn(),
+  manualInstall = false,
 ) =>
   render(
     <InfraStatusHead
@@ -55,9 +60,30 @@ const renderHead = (
       loading={false}
       failed={false}
       processStatus={processStatus}
+      manualInstall={manualInstall}
       onSelectTab={onSelectTab}
     />,
   );
+
+/** The wire task names, as the contract enumerates them per provider. */
+const withTasks = (
+  cloud_provider: string,
+  names: [string, string][],
+): TerraformStatusResponse => ({
+  ...THREE_TASKS,
+  cloud_provider,
+  tasks: names.map(([terraform_task_name, terraform_execution_side]) => ({
+    terraform_task_name,
+    terraform_execution_side,
+    state: 'NEVER_APPLIED',
+  })),
+});
+
+const AWS_WIRE_TASKS: [string, string][] = [
+  ['AWS_SERVICE_LEVEL', 'SERVICE'],
+  ['AWS_BDC_SERVICE_COMMON', 'BDC'],
+  ['AWS_BDC_SERVICE', 'BDC'],
+];
 
 const detailButton = () => screen.queryByRole('button', { name: /상세정보 보기/ });
 
@@ -132,6 +158,7 @@ describe('InfraStatusHead — 불러오는 중', () => {
         loading
         failed={false}
         processStatus="INSTALLED"
+        manualInstall={false}
         onSelectTab={vi.fn()}
       />,
     );
@@ -207,5 +234,45 @@ describe('InfraStatusHead — 연동 정보', () => {
     const card = screen.getByText('확정됨').closest('section');
     expect(card).not.toBeNull();
     expect(screen.getByText('aws-vpc-peering').closest('section')).toBe(card);
+  });
+});
+
+describe('InfraStatusHead — 서비스 측 Terraform', () => {
+  it('drops the AWS_SERVICE_LEVEL row on a manual install', () => {
+    // The service applies it in their own account, so InfraManager holds no job
+    // record for it and the row could only ever read 미적용.
+    renderHead(withTasks('AWS', AWS_WIRE_TASKS), 'INSTALLED', vi.fn(), true);
+
+    expect(screen.queryByText('AWS_SERVICE_LEVEL')).toBeNull();
+    expect(screen.getByText('AWS_BDC_SERVICE_COMMON')).toBeTruthy();
+    expect(screen.getByText('AWS_BDC_SERVICE')).toBeTruthy();
+  });
+
+  it('keeps every AWS row on an auto install', () => {
+    // BDC applies the same script there, so the job record exists and its state
+    // is a fact we do have.
+    renderHead(withTasks('AWS', AWS_WIRE_TASKS), 'INSTALLED', vi.fn(), false);
+
+    expect(screen.getByText('AWS_SERVICE_LEVEL')).toBeTruthy();
+    expect(screen.getByText('AWS_BDC_SERVICE_COMMON')).toBeTruthy();
+    expect(screen.getByText('AWS_BDC_SERVICE')).toBeTruthy();
+  });
+
+  it('leaves GCP_SERVICE_LEVEL alone even though it is manual and SERVICE-side', () => {
+    // `manualInstall` is true for every non-AWS provider, and GCP_SERVICE_LEVEL
+    // carries `terraform_execution_side: 'SERVICE'` too. Only the task NAME may
+    // decide this — a side-based filter would empty the GCP card's first row.
+    renderHead(
+      withTasks('GCP', [
+        ['GCP_SERVICE_LEVEL', 'SERVICE'],
+        ['GCP_BDC_SERVICE', 'BDC'],
+      ]),
+      'INSTALLED',
+      vi.fn(),
+      true,
+    );
+
+    expect(screen.getByText('GCP_SERVICE_LEVEL')).toBeTruthy();
+    expect(screen.getByText('GCP_BDC_SERVICE')).toBeTruthy();
   });
 });
