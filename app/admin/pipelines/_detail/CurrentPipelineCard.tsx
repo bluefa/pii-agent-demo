@@ -229,6 +229,13 @@ export function CurrentPipelineCard({
               <p className="mt-2 flex flex-wrap items-center gap-2 break-keep text-[12px] text-[var(--pl-text-weak)]">
                 수행 담당자
                 <RequesterTag requestedBy={detail.requested_by} />
+                {/* 사유는 담당자 바로 옆. 카드는 헤더보다 폭이 넉넉해 줄바꿈으로
+                    받고(자르지 않고), 전문은 title 로도 남긴다. */}
+                {detail.request_note && (
+                  <span className="max-w-[520px]" title={detail.request_note}>
+                    {detail.request_note}
+                  </span>
+                )}
               </p>
             )}
             {/* break-keep: Hangul breaks between syllables by default, so on a

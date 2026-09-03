@@ -461,6 +461,14 @@ export function PipelineDetailView(): ReactElement {
               <div className={h.requesterRow}>
                 <span className={h.klabel}>수행 담당자</span>
                 <RequesterTag requestedBy={detail.requested_by} />
+                {/* 왜 걸었는지는 누가 걸었는지 바로 옆에 있어야 한 번에 읽힌다.
+                    512자까지 들어올 수 있으니 한 줄로 자르고 전문은 title 로 —
+                    헤더가 문단을 떠안으면 아래 tier 들이 밀려난다. */}
+                {detail.request_note && (
+                  <span className={h.requestNote} title={detail.request_note}>
+                    {detail.request_note}
+                  </span>
+                )}
               </div>
             )}
             <div className={h.nameRow}>

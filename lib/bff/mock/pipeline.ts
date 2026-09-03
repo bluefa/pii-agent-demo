@@ -664,7 +664,9 @@ function seedPipelines(): MockPipeline[] {
     {
       pipeline_id: 130, type: 'INSTALL', target_source_id: '1099', ...resolveService('1099'), cloud_provider: 'AWS',
       recipe_definition: 'AWS_INSTALL_V1', status: 'RUNNING',
-      requested_by: 'admin-1', request_note: null,   // the signed-in user's id, as the proxy route stamps it
+      // the signed-in user's id, as the proxy route stamps it — with the note the
+      // requester typed, so the 수행 담당자 줄 has a 사람 사유 to draw next to a 시스템 사유
+      requested_by: 'admin-1', request_note: '데모 환경 재구성 요청 (BDCDIP-1099)',
       created_at: ago(30), last_activity_at: ago(2), next_due_at: ahead(6), leased: true,
       cancel_requested: false, due_lag_millis: 0,
       tasks: [

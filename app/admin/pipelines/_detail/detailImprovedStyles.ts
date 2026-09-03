@@ -62,7 +62,10 @@ export const improvedStyles = {
     /** Tier 1.5 — 수행 담당자. Target 줄 바로 아래에 자기 줄로 서고, 값은
      *  RequesterTag 가 감싼다: "누가 걸었나"는 실행 시각과 같은 급의 부스러기가
      *  아니라 대상 다음으로 먼저 읽히는 정보다(오너 2026-09-03). */
-    requesterRow: 'flex items-center gap-2 flex-wrap',
+    requesterRow: 'flex items-center gap-2 min-w-0',
+    /** 요청 사유 — 담당자 태그 뒤에 붙는 한 줄. 태그가 먼저 읽히도록 값이 아니라
+     *  라벨 톤을 쓰고, 길면 잘라 title 로 넘긴다(≤512자). */
+    requestNote: 'text-[12px] text-[var(--pl-text-weak)] truncate min-w-0',
     /** Tier 2 — labelled service name + code; a fixed-width skeleton until #8
      *  lands so the header's anchor text never swaps mid-load (no text jump).
      *  Labels stay visible during load — the value slot is what skeletons. */

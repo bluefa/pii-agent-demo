@@ -384,6 +384,14 @@ describe('CurrentPipelineCard — 수행 담당자', () => {
     expect(document.body.textContent).not.toContain('SYSTEM');
   });
 
+  it('puts the 사유 next to the 담당자, so 누가 and 왜 are read in one place', () => {
+    renderCard(
+      makeDetail(['APPLY'], { requested_by: 'SYSTEM', request_note: '4단계 진입 자동 설치' }),
+    );
+
+    expect(requesterLine()).toBe('수행 담당자시스템4단계 진입 자동 설치');
+  });
+
   it('says nothing about a requester the backend never recorded', () => {
     renderCard(makeDetail(['APPLY']));
 
