@@ -214,7 +214,7 @@ export const ScanStrip = ({
       )}
     >
       {showFunnel && funnel && (
-        <div className={cn('grid grid-cols-3 divide-x', borderColors.light)}>
+        <div className={cn('grid grid-cols-3 divide-x', borderColors.divideDefault)}>
           <FunnelCell label={t.funnelEligible} value={funnel.eligible} emphasis />
           <FunnelCell
             label={t.funnelSelected}
