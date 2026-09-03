@@ -2,10 +2,11 @@
 /**
  * 확정 정보 삭제 모달 — 게이트 하나가 화면 넷을 가른다.
  *
- * 여기 네 테스트가 지키는 것은 배치가 아니라 **누를 수 있는 것**이다: 막힌 화면에는
+ * 여기 테스트가 지키는 것은 배치가 아니라 **누를 수 있는 것**이다: 막힌 화면에는
  * 지우는 문이 아예 없어야 하고(입력조차 없다), 허용된 화면은 대상 id 를 친 뒤에만
  * 열리며, 상태를 못 읽었을 때는 사람이 직접 확인했다고 말하기 전에는 아무것도 열리지
- * 않는다. 목록은 지워질 것을 보여 주는 자리지 훑는 자리가 아니라 열 줄에서 끊는다.
+ * 않는다. 모달은 건수만 말한다 — 지워질 것의 목록은 없다(오너 지시 09-04). 성공은
+ * 프레임 없이 그대로 닫히고, 결과 프레임은 실패만 받는다.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -98,16 +99,16 @@ describe('APPLIED — 지우는 문이 없다', () => {
     expect(await screen.findByText('지금은 삭제할 수 없습니다')).toBeTruthy();
   });
 
-  it('입력도 목록도 없고, 누를 수 있는 것은 인프라 작업 탭으로 가는 길뿐이다', async () => {
+  it('본문이 아예 없고, 누를 수 있는 것은 인프라 작업 탭으로 가는 길뿐이다', async () => {
     mount();
 
     expect(await screen.findByText('지금은 삭제할 수 없습니다')).toBeTruthy();
     // 지울 수 없는 화면에서 대상 id 를 치게 하는 것은 할 수 없는 동작을 준비시키는 일이다.
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: '삭제' })).toBeNull();
-    // 남는 사실 둘만 적는다.
-    expect(screen.getByText('적용 완료')).toBeTruthy();
-    expect(screen.getByText('2건')).toBeTruthy();
+    // 막힌 화면의 본문은 사라졌다 — Terraform 상태 태그도 건수 칸도 없다.
+    expect(screen.queryByText('적용 완료')).toBeNull();
+    expect(screen.queryByText('2건')).toBeNull();
 
     fireEvent.click(button('인프라 작업 탭으로'));
     expect(onOpenInfra).toHaveBeenCalledTimes(1);
@@ -121,14 +122,17 @@ describe('NEVER_APPLIED — 대상 id 를 친 뒤에만 열린다', () => {
     getTerraformStatus.mockResolvedValue({ overall_state: 'NEVER_APPLIED' });
   });
 
-  it('입력이 맞아야 삭제가 열리고, 결과 프레임을 닫을 때 뒤 화면이 갱신된다', async () => {
+  it('입력이 맞아야 삭제가 열리고, 성공하면 모달이 스스로 닫히며 뒤 화면이 갱신된다', async () => {
     mount();
 
-    expect(await screen.findByText(/철거할 인프라가 없습니다/)).toBeTruthy();
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await waitFor(() => expect(input.disabled).toBe(false));
     expect(screen.getByText(/확정 정보 2건을 삭제할까요\?/)).toBeTruthy();
+    // 본문은 입력 하나다 — 지워질 것의 이름은 어디에도 없다.
+    expect(screen.queryByText('confirmed-0')).toBeNull();
+    expect(screen.queryByText('confirmed-1')).toBeNull();
     expect(button('삭제').disabled).toBe(true);
 
-    const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: '99' } });
     expect(button('삭제').disabled).toBe(true);
 
@@ -138,13 +142,26 @@ describe('NEVER_APPLIED — 대상 id 를 친 뒤에만 열린다', () => {
     fireEvent.click(button('삭제'));
     await waitFor(() => expect(deleteConfirmedResources).toHaveBeenCalledWith(1642, 'AWS'));
 
-    // 결과는 같은 상자 안의 프레임이고, 닫는 것은 사용자가 누른다(explicitDismiss).
-    expect(await screen.findByText('확정 정보를 삭제했습니다')).toBeTruthy();
-    expect(onDone).not.toHaveBeenCalled();
-
-    fireEvent.click(button('닫기'));
-    expect(onDone).toHaveBeenCalledTimes(1);
+    // 성공 프레임은 없다 — 뒤 화면이 기록이라 모달은 저 혼자 닫히고 탭이 다시 읽는다.
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('확정 정보를 삭제했습니다')).toBeNull();
+  });
+
+  it('실패는 결과 프레임이 받는다 — 닫기와 다시 요청하기가 선다', async () => {
+    deleteConfirmedResources.mockRejectedValue(new Error('boom'));
+    mount();
+
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await waitFor(() => expect(input.disabled).toBe(false));
+    fireEvent.change(input, { target: { value: '1642' } });
+    fireEvent.click(button('삭제'));
+
+    expect(await screen.findByText('삭제하지 못했습니다')).toBeTruthy();
+    expect(button('다시 요청하기')).toBeTruthy();
+    expect(button('닫기')).toBeTruthy();
+    // 서버를 바꾸지 못했으므로 뒤 화면을 다시 읽을 일이 없다.
+    expect(onDone).not.toHaveBeenCalled();
   });
 });
 
@@ -159,12 +176,13 @@ describe('확인이 끝나기 전 — 아는 것은 말하되 아무것도 열�
     expect(button('삭제').disabled).toBe(true);
   });
 
-  it('아는 상태를 말하면서 확인 중이라는 것도 같이 말한다', () => {
+  it('아는 상태로 서더라도 허용 화면은 Terraform 을 말하지 않는다', () => {
     getTerraformStatus.mockReturnValue(new Promise(() => {}));
     mount(2, 'NEVER_APPLIED');
 
-    // 아는 사실이 사라지지 않는다 — 두 문장이 같이 선다.
-    expect(screen.getByText(/철거할 인프라가 없습니다\. Terraform 상태를 확인하는 중입니다\./)).toBeTruthy();
+    // 지울 수 있는 화면이 하는 말은 삭제의 결과뿐이다 — Terraform 문장은 막힌 화면 몫이다.
+    expect(screen.getByText(/삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다\./)).toBeTruthy();
+    expect(screen.queryByText(/철거할 인프라가 없습니다/)).toBeNull();
     expect((screen.getByRole('textbox') as HTMLInputElement).disabled).toBe(true);
     expect(button('삭제').disabled).toBe(true);
   });
@@ -191,26 +209,5 @@ describe('조회 실패 — 사람이 직접 확인했다고 말하기 전에는
 
     fireEvent.change(input, { target: { value: '1642' } });
     expect(button('삭제').disabled).toBe(false);
-  });
-});
-
-describe('목록', () => {
-  it('열 줄에서 끊고 나머지는 건수로 말한다', async () => {
-    getTerraformStatus.mockResolvedValue({ overall_state: 'NEVER_APPLIED' });
-    mount(12);
-
-    expect(await screen.findByText('확정 정보 12건을 삭제할까요?')).toBeTruthy();
-    expect(screen.getByText('confirmed-9')).toBeTruthy();
-    expect(screen.queryByText('confirmed-10')).toBeNull();
-    expect(screen.getByText('외 2건')).toBeTruthy();
-  });
-
-  /** 엔진 이름은 pane 의 표와 같은 함수로 접는다 — 같은 사실이 두 어휘로 갈리지 않는다. */
-  it('DB 종류는 원시 enum 이 아니라 표와 같은 라벨이다', async () => {
-    getTerraformStatus.mockResolvedValue({ overall_state: 'NEVER_APPLIED' });
-    mount(1);
-
-    expect((await screen.findAllByText('MySQL')).length).toBe(1);
-    expect(screen.queryByText('MYSQL')).toBeNull();
   });
 });

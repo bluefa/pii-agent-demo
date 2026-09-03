@@ -61,7 +61,7 @@ Grafana · GCP(시안 C·D 전용, 이번 범위 밖).
   낱말은 상태와 무관하게 늘 「입력」이다. 잠긴 얼굴은 native `disabled` 가 아니라
   PlButton `blocked` 로 만든다 — 사유("확정 정보를 삭제한 뒤 입력할 수 있습니다")를 지는
   툴팁이 hover 로도 포커스로도 닿아야 하고, native `title` 은 08-30 오너 지시로 버렸다.
-- 삭제는 `ConfirmDeleteModal`(신규) — `ConfirmStepModal md 560` 위에, 연동 초기화 탭과
+- 삭제는 `ConfirmDeleteModal`(신규) — `ConfirmStepModal sm 480` 위에, 연동 초기화 탭과
   같은 `tone="warning"`. 빨강 채움(`tone="danger"`)은 부품 변경이 필요해 넣지 않았다.
 - 편집기(`ConfirmEditorModal`)에서 삭제 모드·DELETE 배지·「편집으로 돌아가기」·
   「인프라 철거로 이동」·Terraform 게이트 제거. 편집기는 편집만 한다(P1·P7).
@@ -71,25 +71,22 @@ Grafana · GCP(시안 C·D 전용, 이번 범위 밖).
 
 | 변형 | 제목 | 본문 | 실행 |
 |---|---|---|---|
-| checking | 확정 정보 N건을 삭제할까요? | 목록 + 입력(disabled) | disabled |
-| blocked (APPLIED) | 지금은 삭제할 수 없습니다 | kv 2칸(Terraform 상태 태그 · 확정 리소스 N건) — 목록·입력 없음 | `인프라 작업 탭으로`(default 톤, 출구) |
-| allowed | 확정 정보 N건을 삭제할까요? | 목록(최대 10행, 이후 `외 N건`) + 대상 id 타이핑 | `삭제`, id 일치 시 |
+| checking | 확정 정보 N건을 삭제할까요? | 「대상 id 타이핑」만(disabled) | disabled |
+| blocked (APPLIED) | 지금은 삭제할 수 없습니다 | 본문 없음 — 제목 + Terraform 문장이 전부 | `인프라 작업 탭으로`(default 톤, 출구) |
+| allowed | 확정 정보 N건을 삭제할까요? | 「대상 id 타이핑」만 | `삭제`, id 일치 시 |
 | unknown (조회 실패) | Terraform 상태를 확인하지 못했습니다 | `다시 확인` + 체크 "인프라가 없음을 직접 확인했습니다" + 타이핑 | 체크 ∧ id 일치 시 |
 
-- 목록에는 검색·필터·페이저가 없다(P6). 확인 모달의 질문은 "이 N건을 지울 것인가" 하나다.
+- **목록 자체를 없앴다**(오너 지시 09-04, P6 의 결론). 확인 모달의 질문은 "이 N건을 지울 것인가" 하나이고, 모달은 건수만 말한다 — 지워질 것의 이름은 뒤 화면(확정 정보 탭)이 든다.
 - 막힘 변형에는 "지워집니다"가 없다(P5). primary 는 곧 출구라 파랑이 맞다.
-- 성공·실패는 `ConfirmStepModal` 결과 프레임(`explicitDismiss`)이 받고, 닫을 때 탭을 다시 읽는다.
+- 성공은 모달이 스스로 닫히고 탭을 다시 읽는다(뒤 화면이 기록) · 실패만 결과 프레임.
 - 모달은 탭이 이미 든 `overall_state` 로 첫 프레임을 그리고(P10), 마운트 시 재조회가 끝나기 전까지 입력·실행을 잠근다 — 조회 중 프레임이 높이를 고정해 막힘 변형 아래 빈 공간을 남기던 것을 막는다.
 
 ### 값의 출처
 | 값 | 출처 |
 |---|---|
 | 버튼 md 32/14 | PlButton md — 같은 pane 의 검색 인풋 32 |
-| 모달 560 · 제목 26/700 · 설명 14/1.5 | ConfirmStepModal md(연동 초기화 탭) — 제목 26 은 실측(컴포넌트 확인 프레임 눈금) |
-| 목록 행 12px · py 7 | RequestTab ResourceList 밀도 |
+| 모달 480 · 제목 26/700 · 설명 14/1.5 | `ConfirmStepModal sm` — 제목 26 은 실측(컴포넌트 확인 프레임 눈금) |
 | 확인 인풋 280×32 | 현 DeletePanel 입력란 그대로 |
-| 상태 태그 20px · r6 | ConfirmTab 밴드 tag |
-| Terraform 라벨 | `metaOf(overall_state).label`(인프라 탭과 같은 어휘) |
 
 ## 4. 남은 것 (오너 결정 대기)
 - **C** 편집기 탈-API클라이언트 — 09-03 오너 지시로 확정, `confirm-editor-v2.md` 로
