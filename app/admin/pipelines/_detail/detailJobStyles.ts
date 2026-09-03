@@ -101,17 +101,24 @@ export const jobStyles = {
    *  문단으로 밀린다. `respFold` 와 같은 ▼ 문법이되 요약 줄 자체가 내용이라 별도
    *  라벨을 두지 않는다. 아래 여백은 padding 이 아니라 MARGIN 이다 — 클리핑
    *  상자는 잘려 나간 나머지를 자기 padding 상자에 그린다. */
-  errFold: 'group -mt-1.5 px-3 mb-3',
+  /** 색·크기는 폴드에 둔다 — 요약 줄과 전문이 같은 톤을 물려받아야 하고, 톤 변형
+   *  (`errMono`)도 한 군데만 갈아 끼우면 된다. */
+  errFold: 'group -mt-1.5 px-3 mb-3 text-[14px] leading-[1.6] text-[var(--pl-err-text)]',
+  /** 폴 호출 기록은 "사람이 쓴 사유"가 아니라 기계가 남긴 줄이라 톤으로 가른다.
+   *  `cn` 은 tailwind-merge 가 아니라 단순 join 이므로 두 크기가 함께 남는다 —
+   *  나중 선언이 이기게 `!` 로 못 박는다. */
+  errMono: '!text-[12px] !leading-[1.55] [font-family:var(--pl-font-mono)]',
   /** 목록 안이라 요약 줄 전체가 토글이다. summary 기본 마커는 지운다. */
   errSummary:
-    'flex cursor-pointer list-none items-start gap-1.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] [&::-webkit-details-marker]:hidden',
-  /** 폴 호출 기록은 "사람이 쓴 사유"가 아니라 기계가 남긴 줄이라 톤으로 가른다. */
-  errMono: '!text-[12px] !leading-[1.55] [font-family:var(--pl-font-mono)]',
+    'flex cursor-pointer select-none list-none items-start gap-1.5 [&::-webkit-details-marker]:hidden',
   errTri: 'mt-[5px] flex-none text-[10px] leading-none transition-transform group-open:rotate-180',
-  /** 접힌 줄 — 넘치면 말줄임. 펴지면 전문 쪽에 자리를 내준다. */
+  /** 접힌 줄 — 넘치면 말줄임(클리핑 상자라 아래 여백은 폴드의 margin 이 맡는다).
+   *  펴지면 전문에 자리를 내주고 사라져 같은 문장이 두 번 나오지 않는다. */
   errHead: 'min-w-0 truncate group-open:hidden',
-  /** 편 줄 — URL 이 들어와도 상자를 밀지 않게 break-words. */
-  errFull: 'hidden min-w-0 whitespace-pre-wrap break-words group-open:block',
+  /** 편 전문 — summary 밖 형제라 드래그로 긁어도 폴드가 닫히지 않는다. ▼(10px) +
+   *  gap(6px) 만큼 들여 요약 줄의 글자와 x 를 맞춘다. URL 이 들어와도 상자를 밀지
+   *  않게 break-words. */
+  errFull: 'ml-4 whitespace-pre-wrap break-words',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code

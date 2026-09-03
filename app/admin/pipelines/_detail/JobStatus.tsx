@@ -77,23 +77,27 @@ export function failHead(reason: string): string {
 
 /**
  * 실패 한 줄을 접었다 펴는 폴드. 접힌 상태는 `head` 한 줄(넘치면 말줄임), 편 상태는
- * `full` 전문을 줄바꿈해 싣는다 — 두 텍스트를 겹쳐 두고 열림 여부로 바꿔 끼우므로
- * 열었을 때 같은 문장이 두 번 나오지 않는다.
+ * `full` 전문을 줄바꿈해 싣는다.
  *
  * terraform 사유는 `head` 가 앞 절(`failHead`)이라 접힌 줄이 실패의 종류를 말하고,
  * 폴 호출 실패는 앞 절이 늘 같아 자를 것이 없으므로 `head`·`full` 이 같은 문자열이다
  * (접힘 = 그 한 줄, 펴짐 = 전문).
+ *
+ * 전문은 `summary` 밖 형제 요소다(같은 파일의 `respFold` 들과 같은 모양). 안에 두면
+ * 상태 코드·URL 을 드래그로 긁는 순간 그 클릭이 폴드를 도로 닫고, 스크린 리더에는
+ * "펼침"이 빈 영역에 대고 announce 된다. 접혔을 때는 `head` 만 남기고 폈을 때는
+ * `head` 를 감춰, 같은 문장이 두 번 나오지 않게 한다.
  */
 function ErrorFold({ head, full, mono }: { head: string; full: string; mono?: boolean }): ReactElement {
   return (
-    <details className={j.errFold}>
-      <summary className={cn(j.errSummary, mono && j.errMono)}>
+    <details className={cn(j.errFold, mono && j.errMono)}>
+      <summary className={j.errSummary}>
         <span className={j.errTri} aria-hidden="true">
           ▼
         </span>
         <span className={j.errHead}>{head}</span>
-        <span className={j.errFull}>{full}</span>
       </summary>
+      <div className={j.errFull}>{full}</div>
     </details>
   );
 }
@@ -113,7 +117,10 @@ function JobItem({
   // failed")가 늘 같고, 상태 코드·메서드·URL 이 붙는 뒤쪽이 내용 전부다 —
   // 여기에 failHead 를 걸면 남는 게 없다(오너 2026-09-03).
   const failReason = row.state?.last_fail_reason ?? null;
-  const callError = failReason ? null : row.state?.last_error ?? null;
+  // 사유 줄이 실제로 그려질 때만 호출 오류를 접는다 — `failReason` 이 있는데 판정이
+  // 실패로 서지 않은 job(진행 중 result 등)에서 두 줄이 한꺼번에 사라지던 구멍.
+  const showsFailReason = verdict === 'failed' && Boolean(failReason);
+  const callError = showsFailReason ? null : row.state?.last_error ?? null;
   const meta = jobMeta(row);
   return (
     <div className={j.jobItem}>
@@ -131,7 +138,7 @@ function JobItem({
       </button>
       {/* 접힌 채로는 한 줄, 펴면 전문 — 목록이 오류 문단으로 밀리지 않으면서도
           원문이 이 화면 밖으로 나가지 않는다(오너 2026-09-03). */}
-      {verdict === 'failed' && failReason && (
+      {showsFailReason && failReason && (
         <ErrorFold head={failHead(failReason)} full={failReason} />
       )}
       {/* 판정과 무관하게 그린다: 폴이 못 닿은 job 은 상태를 못 읽어 verdict 가
@@ -173,7 +180,14 @@ export function JobStatus({
   // count, and "전체" next to it would say the same number twice.
   const buckets = FILTER_ORDER.filter((v) => counts[v] > 0);
   const options: JobFilter[] = buckets.length > 1 ? ['all', ...buckets] : buckets;
-  const auto: JobFilter = counts.failed > 0 ? 'failed' : options[0];
+  // 실패 버킷으로 바로 여는 것이 기본이지만, 폴이 못 닿아 판정이 서지 않은 job 이
+  // 섞여 있으면 전체로 연다 — 그런 job 은 verdict 가 failed 가 아니라 실패 버킷에서
+  // 걸러지고, 정작 호출 오류를 들고 있는 행이 필터 뒤에 숨는다(오너 2026-09-03).
+  const hasHiddenCallError = graded.some(
+    (g) => g.verdict !== 'failed' && Boolean(g.row.state?.last_error),
+  );
+  const auto: JobFilter =
+    counts.failed > 0 && !hasHiddenCallError ? 'failed' : options[0];
   // A poll can empty the bucket the operator picked (a running job settles) —
   // fall back rather than leaving an empty list under a button that is gone.
   const active = picked !== null && options.includes(picked) ? picked : auto;

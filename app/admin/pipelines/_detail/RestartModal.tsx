@@ -52,9 +52,6 @@ import type {
 } from '@/lib/pipeline/types';
 
 const TITLE_ID = 'pl-restart-title';
-/** 재시작 실패 줄 — CTA 바로 위, 에러 톤. 긴 서버 메시지도 잘리지 않고 줄바꿈된다. */
-const restartError =
-  'mt-3 rounded-[8px] bg-[var(--pl-err-bg)] px-3 py-2 text-[13px] leading-[1.5] text-[var(--pl-err-text)] break-words';
 const MODAL_H3 = 'mb-3 text-[18px] font-bold leading-[1.3] tracking-[-0.018em] text-[var(--pl-text-strong)]';
 
 /** Server states that mean "this screen is stale" — all three refetch the run set. */
@@ -286,14 +283,15 @@ export function RestartModal({
       {/* 실패는 눌린 버튼 바로 위에 남는다 — 모달이 닫히지 않으므로 여기가 조작한
           사람이 보고 있는 자리다. 토스트로 띄우면 재시도하려고 버튼을 다시 볼 때는
           이미 사라져 있다. 서버 메시지는 그대로 싣되, 무엇이 실패했는지는 앞에서
-          말한다 — 원문만으로는 재시작이 실패했다는 사실이 안 읽힌다. */}
+          말한다 — 원문만으로는 재시작이 실패했다는 사실이 안 읽힌다.
+          여백(flex-1) 아래에 둔다: 위에 두면 미리보기가 짧을 때 여백이 벌어지며
+          오류가 버튼에서 멀찍이 떠오른다. */}
+      <div className="flex-1" aria-hidden="true" />
       {runError && (
-        <div className={restartError} role="alert">
+        <div className={detailStyles.taskModal.actionError} role="alert">
           재시작하지 못했습니다. {runError}
         </div>
       )}
-
-      <div className="flex-1" aria-hidden="true" />
       <div className={modal.foot}>
         <PlButton variant="ghost" onClick={onClose}>
           취소

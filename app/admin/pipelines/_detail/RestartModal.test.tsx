@@ -29,6 +29,7 @@ vi.mock('@/app/lib/api/pipeline', async () => {
   };
 });
 
+const { OrchestratorApiError } = await import('@/app/lib/api/pipeline');
 const { RestartModal } = await import('@/app/admin/pipelines/_detail/RestartModal');
 
 const PREVIEW: RestartPreview = {
@@ -56,15 +57,19 @@ const PREVIEW: RestartPreview = {
   warnings: [],
 };
 
-const renderModal = (onStarted?: (created: PipelineDetail) => void) =>
+const renderModal = (
+  onStarted?: (created: PipelineDetail) => void,
+  extra: { onClose?: () => void; onStale?: () => void } = {},
+) =>
   render(
     <RestartModal
       open
-      onClose={vi.fn()}
+      onClose={extra.onClose ?? vi.fn()}
       targetSourceId="1099"
       pipelineId={41}
       provider="AWS"
       showToast={vi.fn()}
+      onStale={extra.onStale}
       onStarted={onStarted}
     />,
   );
@@ -107,5 +112,32 @@ describe('RestartModal', () => {
     expect(onStarted).not.toHaveBeenCalled();
     // 모달은 열린 채로 — 다시 누를 버튼이 있어야 한다.
     expect(restartButton()).toBeTruthy();
+  });
+
+  /**
+   * 화면이 낡아 서버가 거절한 경우는 실패와 다르게 끝난다 — 닫고, 호출부에 갱신을
+   * 맡긴다. 여기서 `onStarted` 가 울리면 만들어지지도 않은 작업으로 이동한다.
+   */
+  it('stale 거절은 이동도 실패 줄도 만들지 않고, 화면 갱신만 맡긴다', async () => {
+    restartPipeline.mockRejectedValue(
+      new OrchestratorApiError({
+        status: 409,
+        code: 'ORCHESTRATION_PIPELINE_NOT_LATEST',
+        message: '최신 작업이 아닙니다',
+        body: null,
+      }),
+    );
+    const onStarted = vi.fn();
+    const onStale = vi.fn();
+    const onClose = vi.fn();
+    renderModal(onStarted, { onStale, onClose });
+
+    await waitFor(() => expect(restartButton().disabled).toBe(false));
+    fireEvent.click(restartButton());
+
+    await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalled();
+    expect(onStarted).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

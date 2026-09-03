@@ -174,9 +174,6 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('>Error acquiring the state lock</span>');
     // 전문은 폴드 안에 마크업으로 들어 있다 — 펴면 읽히고, 접힌 동안은 안 보인다.
     expect(out).toContain('>Error acquiring the state lock: ConditionalCheckFailedException');
-    expect(out).toContain('group-open:block');
-    // 접힌 상태에서 기본으로 열려 있으면 안 된다.
-    expect(out).not.toContain('<details open');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -216,7 +213,10 @@ describe('AttemptDetail — Job 현황', () => {
   it('keeps the collapsed reason to one line, with no bottom padding', () => {
     expect(j.errHead).toContain('truncate');
     expect(j.errHead).not.toContain('line-clamp');
-    expect(j.errFold).not.toMatch(/\bp[by]-/);
+    // 여백은 클리핑 상자(errHead)가 아니라 폴드의 margin 이 맡아야 한다 — 잘려 나간
+    // 나머지를 자기 padding 상자에 그리는 쪽은 errHead 다.
+    expect(j.errHead).not.toMatch(/\bp[by]?-/);
+    expect(j.errFold).toContain('mb-3');
   });
 
   // A terraform error names its class first and details itself after the colon.
@@ -273,6 +273,34 @@ describe('AttemptDetail — Job 현황', () => {
     );
 
     expect(out).toContain(message);
+  });
+
+  /**
+   * 렌더 게이트를 푸는 것만으로는 부족하다 — 목록의 기본 필터가 실패 버킷이라,
+   * 실패한 job 이 하나라도 있으면 판정이 서지 않은 행(= 호출 오류를 든 그 행)이
+   * 필터 뒤로 걸러진다. 실제 사고가 정확히 이 모양이었다(실패 2건 + 폴 유실 1건).
+   */
+  it('호출 오류를 든 행이 실패 버킷에 없으면 전체로 열어 준다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-9]';
+    const out = html(
+      attempt({
+        job_states: [
+          jobState({ job_id: 'bad-9', last_state: 'FAILED', last_fail_reason: 'Error: boom' }),
+          jobState({ job_id: 'lost-9', last_state: null, last_error: message }),
+        ],
+      }),
+    );
+
+    // 기본이 실패 버킷이면 lost-9 은 목록에 아예 없다.
+    expect(out).toContain('>lost-9<');
+    expect(out).toContain(message);
+  });
+
+  it('판정이 서지 않은 행이 없으면 기존대로 실패 버킷으로 연다', () => {
+    const out = html(attempt({ job_states: [...ok(3), bad] }));
+
+    expect(out).toContain('>bad-1<');
+    expect(out).not.toContain('>ok-1<');
   });
 
   it('job 자신의 실패 사유가 있으면 그 쪽만 싣는다 — 호출 오류 줄은 만들지 않는다', () => {

@@ -92,6 +92,11 @@ export const detailStyles = {
     respCell: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap',
     /** degraded-load notice + retry. */
     degraded: cn(text.meta, 'mt-3'),
+    /** 조작이 실패했을 때 CTA 바로 위에 남기는 줄(RestartModal). 중립 톤으로 두면
+     *  실패로 안 읽히므로 err 배경까지 깐다. 서버 원문이 길어도 자르지 않고
+     *  줄바꿈한다 — 원인이 그 뒤쪽에 있을 수 있다. */
+    actionError:
+      'mt-3 rounded-[8px] bg-[var(--pl-err-bg)] px-3 py-2 text-[13px] leading-[1.5] text-[var(--pl-err-text)] break-words',
     /** LIN-22 — custom-run operator note (distinct from the catalog description above it). */
     operatorNote:
       'mt-3 flex items-baseline gap-2 rounded-[8px] bg-[var(--pl-bg-inner)] px-2.5 py-2 text-[12px] leading-[1.4] text-[var(--pl-text-medium)]',
