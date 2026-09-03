@@ -158,21 +158,31 @@ describe('ConfirmTab 밴드', () => {
   });
 
   /**
-   * 확정 pane 머리의 문은 둘이다 — 편집과 삭제. 삭제가 편집기 안의 모드였을 때는 지우려는
-   * 사람이 편집기를 먼저 열어야 했다. 그 배치로 돌아가면 이 두 단언이 먼저 깨진다.
+   * 확정 pane 머리의 문은 둘이다 — 입력과 삭제. 삭제가 편집기 안의 모드였을 때는 지우려는
+   * 사람이 편집기를 먼저 열어야 했다. 그 배치로 돌아가면 이 단언들이 먼저 깨진다.
+   *
+   * 등록이 있는 동안 입력 문은 자리를 지키되 잠긴다 — 고쳐 쓰는 길은 없고 지운 뒤 다시
+   * 넣는다(오너 2026-09-03). 잠금은 native `disabled` 가 아니라 `aria-disabled` 다:
+   * 사유 툴팁이 hover 로도 포커스로도 닿아야 하는데 native disabled 는 둘 다 끊는다.
    */
-  it('확정이 있으면 pane 머리에 두 문이 선다', async () => {
+  it('확정이 있으면 두 문이 서고, 입력 문은 잠긴 채로 선다', async () => {
     mount();
 
-    expect(await screen.findByRole('button', { name: '확정 정보 삭제' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '확정 정보 수정' })).toBeTruthy();
+    const del = await screen.findByRole('button', { name: '확정 정보 삭제' });
+    expect(del.getAttribute('aria-disabled')).toBeNull();
+
+    // 「수정」이라는 낱말은 이 머리줄에서 사라졌다.
+    expect(screen.queryByRole('button', { name: '확정 정보 수정' })).toBeNull();
+    const input = screen.getByRole('button', { name: '확정 정보 입력' });
+    expect(input.getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('확정이 없으면 지울 것도 없다 — 입력 문 하나뿐이다', async () => {
+  it('확정이 없으면 지울 것도 없다 — 열린 입력 문 하나뿐이다', async () => {
     getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
     mount();
 
-    expect(await screen.findByRole('button', { name: '확정 정보 입력' })).toBeTruthy();
+    const input = await screen.findByRole('button', { name: '확정 정보 입력' });
+    expect(input.getAttribute('aria-disabled')).toBeNull();
     expect(screen.queryByRole('button', { name: '확정 정보 삭제' })).toBeNull();
   });
 

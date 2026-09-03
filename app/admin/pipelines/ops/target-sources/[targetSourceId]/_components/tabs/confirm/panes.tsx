@@ -16,6 +16,7 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
 import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
@@ -164,7 +165,8 @@ export interface ConfirmPaneProps {
    */
   confirmedAtFailed?: boolean;
   /**
-   * 확정 정보 입력·수정 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
+   * 확정 정보 입력 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다. 고쳐 쓰는 길은
+   * 없다: 등록이 있으면 지운 뒤 다시 넣는다(오너 2026-09-03).
    */
   onEdit?: () => void;
   /**
@@ -196,6 +198,17 @@ export function ConfirmPane({
   // Step 6·7 과 같은 표가 도메인 타입을 읽는다 — 같은 응답을 같은 매퍼로 넘긴다.
   const structureRows = useMemo(() => (wire ? confirmedIntegrationToConfirmed(wire) : []), [wire]);
 
+  // 문의 낱말은 늘 「입력」이다 — 등록을 고쳐 쓰는 길은 없고 지운 뒤 다시 넣는다(오너
+  // 2026-09-03). 그래서 등록이 있는 동안 문은 자리를 지키되 잠긴다. 사유가 있는 잠금은
+  // `disabled` 가 아니라 `blocked` 다: 얼굴은 그대로지만 hover·포커스를 잃지 않아 아래
+  // 툴팁이 마우스로도 키보드로도 닿는다. native `title` 은 이 콘솔에서 버렸다(오너
+  // 2026-08-30) — OS 가 제 서체로 그리는 상자라 화면의 나머지와 같은 물건이 아니었다.
+  const editDoor = onEdit ? (
+    <PlButton variant="primary" blocked={!empty} onClick={onEdit}>
+      확정 정보 입력
+    </PlButton>
+  ) : null;
+
   return (
     <div className={paneStyles.pane}>
       <div className={paneStyles.slot1}>
@@ -220,11 +233,18 @@ export function ConfirmPane({
                 확정 정보 삭제
               </PlButton>
             )}
-            {onEdit && (
-              <PlButton variant="primary" onClick={onEdit}>
-                {empty ? '확정 정보 입력' : '확정 정보 수정'}
-              </PlButton>
-            )}
+            {editDoor &&
+              (empty ? (
+                editDoor
+              ) : (
+                <Tooltip
+                  content="확정 정보를 삭제한 뒤 입력할 수 있습니다"
+                  variant="value"
+                  triggerClassName="shrink-0"
+                >
+                  {editDoor}
+                </Tooltip>
+              ))}
           </div>
         )}
       </div>

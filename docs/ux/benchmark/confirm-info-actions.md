@@ -56,7 +56,11 @@ Grafana · GCP(시안 C·D 전용, 이번 범위 밖).
 
 ### A. 두 개의 문
 - pane 머리: `[확정 정보 삭제]`(PlButton `danger` outline, 등록이 있을 때만) ·
-  `[확정 정보 수정]`(primary). 둘 다 **md 32px** — 같은 pane 검색 인풋 32와 같은 높이(P9).
+  `[확정 정보 입력]`(primary — 등록이 있으면 disabled, 오너 지시 09-03: 지운 뒤 다시
+  입력한다). 둘 다 **md 32px** — 같은 pane 검색 인풋 32와 같은 높이(P9).
+  낱말은 상태와 무관하게 늘 「입력」이다. 잠긴 얼굴은 native `disabled` 가 아니라
+  PlButton `blocked` 로 만든다 — 사유("확정 정보를 삭제한 뒤 입력할 수 있습니다")를 지는
+  툴팁이 hover 로도 포커스로도 닿아야 하고, native `title` 은 08-30 오너 지시로 버렸다.
 - 삭제는 `ConfirmDeleteModal`(신규) — `ConfirmStepModal md 560` 위에, 연동 초기화 탭과
   같은 `tone="warning"`. 빨강 채움(`tone="danger"`)은 부품 변경이 필요해 넣지 않았다.
 - 편집기(`ConfirmEditorModal`)에서 삭제 모드·DELETE 배지·「편집으로 돌아가기」·
