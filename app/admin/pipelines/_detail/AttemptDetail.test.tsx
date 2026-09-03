@@ -169,13 +169,11 @@ describe('AttemptDetail — Job 현황', () => {
     // The other buckets are in the list the trigger opens, not in the markup.
     expect(out).not.toContain('성공 20');
     // The failure and the KIND of failure are on screen without opening anything —
-    // the detail after the colon belongs to the log viewer's header, not this row.
+    // 콜론 뒤 상세는 접힌 채로 대기한다.
     expect(out).toContain('>bad-1<');
-    expect(out).toContain('>Error acquiring the state lock</p>');
-    // The detail after the colon is not visible text — it survives only as the
-    // title, so a hover (and a screen reader) still reaches the whole reason.
-    expect(out).toContain('title="Error acquiring the state lock: ConditionalCheckFailedException');
-    expect(out).not.toContain('>Error acquiring the state lock: Conditional');
+    expect(out).toContain('>Error acquiring the state lock</span>');
+    // 전문은 폴드 안에 마크업으로 들어 있다 — 펴면 읽히고, 접힌 동안은 안 보인다.
+    expect(out).toContain('>Error acquiring the state lock: ConditionalCheckFailedException');
     // …and the 20 settled successes are not in the way.
     expect(out).not.toContain('>ok-1<');
   });
@@ -209,13 +207,16 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('RUNNING · 6회 폴링 · 09:00');
   });
 
-  // The reason column is one line. A clipping box also paints the clipped remainder
-  // into its own padding box, so the bottom gap has to be a margin — with `pb-3` a
-  // real three-line terraform error rendered a sliced third line under a two-line clamp.
-  it('keeps the failure reason to one line, with no bottom padding', () => {
-    expect(j.jobFailReason).toContain('truncate');
-    expect(j.jobFailReason).not.toContain('line-clamp');
-    expect(j.jobFailReason).not.toMatch(/\bp[by]-/);
+  // 접힌 줄은 한 줄이다. 클리핑 상자는 잘려 나간 나머지를 자기 padding 상자에
+  // 그리므로 아래 여백은 margin 이어야 한다 — `pb-3` 일 때 실제 세 줄짜리 terraform
+  // 오류가 두 줄 clamp 밑으로 잘린 세 번째 줄을 흘렸다.
+  it('keeps the collapsed reason to one line, with no bottom padding', () => {
+    expect(j.errHead).toContain('truncate');
+    expect(j.errHead).not.toContain('line-clamp');
+    // 여백은 클리핑 상자(errHead)가 아니라 폴드의 margin 이 맡아야 한다 — 잘려 나간
+    // 나머지를 자기 padding 상자에 그리는 쪽은 errHead 다.
+    expect(j.errHead).not.toMatch(/\bp[by]?-/);
+    expect(j.errFold).toContain('mb-3');
   });
 
   // A terraform error names its class first and details itself after the colon.
@@ -237,5 +238,86 @@ describe('AttemptDetail — Job 현황', () => {
     const out = html(attempt({ job_states: ok(1) }));
     expect(out).toContain('aria-label="TerraformJob ok-1 · 성공 · 로그 열기"');
     expect(out).not.toContain('로그 보기');
+  });
+
+  /**
+   * 폴 호출 실패는 job 의 실패 사유와 다른 값이다. terraform 사유는 앞 절이 실패의
+   * 종류를 말해 주지만 `last_error` 는 앞 절이 늘 "infra-manager call failed" 라,
+   * 여기에 failHead 를 걸면 상태 코드도 URL 도 화면에서 사라진다.
+   */
+  it('폴 호출 실패는 자르지 않고 통째로 싣는다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-1]';
+    const out = html(
+      attempt({
+        job_states: [jobState({ job_id: 'call-1', last_state: 'FAILED', last_error: message })],
+      }),
+    );
+
+    // 전문이 마크업 안에 있고(펴면 읽힌다), 앞 절만 남기고 버리지 않는다 —
+    // 이 단언이 이 테스트의 존재 이유다.
+    expect(out).toContain(message);
+    expect(out).not.toContain('>infra-manager call failed</span>');
+  });
+
+  /**
+   * 폴이 닿지 못한 job 은 상태를 못 읽어 판정이 실패로 서지 않는다(none/running).
+   * 실패 판정에 걸어 두면 정작 호출이 실패한 그 job 에서만 오류가 안 보인다 —
+   * 사용자가 실제로 부딪힌 모양이다.
+   */
+  it('상태를 못 읽어 판정이 서지 않은 job 도 호출 오류는 보여준다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-9]';
+    const out = html(
+      attempt({
+        job_states: [jobState({ job_id: 'unknown-1', last_state: null, last_error: message })],
+      }),
+    );
+
+    expect(out).toContain(message);
+  });
+
+  /**
+   * 렌더 게이트를 푸는 것만으로는 부족하다 — 목록의 기본 필터가 실패 버킷이라,
+   * 실패한 job 이 하나라도 있으면 판정이 서지 않은 행(= 호출 오류를 든 그 행)이
+   * 필터 뒤로 걸러진다. 실제 사고가 정확히 이 모양이었다(실패 2건 + 폴 유실 1건).
+   */
+  it('호출 오류를 든 행이 실패 버킷에 없으면 전체로 열어 준다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-9]';
+    const out = html(
+      attempt({
+        job_states: [
+          jobState({ job_id: 'bad-9', last_state: 'FAILED', last_fail_reason: 'Error: boom' }),
+          jobState({ job_id: 'lost-9', last_state: null, last_error: message }),
+        ],
+      }),
+    );
+
+    // 기본이 실패 버킷이면 lost-9 은 목록에 아예 없다.
+    expect(out).toContain('>lost-9<');
+    expect(out).toContain(message);
+  });
+
+  it('판정이 서지 않은 행이 없으면 기존대로 실패 버킷으로 연다', () => {
+    const out = html(attempt({ job_states: [...ok(3), bad] }));
+
+    expect(out).toContain('>bad-1<');
+    expect(out).not.toContain('>ok-1<');
+  });
+
+  it('job 자신의 실패 사유가 있으면 그 쪽만 싣는다 — 호출 오류 줄은 만들지 않는다', () => {
+    const out = html(
+      attempt({
+        job_states: [
+          jobState({
+            job_id: 'both-1',
+            last_state: 'FAILED',
+            last_fail_reason: 'Error acquiring the state lock: ConditionalCheckFailedException',
+            last_error: 'infra-manager call failed: [500] during [GET] to [http://infra-manager]',
+          }),
+        ],
+      }),
+    );
+
+    expect(out).toContain('>Error acquiring the state lock</span>');
+    expect(out).not.toContain('infra-manager call failed');
   });
 });

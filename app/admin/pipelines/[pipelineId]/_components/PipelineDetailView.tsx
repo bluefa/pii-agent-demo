@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -104,6 +104,8 @@ export function PipelineDetailView(): ReactElement {
   const cancelModal = useModal();
   const restartModal = useModal();
   const [reloadKey, setReloadKey] = useState(0);
+  // 재시작이 만든 새 작업으로 곧장 넘기는 데 쓴다(모달 onStarted).
+  const router = useRouter();
   // `?task=` (restart drawer deep-link) — applied as the pipeline loads.
   const searchParams = useSearchParams();
   const taskParam = searchParams.get('task');
@@ -722,7 +724,11 @@ export function PipelineDetailView(): ReactElement {
         showToast={toast.show}
       />
 
-      {/* Mounted only while open — see RestartModal (fresh state per open). */}
+      {/* Mounted only while open — see RestartModal (fresh state per open).
+          `onStarted` 는 새 작업으로 바로 넘긴다: 이 페이지는 원본 작업 하나를
+          설명하는 화면이라, 재시작하면 볼 것이 새 작업으로 옮겨간다. 제자리에
+          남으면 원본은 여전히 FAILED 여서 "재시작이 되긴 한 건가"를 헤더의
+          재시작됨 링크로 다시 찾아가야 한다(오너 2026-09-03). */}
       {restartModal.isOpen && (
       <RestartModal
         open={restartModal.isOpen}
@@ -732,6 +738,7 @@ export function PipelineDetailView(): ReactElement {
         provider={detail.cloud_provider}
         showToast={toast.show}
         onStale={() => setReloadKey((k) => k + 1)}
+        onStarted={(created) => router.push(passRoutes.pipelines.pipeline(created.pipeline_id))}
       />
       )}
     </div>

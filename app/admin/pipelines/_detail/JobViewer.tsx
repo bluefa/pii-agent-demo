@@ -178,8 +178,11 @@ export function JobViewer({
     ) : null;
 
   // Same source as the list's red line, uncut. `last_error` is our own call failing,
-  // not the job's verdict, so it stays out of this slot.
+  // not the job's verdict, so it stays out of this slot — but it gets its own line
+  // below, labelled: 마지막 폴에서 job 상태를 못 읽었다는 사실은 job 이 실패한 것과
+  // 다른 이야기이고, 지금까지 어느 화면에도 온전히 남지 않았다(오너 2026-09-03).
   const failReason = state.data?.last_fail_reason ?? null;
+  const callError = state.data?.last_error ?? null;
 
   let body: ReactElement;
   if (tab === 'log') {
@@ -259,6 +262,12 @@ export function JobViewer({
           {/* The list can only carry the reason's head clause in one row; the whole
               of it is read here, without switching to the JSON tab (owner 2026-08-17). */}
           {failReason && <p className={j.vFail}>{failReason}</p>}
+          {callError && (
+            <p className={j.vCallError}>
+              <span className={j.vCallErrorKey}>폴 호출 실패</span>
+              {callError}
+            </p>
+          )}
         </div>
         <button type="button" className={j.vClose} onClick={onClose} aria-label="닫기" title="닫기 (Esc)">
           <Icon name="x" size="lg" />

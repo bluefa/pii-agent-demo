@@ -834,8 +834,10 @@ function seedPipelines(): MockPipeline[] {
                     poll_count: 4, last_polled_at: ago(3 * 60 - 13) },
                   { job_id: '1020', last_state: 'RUNNING', last_fail_reason: null, last_error: null,
                     poll_count: 4, last_polled_at: ago(3 * 60 - 13) },
+                  // 앞 절이 늘 같고 뒤쪽(상태 코드·메서드·URL)이 내용 전부인 실제
+                  // 폴 호출 실패 모양 — 이 줄이 잘리는지 화면에서 바로 보인다.
                   { job_id: '1021', last_state: null, last_fail_reason: null,
-                    last_error: 'infra-manager call timed out after PT30S',
+                    last_error: 'infra-manager call failed: [500] during [GET] to [http://infra-manager.svc/infra/azure/terraform-jobs/apply/1021]',
                     poll_count: 4, last_polled_at: ago(3 * 60 - 14) },
                 ],
               }),
@@ -1475,7 +1477,8 @@ const STATE_FIXTURES: Record<string, Omit<TerraformJobStateDetail, 'task_id' | '
     last_response: stateJson('COMPLETED', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
   '12401:1:1020': { last_state: 'RUNNING', last_fail_reason: null, last_error: null,
     last_response: stateJson('RUNNING', null), poll_count: 4, last_polled_at: jobAgo(3 * 60 - 13) },
-  '12401:1:1021': { last_state: null, last_fail_reason: null, last_error: 'infra-manager call timed out after PT30S',
+  '12401:1:1021': { last_state: null, last_fail_reason: null,
+    last_error: 'infra-manager call failed: [500] during [GET] to [http://infra-manager.svc/infra/azure/terraform-jobs/apply/1021]',
     last_response: null, poll_count: 4, last_polled_at: jobAgo(3 * 60 - 14) },
   '12401:2:1026': { last_state: 'COMPLETED', last_fail_reason: null, last_error: null,
     last_response: stateJson('COMPLETED', null), poll_count: 6, last_polled_at: jobAgo(3 * 60 - 31) },
