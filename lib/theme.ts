@@ -1013,9 +1013,15 @@ export const projectHeaderStyles = {
    *
    * 18px between columns and 22px above the first row: both from `opsStyles.fmGrid`,
    * where 22 is what took over from the hairline this round also removed.
+   *
+   * `auto-fit` counts tracks by the max when it is definite, so `minmax(200px,240px)`
+   * never shrank a cell and wrapped at 1014px; `1fr` with a max-width the component sets
+   * from its track count (240 per track + 18 per gap, so a `wide` cell buys one more
+   * track) gives the 240 cap on wide screens and the 200 floor before wrapping (measured
+   * 2026-09-03: 4 tracks from 1014px down to 854px, 3 below).
    */
   factGrid:
-    'grid grid-cols-[repeat(auto-fit,minmax(200px,240px))] gap-x-[18px] gap-y-3 pt-[22px] pb-1',
+    'grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-[18px] gap-y-3 pt-[22px] pb-1',
   /** One fact — its label, then its value under it. 4px binds the pair; `min-w-0` is what
       lets the value inside truncate rather than push the column wide. */
   factCell: 'flex min-w-0 flex-col gap-1',
