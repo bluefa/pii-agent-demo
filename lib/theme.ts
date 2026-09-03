@@ -151,6 +151,13 @@ export const scanTransition = {
 export const tcActivityMarch = 'motion-safe:animate-[tc-activity-march_1400ms_linear_infinite]';
 
 /**
+ * 확정 정보 편집기 v2.4 — 입력 중 헤더 아래 인디케이터. `motion-safe:` 만 애니메이트하는
+ * 클래스라 모션이 꺼지면 세그먼트가 왼쪽 끝에 그대로 서서 "진행 중"이라는 사실 자체는
+ * 남는다(움직임 하나에만 기대지 않는다).
+ */
+export const confirmEditorProgressBar = 'motion-safe:animate-[pl-editor-progress_1100ms_ease-in-out_infinite]';
+
+/**
  * Step 5 시작 대기 글리프의 모래 — HourglassIcon 에만 건다. 셋이 한 기계라 세 클래스를
  * 함께 걸어야 뜻이 성립한다: 유리만 돌면 모래가 중간에 멈춘 채 뒤집히고, 모래만 흐르면
  * 다 떨어진 유리가 그대로 서 있다. 그래서 호출부에 흩지 않고 아이콘 안에서 셋을 건다.
@@ -4234,13 +4241,16 @@ export const pipelineStyles = {
      *  never collides in the join. Replaces `dialog` entirely for variant='app'. */
     dialogApp:
       'max-w-[92vw] max-h-[88vh] overflow-y-auto rounded-[20px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
-    /** 확정 정보 편집기 — 폭은 `xwide` 와 같은 960. 가장 넓은 내용이 삭제 확인의
-     *  리소스 표(원 서식지에서 유동 ~800px)와 mono JSON 한 줄(120자@12px)이라 그 이상은
-     *  근거가 없다(첫 판의 1540 은 diff 두 열 + 참조 레일 치수였다). 높이는 고정 —
-     *  편집 줄 수를 최대로 벌린다. 패딩 0: 머리·바·본문·바닥이 각자 여백을 갖고
-     *  본문만 스크롤한다. `dialog` 를 통째로 대체한다(dialogApp 과 같은 규칙). */
+    /** 확정 정보 편집기 v2.4 — 폭은 `xwide` 와 같은 960. 가장 넓은 내용이 mono JSON
+     *  한 줄(120자@14px)이라 그 이상은 근거가 없다(첫 판의 1540 은 diff 두 열 + 참조
+     *  레일 치수였다). 높이는 입력 프레임(760)으로 고정 — 편집 줄 수를 최대로 벌린다.
+     *  결과 프레임은 짧은 kv + 목록이라 같은 눈금이 아래에 빈 칸을 남기므로, 그 프레임을
+     *  띄우는 호출부가 `className="!h-auto"` 로 이 고정 높이를 되돌린다(CancelModal 이
+     *  이미 같은 방식으로 `dialog` 의 폭을 되돌린 전례가 있다). 패딩 0: 머리·바·본문·
+     *  바닥이 각자 여백을 갖고 본문만 스크롤한다. `dialog` 를 통째로 대체한다
+     *  (dialogApp 과 같은 규칙). */
     dialogEditor:
-      'w-[min(960px,94vw)] h-[min(920px,92vh)] flex flex-col overflow-hidden rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
+      'w-[min(960px,94vw)] h-[min(760px,92vh)] flex flex-col overflow-hidden rounded-[12px] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-lg)]',
     /** 우측 오버레이 패널 (논리 DB 주간 현황) — scrim 계약은 overlay 와 같고 정렬만
      *  우측 도킹(overlayPanel 이 overlay 를 대체). 폭 960 = dialogXWide 와 같은 등급:
      *  Database/Schema 2줄 정체성 + 7일 스트립 + 이번 주 + 마지막 성공 + DAG 의
@@ -4305,6 +4315,14 @@ export const pipelineStyles = {
      *  in-context secondary destructive actions. */
     dangerSolid:
       'border border-transparent bg-[var(--pl-err-solid)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-err-solid-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
+    /**
+     * Desaturated-red solid — 확정 정보 편집기 v2.4 [취소] (owner directive ④: 취소 는
+     * 채도를 낮춘 빨강). `dangerSolid` 의 saturated Untitled red-600 is the "commit a
+     * destructive action" fill (상세 [중단]); this button only closes a dialog, so it
+     * borrows the family without the alarm.
+     */
+    dangerMuted:
+      'border border-transparent bg-[var(--pl-danger-muted)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-danger-muted-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
     /**
      * The `primary` disabled face as a RESTING face — `PlButton blocked`. It is not a
      * `disabled:` variant because the button is enabled as far as CSS is concerned: it stays

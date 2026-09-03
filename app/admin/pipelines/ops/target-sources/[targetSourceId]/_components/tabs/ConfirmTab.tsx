@@ -536,7 +536,6 @@ export function ConfirmTab({
           onClose={editorModal.close}
           targetSourceId={targetSourceId}
           provider={writeProvider}
-          current={confirmedRows.length > 0 ? confirmedWire : null}
           onDone={retry}
         />
       )}

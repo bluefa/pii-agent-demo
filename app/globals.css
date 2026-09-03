@@ -230,6 +230,24 @@
   --pl-delay3-dot: #EF4444; /* ≥7d seg dot (.tdot.d3) */
   --pl-tag-blue-bg: #E8F1FF; /* .tag.blue background */
   --pl-tag-blue-text: #1747B5; /* .tag.blue text */
+  /* 확정 정보 편집기 v2.4 — the ONE dark surface in an otherwise light console
+     (docs/ux/benchmark/confirm-editor-v2.md). Contrast measured against
+     --pl-editor-bg: text 12.9:1, text-muted 7.4:1, gutter 4.5:1. */
+  --pl-editor-bg: #1B1F27;
+  --pl-editor-bar: #232834;
+  --pl-editor-line: #323947;
+  --pl-editor-active: #262C39;
+  --pl-editor-text: #E6E9EF;
+  --pl-editor-text-muted: #A3ACBC;
+  --pl-editor-gutter: #808A9D;
+  --pl-editor-key: #9CC5FF;
+  --pl-editor-string: #C8E6A0;
+  --pl-editor-ok: #7BD3A0;
+  --pl-editor-err: #FF8A80;
+  --pl-editor-recommend: #82B1FF;
+  /* Desaturated-red 취소 (owner directive ④) — 4.6:1 white text. */
+  --pl-danger-muted: #BC574E;
+  --pl-danger-muted-hover: #A84740;
   /* --pl-font-sans / --pl-font-mono are declared on `body` below, NOT here:
      their var(--font-geist-*) references only exist on <body> (next/font
      className in app/layout.tsx), so a :root declaration computes to
@@ -402,6 +420,13 @@
   8% { opacity: 1; transform: none; }
   80% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* 확정 정보 편집기 v2.4 — 입력 실행 중 인디케이터. 폭 30% 세그먼트가 왼→오로 흐른다.
+   Consumed via lib/theme.ts confirmEditorProgressBar (motion-safe: only). */
+@keyframes pl-editor-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
 }
 
 /* =============================================================================
