@@ -28,6 +28,7 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TaskFlow } from '@/app/admin/pipelines/_detail/TaskFlow';
 import { RestartBadge } from '@/app/admin/pipelines/_detail/r24Task';
@@ -56,7 +57,6 @@ import {
   progressPhrase,
   providerLabel,
   recipeLabel,
-  requesterLabel,
   runWindow,
   statusKo,
   taskMetaLine,
@@ -362,7 +362,6 @@ export function PipelineDetailView(): ReactElement {
   // concern, not an orchestrator provider.
   const provider = displayProvider(detail.cloud_provider, detail.is_sdu_type);
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
-  const requester = requesterLabel(detail.requested_by);
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const cancellable = canCancel(detail.status, detail.cancel_requested);
   const { done, total } = progressCount(detail.tasks);
@@ -455,6 +454,15 @@ export function PipelineDetailView(): ReactElement {
                 <Icon name="arrow-ur" size="sm" />
               </Link>
             </div>
+            {/* 누가 이 실행을 걸었는지는 시각 부스러기와 같은 급이 아니다 —
+                tier 3 메타 줄 꼬리에서 Target 바로 아래 자기 줄로 올린다
+                (오너 2026-09-03). */}
+            {detail.requested_by && (
+              <div className={h.requesterRow}>
+                <span className={h.klabel}>수행 담당자</span>
+                <RequesterTag requestedBy={detail.requested_by} />
+              </div>
+            )}
             <div className={h.nameRow}>
               <span className={h.klabel}>서비스 이름</span>
               {latest || latestSettled ? (
@@ -511,12 +519,6 @@ export function PipelineDetailView(): ReactElement {
                 <span className={h.klabel}>작업 등록</span>{' '}
                 <span className={h.kvalue}>{fmtDateTime(detail.created_at)}</span>
               </span>
-              {requester && (
-                <span className="whitespace-nowrap">
-                  <span className={h.klabel}>수행 담당자</span>{' '}
-                  <span className={h.kvalue}>{requester}</span>
-                </span>
-              )}
               {detail.restarted_by_pipeline_id != null && (
                 <Link
                   href={passRoutes.pipelines.pipeline(detail.restarted_by_pipeline_id)}

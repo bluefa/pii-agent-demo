@@ -38,6 +38,7 @@ import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
+import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { GateAction, GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import {
@@ -54,7 +55,6 @@ import {
   progressPhrase,
   recipeDisplayName,
   recipeLabel,
-  requesterLabel,
   taskInfraSide,
 } from '@/lib/pipeline/format';
 import {
@@ -132,9 +132,6 @@ export function CurrentPipelineCard({
   // so that branch offers only 새 작업 시작 (restart-design §8.1, decision 5).
   const resumable = detail.status === 'FAILED' || detail.status === 'CANCELLED';
   const label = recipeLabel(detail.recipe_definition);
-  // 시스템 for a run the BFF started on entering 4단계, the account otherwise;
-  // null on a backend that records no requester, and then the line says nothing.
-  const requester = requesterLabel(detail.requested_by);
   const title =
     detail.type === 'CUSTOM' ? '커스텀 작업' : recipeDisplayName(detail.recipe_definition);
   const tasks = [...detail.tasks].sort((a, b) => a.sequence - b.sequence);
@@ -225,21 +222,25 @@ export function CurrentPipelineCard({
                 작업 이력 row already shows for this run. The clock marks 시작 only:
                 경과 is read off the same glyph, and a second one would make two
                 clocks out of one line. */}
+            {/* 수행 담당자는 시각 옆 불릿에서 빠져나와 자기 줄에 선다 — 작업 상세
+                헤더와 같은 문법(라벨 + 태그)이라 두 화면이 같은 값을 같은 모양으로
+                말한다(오너 2026-09-03). */}
+            {detail.requested_by && (
+              <p className="mt-2 flex flex-wrap items-center gap-2 break-keep text-[12px] text-[var(--pl-text-weak)]">
+                수행 담당자
+                <RequesterTag requestedBy={detail.requested_by} />
+              </p>
+            )}
             {/* break-keep: Hangul breaks between syllables by default, so on a
-                narrow card 수행 담당자 could split mid-word or strand its ·. */}
+                narrow card the time line could split mid-word or strand its ·. */}
             {/* Each item is label → value: the value one step darker and heavier so
-                수행 담당자 시스템 reads as a key and its value, not one phrase. */}
+                시작 26.09.03 11:33 reads as a key and its value, not one phrase. */}
             <p className="mt-2 flex flex-wrap items-center gap-1 break-keep text-[12px] tabular-nums text-[var(--pl-text-weak)]">
               <Icon name="clock" size="sm" className="flex-none" />
               시작 <span className={metaValue}>{fmtDateTimeShortSec(detail.created_at)}</span> · 경과{' '}
               <span className={metaValue}>
                 {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}
               </span>
-              {requester && (
-                <>
-                  {' '}· 수행 담당자 <span className={metaValue}>{requester}</span>
-                </>
-              )}
             </p>
           </div>
           <div className="flex flex-none flex-col items-end gap-2 pt-0.5">

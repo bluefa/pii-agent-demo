@@ -59,6 +59,10 @@ export const improvedStyles = {
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /** Tier 1.5 — 수행 담당자. Target 줄 바로 아래에 자기 줄로 서고, 값은
+     *  RequesterTag 가 감싼다: "누가 걸었나"는 실행 시각과 같은 급의 부스러기가
+     *  아니라 대상 다음으로 먼저 읽히는 정보다(오너 2026-09-03). */
+    requesterRow: 'flex items-center gap-2 flex-wrap',
     /** Tier 2 — labelled service name + code; a fixed-width skeleton until #8
      *  lands so the header's anchor text never swaps mid-load (no text jump).
      *  Labels stay visible during load — the value slot is what skeletons. */
