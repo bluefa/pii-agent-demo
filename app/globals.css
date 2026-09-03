@@ -105,8 +105,9 @@
      and from the gray-100 masthead wash above it (ΔE00 2.46). */
   --pl-bg-canvas: #F4F4FB;
   --pl-bg-inner: #F9FAFB;
-  --pl-border: #E4E7EC;
-  --pl-border-strong: #D0D5DD;
+  /* Borders sit one ramp step above their ground: gray-200 on a gray-200 canvas measured 1.00:1, invisible on bright monitors. */
+  --pl-border: #D0D5DD;
+  --pl-border-strong: #98A2B3;
   --pl-text-strong: #101828;
   --pl-text-medium: #344054;
   --pl-text-weak: #667085;
@@ -140,7 +141,7 @@
   --pl-info: #2E90FA;
   --pl-info-text: #175CD3;
   --pl-info-bg: #EFF8FF;
-  --pl-info-border: #B2DDFF;
+  --pl-info-border: #84CAFF;
   --pl-warn: #F79009;
   --pl-warn-text: #B54708;
   --pl-warn-bg: #FFFAEB;
