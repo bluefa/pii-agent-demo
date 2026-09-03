@@ -934,8 +934,10 @@ export const projectHeaderStyles = {
    * `factLabelTag` are asserted to carry this exact ink, the step tag is asserted not to,
    * and the contrast gate measures this ink on the page wash (ProjectPageMeta.test.tsx
    * :218 · :731 · :1094-1096, lib/design-guard.test.ts:543). The 16px is what the ramp
-   * assertion still measures — the same rung `opsStyles.fmLabel` took after the same
-   * instruction (16 name / 14 value / 12 label). ⛔ Do not delete the token and do not
+   * assertion still measures, and it is now measured against this header's own ramp alone
+   * (16 name / 14 path root / 12 crumb): `opsStyles.fmLabel` came down to 14px on
+   * 2026-09-03 (오너 지시), so the ops masthead deliberately diverged downward and the two
+   * screens no longer share this rung. ⛔ Do not delete the token and do not
    * touch its class string: six assertions and the contrast gate read off it.
    */
   blockLabel: 'whitespace-nowrap text-[16px] font-semibold tracking-[0.02em] text-[#4E5968]',
