@@ -104,7 +104,7 @@ export const Pagination = ({
         value={pageSize}
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
         className={cn(
-          'rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
+          'rounded-[6px] border border-[#D1D5DB] pr-[22px] pl-[8px] text-[#111827] cursor-pointer appearance-none',
           // design-guide: 버튼=셀렉트=인풋 동일 높이. md matches the 28px page buttons;
           // sm keeps v15's 26px so the 20 screens already on this bar do not shift.
           md ? 'h-[28px]' : 'h-[26px]',
@@ -186,7 +186,7 @@ export const Pagination = ({
        tables get the same box, only bigger text. */
     <div
       className={cn(
-        'flex items-center px-[14px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[#6B7280]',
+        'flex items-center px-[14px] border border-[#D1D5DB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[#6B7280]',
         md ? 'py-3 text-[14px]' : 'py-[10px] text-[12px]',
       )}
     >

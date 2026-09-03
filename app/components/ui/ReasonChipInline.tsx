@@ -171,7 +171,7 @@ export const ReasonChipInline = ({
               </span>
             )}
             {meta && (
-              <span className="mt-2.5 block border-t border-[#E5E7EB] pt-2.5 text-[11.5px] text-[#6B7280]">
+              <span className="mt-2.5 block border-t border-[#D1D5DB] pt-2.5 text-[11.5px] text-[#6B7280]">
                 {meta}
               </span>
             )}
@@ -182,8 +182,8 @@ export const ReasonChipInline = ({
               className={cn(
                 'absolute left-[22px] h-[11px] w-[11px] rotate-45 bg-[#FFFFFF]',
                 flipUp
-                  ? 'bottom-[-6px] border-b border-r border-[#E5E7EB]'
-                  : 'top-[-6px] border-l border-t border-[#E5E7EB]',
+                  ? 'bottom-[-6px] border-b border-r border-[#D1D5DB]'
+                  : 'top-[-6px] border-l border-t border-[#D1D5DB]',
               )}
             />
           </div>,

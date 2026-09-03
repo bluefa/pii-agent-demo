@@ -81,7 +81,7 @@ export const ProjectHistoryPanel = ({
       {/* Header */}
       <div className={cn(
         'flex items-center justify-between',
-        embedded ? 'pb-4' : 'px-6 py-4 border-b border-gray-100'
+        embedded ? 'pb-4' : 'px-6 py-4 border-b border-gray-200'
       )}>
         {!embedded && (
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -110,7 +110,7 @@ export const ProjectHistoryPanel = ({
             />
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 py-4 border-t border-gray-100">
+              <div className="flex items-center justify-center gap-2 py-4 border-t border-gray-200">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}

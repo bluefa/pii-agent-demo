@@ -131,9 +131,9 @@ export const VmDatabaseConfigPanel = ({
 
           {/* 설정 카드 */}
           {/* TODO: to-blue-50 gradient -- no gradient token in theme.ts */}
-          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-300 rounded-xl shadow-sm overflow-hidden">
             {/* 헤더 */}
-            <div className="px-5 py-3 bg-white/60 border-b border-slate-200">
+            <div className="px-5 py-3 bg-white/60 border-b border-slate-300">
               <div className="flex items-center gap-2">
                 <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', statusColors.info.bg)}>
                   <svg className={cn('w-4 h-4', primaryColors.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,7 +195,7 @@ export const VmDatabaseConfigPanel = ({
                     className={cn(
                       'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0',
                       databaseType
-                        ? 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
+                        ? 'border-slate-300 bg-white text-slate-900 focus:border-[#0064FF]'
                         : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500',
                     )}
                   >
@@ -223,7 +223,7 @@ export const VmDatabaseConfigPanel = ({
                         'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400',
                         databaseType && !host.trim()
                           ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                          : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                          : 'border-slate-300 bg-white text-slate-900 focus:border-[#0064FF]',
                       )}
                       placeholder={hasNics ? t.hostPlaceholderNic : 'ip-10-0-1-100.ec2.internal'}
                     />
@@ -250,7 +250,7 @@ export const VmDatabaseConfigPanel = ({
                           'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400',
                           portError
                             ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                            : 'border-slate-300 bg-white text-slate-900 focus:border-[#0064FF]',
                         )}
                         placeholder={t.portPlaceholder}
                       />
@@ -274,7 +274,7 @@ export const VmDatabaseConfigPanel = ({
                           'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0',
                           !oracleServiceId
                             ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                            : 'border-slate-300 bg-white text-slate-900 focus:border-[#0064FF]',
                         )}
                         placeholder={t.serviceIdPlaceholder}
                       />
@@ -288,10 +288,10 @@ export const VmDatabaseConfigPanel = ({
             </div>
 
             {/* 푸터 - 액션 버튼 */}
-            <div className="px-5 py-3 bg-white/60 border-t border-slate-200 flex items-center justify-end gap-2">
+            <div className="px-5 py-3 bg-white/60 border-t border-slate-300 flex items-center justify-end gap-2">
               <button
                 onClick={onCancel}
-                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-800 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-400 rounded-lg hover:bg-slate-50 hover:text-slate-800 transition-colors"
               >
                 {t.cancel}
               </button>

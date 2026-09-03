@@ -53,7 +53,7 @@ export const TfRoleGuideModal = ({ onClose, onVerify }: TfRoleGuideModalProps) =
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-300">
           <h3 className="text-lg font-semibold text-gray-900">{t.title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@ export const TfRoleGuideModal = ({ onClose, onVerify }: TfRoleGuideModalProps) =
           </div>
         </div>
 
-        <div className="flex justify-end p-4 border-t border-gray-200">
+        <div className="flex justify-end p-4 border-t border-gray-300">
           <button onClick={onClose} className={getButtonClass('secondary', 'md')}>
             {t.close}
           </button>

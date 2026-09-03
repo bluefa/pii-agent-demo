@@ -131,7 +131,7 @@ const Section = ({
   children: React.ReactNode;
 }) => (
   <div>
-    <h4 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-100">
+    <h4 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">
       {title}
     </h4>
     <div className="space-y-2">{children}</div>
@@ -167,7 +167,7 @@ const InfoDescription = ({ children }: { children: React.ReactNode }) => (
 
 // 사유 박스 컴포넌트
 const ReasonBox = ({ reason }: { reason?: string }) => (
-  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+  <div className="p-3 bg-gray-50 rounded-lg border border-gray-300">
     <p className="text-sm text-gray-700 whitespace-pre-wrap">
       {reason || '(사유 없음)'}
     </p>

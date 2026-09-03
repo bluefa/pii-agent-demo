@@ -30,7 +30,7 @@ export const ApproveModal = ({ isOpen, onClose, onSubmit, loading, value, onChan
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={t.approve.commentPlaceholder}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-gray-900"
+            className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-gray-900"
             rows={3}
           />
         </div>
@@ -72,7 +72,7 @@ export const RejectModal = ({ isOpen, onClose, onSubmit, loading, value, onChang
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={t.reject.reasonPlaceholder}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-gray-900"
+            className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-gray-900"
             rows={3}
           />
         </div>

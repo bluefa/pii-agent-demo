@@ -1107,13 +1107,13 @@ describe('WaitingApprovalTable', () => {
     it('divides confirmed rows on the shared hairline, not border-strong', () => {
       // Round 6: with permanent rails sharing the separation work, border-strong rows
       // overshot the consoles (their row rules measure ≈1.19:1) — rows return to the
-      // app-wide EBEEF2 hairline and the hover tint is what blocks a row out.
+      // app-wide D1D6DB hairline and the hover tint is what blocks a row out.
       render(<WaitingApprovalTable variant="confirmed" resources={[row()]} />);
       const tbody = screen.getByText('covered-name').closest('tbody');
       // Not spelled as a literal `#RRGGBB` — the repo's raw-hex PR gate scans whole
       // touched files, not diffs (see ProjectPageMeta.test.tsx:268 for the same idiom).
-      const HAIRLINE = 'EBEEF2';
-      const BORDER_STRONG = 'D1D5DB';
+      const HAIRLINE = 'D1D6DB';
+      const BORDER_STRONG = '9CA3AF';
       expect(tbody?.className).toContain(`divide-[#${HAIRLINE}]`);
       expect(tbody?.className).not.toContain(`#${BORDER_STRONG}`);
     });

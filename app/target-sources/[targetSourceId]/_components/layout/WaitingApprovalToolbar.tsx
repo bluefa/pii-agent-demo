@@ -161,7 +161,7 @@ export const FilterMenu = ({
         <div
           role="group"
           aria-label={t.filterOptions}
-          className="absolute right-0 top-[26px] z-20 w-[220px] rounded-[10px] border border-[#E5E7EB] bg-white py-1.5 shadow-[0_8px_24px_rgba(17,24,39,0.10)]"
+          className="absolute right-0 top-[26px] z-20 w-[220px] rounded-[10px] border border-[#D1D5DB] bg-white py-1.5 shadow-[0_8px_24px_rgba(17,24,39,0.10)]"
         >
           {/* The list scrolls so the panel height is fixed however many options arrive; group headers stick. */}
           <div className="max-h-[280px] overflow-y-auto">
@@ -169,7 +169,7 @@ export const FilterMenu = ({
               <div key={group.key} aria-label={t.groupFilter(group.label)} role="radiogroup">
                 {/* Header sits on a tinted strip with rules above and below: options are a level
                     below it, which same-surface text alone did not convey. */}
-                <p className="sticky top-0 z-10 border-y border-[#F1F3F5] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7280] first:border-t-0">
+                <p className="sticky top-0 z-10 border-y border-[#E5E8EB] bg-[#F9FAFB] px-3 py-[5px] text-[12px] font-bold tracking-[0.02em] text-[#6B7280] first:border-t-0">
                   {group.label}
                 </p>
                 <div className="py-1">
@@ -221,7 +221,7 @@ const FilterOption = ({
       aria-hidden="true"
       className={cn(
         'grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border transition-colors',
-        active ? 'border-[#0064FF] border-[4px]' : 'border-[#D1D5DB]',
+        active ? 'border-[#0064FF] border-[4px]' : 'border-[#9CA3AF]',
       )}
     />
     <span className="min-w-0 flex-1 truncate">{children}</span>
@@ -254,7 +254,7 @@ export const SearchBox = ({ value, onChange, placeholder, label }: SearchBoxProp
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? t.searchPlaceholder}
-      className="h-8 w-full rounded-[8px] border border-[#E5E7EB] bg-white pl-[32px] pr-[12px] text-[14px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
+      className="h-8 w-full rounded-[8px] border border-[#D1D5DB] bg-white pl-[32px] pr-[12px] text-[14px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
       aria-label={label ?? t.searchLabel}
     />
   </div>
