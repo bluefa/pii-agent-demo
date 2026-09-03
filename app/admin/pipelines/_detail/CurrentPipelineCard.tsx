@@ -38,6 +38,7 @@ import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
+import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { GateAction, GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import {
@@ -81,6 +82,9 @@ function SectionHead({ title }: { title: string }): ReactElement {
     </div>
   );
 }
+
+/** Value half of the meta line's label → value pairs (mirrors header `kvalue`). */
+const metaValue = 'font-medium text-[var(--pl-text-medium)]';
 
 export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
@@ -218,10 +222,38 @@ export function CurrentPipelineCard({
                 작업 이력 row already shows for this run. The clock marks 시작 only:
                 경과 is read off the same glyph, and a second one would make two
                 clocks out of one line. */}
-            <p className="mt-2 flex flex-wrap items-center gap-1 text-[12px] tabular-nums text-[var(--pl-text-weak)]">
+            {/* 수행 담당자는 시각 옆 불릿에서 빠져나와 자기 줄에 선다 — 작업 상세
+                헤더와 같은 문법(라벨 + 태그)이라 두 화면이 같은 값을 같은 모양으로
+                말한다(오너 2026-09-03). */}
+            {detail.requested_by && (
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 break-keep text-[12px] text-[var(--pl-text-weak)]">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  수행 담당자
+                  <RequesterTag requestedBy={detail.requested_by} />
+                </span>
+                {/* 사유도 라벨을 달아 옆 칸과 같은 라벨→값으로 읽히게 한다. 카드는
+                    헤더보다 폭이 넉넉해 줄바꿈으로 받고(자르지 않고), 전문은
+                    title 로도 남긴다. */}
+                {detail.request_note && (
+                  <span className="flex items-center gap-1.5">
+                    요청 사유
+                    <span className={cn(metaValue, 'max-w-[520px]')} title={detail.request_note}>
+                      {detail.request_note}
+                    </span>
+                  </span>
+                )}
+              </p>
+            )}
+            {/* break-keep: Hangul breaks between syllables by default, so on a
+                narrow card the time line could split mid-word or strand its ·. */}
+            {/* Each item is label → value: the value one step darker and heavier so
+                시작 26.09.03 11:33 reads as a key and its value, not one phrase. */}
+            <p className="mt-2 flex flex-wrap items-center gap-1 break-keep text-[12px] tabular-nums text-[var(--pl-text-weak)]">
               <Icon name="clock" size="sm" className="flex-none" />
-              시작 {fmtDateTimeShortSec(detail.created_at)} · 경과{' '}
-              {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}
+              시작 <span className={metaValue}>{fmtDateTimeShortSec(detail.created_at)}</span> · 경과{' '}
+              <span className={metaValue}>
+                {fmtElapsedMs(elapsedMs(detail.status, detail.created_at, detail.last_activity_at))}
+              </span>
             </p>
           </div>
           <div className="flex flex-none flex-col items-end gap-2 pt-0.5">

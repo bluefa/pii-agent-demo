@@ -59,11 +59,26 @@ export const improvedStyles = {
     sduChip:
       'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold bg-[var(--pl-primary-bg)] text-[var(--pl-primary)]',
     prov: 'text-[14px] font-medium text-[var(--pl-text-medium)]',
+    /** Tier 1.5 — 수행 담당자. Target 줄 바로 아래에 자기 줄로 서고, 값은
+     *  RequesterTag 가 감싼다: "누가 걸었나"는 실행 시각과 같은 급의 부스러기가
+     *  아니라 대상 다음으로 먼저 읽히는 정보다(오너 2026-09-03). */
+    /** 칸 사이는 12px, 한 칸 안의 라벨↔값은 6px — tier 3 의 간격 문법 그대로라
+     *  「수행 담당자 · 요청 사유」가 두 칸으로 읽히지 한 문장으로 뭉치지 않는다. */
+    requesterRow: 'flex items-center gap-x-3 gap-y-1 min-w-0 text-[12px]',
+    pair: 'flex items-center gap-1.5 whitespace-nowrap',
+    /** 요청 사유 칸 — 값만 줄어들게 min-w-0 를 여기서 끊는다. */
+    pairTruncating: 'flex min-w-0 items-center gap-1.5',
+    /** kvalue 와 같은 톤이되 넘치면 잘린다. 전문은 호출부가 title 로 넘긴다. */
+    kvalueTruncating: 'truncate font-medium text-[var(--pl-text-medium)]',
     /** Tier 2 — labelled service name + code; a fixed-width skeleton until #8
      *  lands so the header's anchor text never swaps mid-load (no text jump).
      *  Labels stay visible during load — the value slot is what skeletons. */
     nameRow: 'flex items-baseline gap-x-2 gap-y-1 min-w-0 min-h-[20px] flex-wrap',
     klabel: 'text-[12px] text-[var(--pl-text-weak)] whitespace-nowrap',
+    /** The value half of a labelled pair in the quiet tiers (작업 등록 · 수행 담당자):
+     *  one step darker and heavier than its label so the two read as key → value,
+     *  not as one run-on phrase (owner 2026-09-02). */
+    kvalue: 'font-medium text-[var(--pl-text-medium)]',
     name: 'text-[14px] font-medium text-[var(--pl-text-strong)] truncate',
     /** Service code — a classifier, not a value, so it takes the SDU chip's
      *  grammar (primary-tinted tag) rather than plain text. */

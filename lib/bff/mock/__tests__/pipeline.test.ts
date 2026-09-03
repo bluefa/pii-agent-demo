@@ -27,30 +27,31 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const live = body as LivePipelineStatistics;
       expect(status).toBe(200);
       // 130 (SDU) + 128 + 125 RUNNING, 129 PENDING; one IN_PROGRESS terraform task per running pipeline.
-      expect(live.running_pipeline_count).toBe(3);
+      expect(live.running_pipeline_count).toBe(4);
       expect(live.pending_pipeline_count).toBe(1);
-      expect(live.in_progress_terraform_task_count).toBe(3);
-      expect(live.active_claim_count).toBe(3);
+      expect(live.in_progress_terraform_task_count).toBe(4);
+      expect(live.active_claim_count).toBe(4);
       expect(live.terraform_slot_cap).toBeGreaterThan(0);
     });
 
     it('computes period statistics within the window', () => {
       const week = mockPipeline.statistics('7d').body as PipelineStatistics;
-      expect(week.total_count).toBe(11);
+      expect(week.total_count).toBe(12);
       expect(week.done_count).toBe(2);
       // 124 (one job) + 131 (dispatch-call failure) + 132 (five jobs at once)
       // + 133 (execution limit expired with three jobs still running)
       expect(week.failed_count).toBe(4);
       expect(week.cancelled_count).toBe(1);
-      expect(week.running_count).toBe(3);
+      expect(week.running_count).toBe(4);
       expect(week.pending_count).toBe(1);
 
-      // 1h window only catches the freshly-anchored PENDING + three RUNNING
-      // (incl. the SDU demo pipeline 130); the older FAILED 131 falls outside it.
+      // 1h window only catches the freshly-anchored PENDING + four RUNNING
+      // (incl. the SDU demo pipeline 130 and the auto-install 134); the older
+      // FAILED 131 falls outside it.
       const hour = mockPipeline.statistics('1h').body as PipelineStatistics;
-      expect(hour.total_count).toBe(4);
+      expect(hour.total_count).toBe(5);
       expect(hour.pending_count).toBe(1);
-      expect(hour.running_count).toBe(3);
+      expect(hour.running_count).toBe(4);
     });
 
     it('rejects a missing / invalid period', () => {

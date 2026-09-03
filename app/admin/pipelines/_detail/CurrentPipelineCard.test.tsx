@@ -343,7 +343,9 @@ describe('CurrentPipelineCard — meta line', () => {
 
     // Seconds survive: the run's start is an instant an operator matches against
     // a log line. The stage phrase is NOT here — it labels the flow now.
-    const meta = screen.getByText('시작 26.07.29 09:00:00 · 경과 5분', { selector: 'p' });
+    const meta = screen.getByText(
+      (_, node) => node?.tagName === 'P' && node.textContent === '시작 26.07.29 09:00:00 · 경과 5분',
+    );
     // One clock, and it marks 시작 — the line opens with it.
     expect(meta.firstElementChild?.tagName.toLowerCase()).toBe('svg');
     expect(meta.querySelectorAll('svg')).toHaveLength(1);
@@ -353,7 +355,47 @@ describe('CurrentPipelineCard — meta line', () => {
   it('counts a live run from its creation instant', () => {
     renderCard(makeDetail(['APPLY', 'APPLY'], { current_task_sequence: 1 }));
 
-    expect(screen.getByText(/^시작 26\.07\.29 09:00:00 · 경과 /, { selector: 'p' })).toBeTruthy();
+    expect(
+      screen.getByText(
+        (_, node) => node?.tagName === 'P' && /^시작 26\.07\.29 09:00:00 · 경과 /.test(node.textContent ?? ''),
+      ),
+    ).toBeTruthy();
+  });
+});
+
+describe('CurrentPipelineCard — 수행 담당자', () => {
+  /** 값은 태그(별도 element)로 감싸이므로 라벨과 값 사이에 공백 문자가 없다 —
+   *  간격은 flex gap 이 만든다. 줄 전체를 한 문자열로 비교한다. */
+  const requesterLine = (): string | null =>
+    [...document.querySelectorAll('p')]
+      .map((node) => node.textContent ?? '')
+      .find((text) => text.startsWith('수행 담당자')) ?? null;
+
+  it('names the account the BFF recorded as the requester', () => {
+    renderCard(makeDetail(['APPLY'], { requested_by: '관리자' }));
+
+    expect(requesterLine()).toBe('수행 담당자관리자');
+  });
+
+  it('prints 시스템 for a run the BFF started itself, never the raw sentinel', () => {
+    renderCard(makeDetail(['APPLY'], { requested_by: 'SYSTEM' }));
+
+    expect(requesterLine()).toBe('수행 담당자시스템');
+    expect(document.body.textContent).not.toContain('SYSTEM');
+  });
+
+  it('puts the 사유 next to the 담당자, so 누가 and 왜 are read in one place', () => {
+    renderCard(
+      makeDetail(['APPLY'], { requested_by: 'SYSTEM', request_note: '4단계 진입 자동 설치' }),
+    );
+
+    expect(requesterLine()).toBe('수행 담당자시스템요청 사유4단계 진입 자동 설치');
+  });
+
+  it('says nothing about a requester the backend never recorded', () => {
+    renderCard(makeDetail(['APPLY']));
+
+    expect(document.body.textContent).not.toContain('수행 담당자');
   });
 });
 

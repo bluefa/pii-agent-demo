@@ -50,6 +50,7 @@ export type IconName =
   | 'shield-check'
   | 'stamp'
   | 'dots-v'
+  | 'cog'
   | 'table';
 
 export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -261,6 +262,14 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <circle cx="12" cy="5" r="1.7" fill="currentColor" stroke="none" />
       <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
       <circle cx="12" cy="19" r="1.7" fill="currentColor" stroke="none" />
+    </>
+  ),
+  /* Cog — the "이 실행은 사람이 아니라 시스템이 걸었다" mark on the 수행 담당자 tag. */
+  cog: (
+    <>
+      <circle cx="12" cy="12" r="8.6" />
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 1.6v2.4M12 20v2.4M1.6 12h2.4M20 12h2.4M4.7 4.7l1.7 1.7M17.6 17.6l1.7 1.7M19.3 4.7l-1.7 1.7M6.4 17.6l-1.7 1.7" />
     </>
   ),
 };

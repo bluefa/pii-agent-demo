@@ -28,6 +28,7 @@ import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TaskFlow } from '@/app/admin/pipelines/_detail/TaskFlow';
 import { RestartBadge } from '@/app/admin/pipelines/_detail/r24Task';
@@ -453,6 +454,30 @@ export function PipelineDetailView(): ReactElement {
                 <Icon name="arrow-ur" size="sm" />
               </Link>
             </div>
+            {/* 누가 이 실행을 걸었는지는 시각 부스러기와 같은 급이 아니다 —
+                tier 3 메타 줄 꼬리에서 Target 바로 아래 자기 줄로 올린다
+                (오너 2026-09-03). */}
+            {detail.requested_by && (
+              <div className={h.requesterRow}>
+                <span className={h.pair}>
+                  <span className={h.klabel}>수행 담당자</span>
+                  <RequesterTag requestedBy={detail.requested_by} />
+                </span>
+                {/* 왜 걸었는지는 누가 걸었는지 바로 옆에 있어야 한 번에 읽힌다.
+                    라벨 없이 문자열만 두면 그게 사유인지 알 수 없으므로 옆 칸과
+                    같은 라벨→값 문법을 쓴다(오너 2026-09-03). 512자까지 들어올 수
+                    있으니 값만 한 줄로 자르고 전문은 title 로 — 헤더가 문단을
+                    떠안으면 아래 tier 들이 밀려난다. */}
+                {detail.request_note && (
+                  <span className={h.pairTruncating}>
+                    <span className={h.klabel}>요청 사유</span>
+                    <span className={h.kvalueTruncating} title={detail.request_note}>
+                      {detail.request_note}
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
             <div className={h.nameRow}>
               <span className={h.klabel}>서비스 이름</span>
               {latest || latestSettled ? (
@@ -506,7 +531,8 @@ export function PipelineDetailView(): ReactElement {
                 )}
               </span>
               <span className="whitespace-nowrap tabular-nums">
-                작업 등록 {fmtDateTime(detail.created_at)}
+                <span className={h.klabel}>작업 등록</span>{' '}
+                <span className={h.kvalue}>{fmtDateTime(detail.created_at)}</span>
               </span>
               {detail.restarted_by_pipeline_id != null && (
                 <Link

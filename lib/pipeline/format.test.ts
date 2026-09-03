@@ -22,6 +22,7 @@ import {
   RECIPE_LABELS,
   recipeDisplayName,
   recipeLabel,
+  requesterLabel,
   runWindow,
   statusKo,
   stripTerraformAction,
@@ -182,6 +183,20 @@ describe('providerLabel / providerAccentVar / providerKey', () => {
     expect(providerAccentVar('AZURE')).toBe('--pl-pv-azure');
     expect(providerAccentVar('AWS')).toBe('--pl-pv-aws');
     expect(providerKey('IDC')).toBe('idc');
+  });
+});
+
+describe('requesterLabel', () => {
+  it('maps the reserved wire value SYSTEM to 시스템 and passes an account through', () => {
+    expect(requesterLabel('SYSTEM')).toBe('시스템');
+    expect(requesterLabel('관리자')).toBe('관리자');
+  });
+
+  it('returns null for anything blank, so callers omit the item entirely', () => {
+    expect(requesterLabel(null)).toBeNull();
+    expect(requesterLabel(undefined)).toBeNull();
+    expect(requesterLabel('')).toBeNull();
+    expect(requesterLabel('   ')).toBeNull();
   });
 });
 
