@@ -22,6 +22,6 @@ export const ROLE_META: Record<
     title: 'Terraform Execution Role',
     short: '테라폼 역할',
     sample: 'bdc-infra-terraform-worker-service-role',
-    recommended: ['bdc-infra-terraform-worker-service-role'],
+    recommended: ['bdc-infra-terraform-worker-service-role', 'BDCPIIAgentHelperRole'],
   },
 };
