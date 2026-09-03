@@ -501,10 +501,12 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               마스트헤드가 그만큼 자리를 비워 두면 도착해도 탭이 위아래로 안 뛴다. */}
           <div className={opsStyles.fmGroup}>
             <div className={opsStyles.fmHead}>
-              {/* 22px — `fmLabel` 이 16px 이 되면서 그 줄 상자가 22.39px 가 됐다(실측).
-                  20 으로 두면 스켈레톤 마스트헤드가 2.4px 짧아 도착하는 순간 탭 줄이
-                  아래로 뛴다 — 이 자리가 잡아야 하는 바로 그것이다. */}
-              <div className={cn(opsStyles.skeletonWash, 'h-[24px] w-[108px]')} />
+              {/* 20px — `fmLabel` 이 14px 로 내려가면서 그 줄 상자가 19.60px 이 됐고(실측),
+                  행 높이의 주인이 라벨에서 `fmGlyph`(h-5 = 20px)로 넘어갔다. 그래서 정착한
+                  행의 내용 높이는 정확히 20.00px 이고, 24 로 두면 스켈레톤 마스트헤드가
+                  그만큼 길어 도착하는 순간 탭 줄이 위로 뛴다 — 이 자리가 잡아야 하는 바로
+                  그것이다. 이 값은 실측이라 라벨 크기가 또 움직이면 다시 재야 한다. */}
+              <div className={cn(opsStyles.skeletonWash, 'h-[20px] w-[108px]')} />
             </div>
             <div className={opsStyles.fmGrid}>
               {[0, 1].map((row) => (
