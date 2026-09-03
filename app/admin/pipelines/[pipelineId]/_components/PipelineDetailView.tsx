@@ -459,14 +459,21 @@ export function PipelineDetailView(): ReactElement {
                 (오너 2026-09-03). */}
             {detail.requested_by && (
               <div className={h.requesterRow}>
-                <span className={h.klabel}>수행 담당자</span>
-                <RequesterTag requestedBy={detail.requested_by} />
+                <span className={h.pair}>
+                  <span className={h.klabel}>수행 담당자</span>
+                  <RequesterTag requestedBy={detail.requested_by} />
+                </span>
                 {/* 왜 걸었는지는 누가 걸었는지 바로 옆에 있어야 한 번에 읽힌다.
-                    512자까지 들어올 수 있으니 한 줄로 자르고 전문은 title 로 —
-                    헤더가 문단을 떠안으면 아래 tier 들이 밀려난다. */}
+                    라벨 없이 문자열만 두면 그게 사유인지 알 수 없으므로 옆 칸과
+                    같은 라벨→값 문법을 쓴다(오너 2026-09-03). 512자까지 들어올 수
+                    있으니 값만 한 줄로 자르고 전문은 title 로 — 헤더가 문단을
+                    떠안으면 아래 tier 들이 밀려난다. */}
                 {detail.request_note && (
-                  <span className={h.requestNote} title={detail.request_note}>
-                    {detail.request_note}
+                  <span className={h.pairTruncating}>
+                    <span className={h.klabel}>요청 사유</span>
+                    <span className={h.kvalueTruncating} title={detail.request_note}>
+                      {detail.request_note}
+                    </span>
                   </span>
                 )}
               </div>

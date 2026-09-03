@@ -226,14 +226,20 @@ export function CurrentPipelineCard({
                 헤더와 같은 문법(라벨 + 태그)이라 두 화면이 같은 값을 같은 모양으로
                 말한다(오너 2026-09-03). */}
             {detail.requested_by && (
-              <p className="mt-2 flex flex-wrap items-center gap-2 break-keep text-[12px] text-[var(--pl-text-weak)]">
-                수행 담당자
-                <RequesterTag requestedBy={detail.requested_by} />
-                {/* 사유는 담당자 바로 옆. 카드는 헤더보다 폭이 넉넉해 줄바꿈으로
-                    받고(자르지 않고), 전문은 title 로도 남긴다. */}
+              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 break-keep text-[12px] text-[var(--pl-text-weak)]">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  수행 담당자
+                  <RequesterTag requestedBy={detail.requested_by} />
+                </span>
+                {/* 사유도 라벨을 달아 옆 칸과 같은 라벨→값으로 읽히게 한다. 카드는
+                    헤더보다 폭이 넉넉해 줄바꿈으로 받고(자르지 않고), 전문은
+                    title 로도 남긴다. */}
                 {detail.request_note && (
-                  <span className="max-w-[520px]" title={detail.request_note}>
-                    {detail.request_note}
+                  <span className="flex items-center gap-1.5">
+                    요청 사유
+                    <span className={cn(metaValue, 'max-w-[520px]')} title={detail.request_note}>
+                      {detail.request_note}
+                    </span>
                   </span>
                 )}
               </p>

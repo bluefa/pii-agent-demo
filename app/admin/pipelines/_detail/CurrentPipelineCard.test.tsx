@@ -389,7 +389,7 @@ describe('CurrentPipelineCard — 수행 담당자', () => {
       makeDetail(['APPLY'], { requested_by: 'SYSTEM', request_note: '4단계 진입 자동 설치' }),
     );
 
-    expect(requesterLine()).toBe('수행 담당자시스템4단계 진입 자동 설치');
+    expect(requesterLine()).toBe('수행 담당자시스템요청 사유4단계 진입 자동 설치');
   });
 
   it('says nothing about a requester the backend never recorded', () => {
