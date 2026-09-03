@@ -101,6 +101,12 @@ export const jobStyles = {
    *  the log viewer's header carries. The bottom gap is a MARGIN, not padding —
    *  a clipping box paints the clipped remainder into its own padding box. */
   jobFailReason: '-mt-1.5 px-3 mb-3 truncate text-[14px] leading-[1.6] text-[var(--pl-err-text)]',
+  /** 폴 호출 실패(`last_error`) — job 의 판정이 아니라 우리 호출이 못 닿은 것이다.
+   *  앞머리가 늘 같아 자르면 남는 게 없으므로 한 줄 clamp 대신 줄바꿈으로 전부
+   *  싣는다. URL 이 들어와도 상자를 밀지 않게 break-words 를 건다. 12px·mono 는
+   *  "사람이 쓴 사유"가 아니라 "호출 기록"임을 톤으로 구분한다. */
+  jobCallError:
+    '-mt-1.5 px-3 mb-3 text-[12px] leading-[1.55] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)] break-words',
   jobId: 'text-[13px] font-bold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)] tabular-nums tracking-[-0.196px]',
   /** Raw-response fold (owner Figma node 121-389) — a ▼ triangle (gray) that flips
    *  up + sky-blue when open; the raw dispatch response sits in an inset mono code
@@ -140,6 +146,11 @@ export const jobStyles = {
    *  like the badge: why the job failed is a property of the job, not of the log.
    *  Unclamped — this surface is where the reason the list had to cut is read. */
   vFail: 'mt-2 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words',
+  /** 폴 호출 실패 전문 — job 의 실패 사유(vFail)와 다른 이야기라 라벨을 달고 한
+   *  단계 조용한 톤으로 둔다. 자르지 않는다: 상태 코드와 URL 이 내용 전부다. */
+  vCallError:
+    'mt-2 flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-[1.55] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)] break-words',
+  vCallErrorKey: 'font-semibold',
   vClose: 'flex-none inline-flex items-center justify-center w-8 h-8 -mr-1 rounded-lg text-[var(--pl-text-strong)] hover:bg-[var(--pl-gray-50)] transition-colors',
 
   /** Log/state panel — one flex column that owns the bottom of the viewer. Its

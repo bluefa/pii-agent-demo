@@ -84,7 +84,13 @@ function JobItem({
   verdict: JobVerdict;
   onOpen: () => void;
 }): ReactElement {
-  const reason = row.state?.last_fail_reason ?? row.state?.last_error;
+  // 두 실패는 종류가 다르다. `last_fail_reason` 은 job 자신의 실패라 terraform 이
+  // 앞머리에서 종류를 밝히고 뒤에 상세를 붙이므로 앞 절만 남겨도 뜻이 산다.
+  // `last_error` 는 우리 폴 호출이 실패한 것이라 앞머리("infra-manager call
+  // failed")가 늘 같고, 상태 코드·메서드·URL 이 붙는 뒤쪽이 내용 전부다 —
+  // 여기에 failHead 를 걸면 남는 게 없다(오너 2026-09-03).
+  const failReason = row.state?.last_fail_reason ?? null;
+  const callError = failReason ? null : row.state?.last_error ?? null;
   const meta = jobMeta(row);
   return (
     <div className={j.jobItem}>
@@ -102,9 +108,19 @@ function JobItem({
       </button>
       {/* `title` carries what both the clause cut and the CSS ellipsis drop — the
           whole reason is otherwise only in the viewer this row opens. */}
-      {verdict === 'failed' && reason && (
-        <p className={j.jobFailReason} title={reason}>
-          {failHead(reason)}
+      {verdict === 'failed' && failReason && (
+        <p className={j.jobFailReason} title={failReason}>
+          {failHead(failReason)}
+        </p>
+      )}
+      {/* 자르지 않고 통째로 — 줄바꿈해 다 보여준다. 판정과 무관하게 그린다:
+          폴이 못 닿은 job 은 상태를 못 읽어 verdict 가 failed 가 아니라
+          none/running 이고, 실패 판정에 걸어 두면 정작 호출이 실패한 그 job 에서만
+          이 줄이 안 나온다. 이 줄이 없으면 상태 코드도 URL 도 화면 어디에도
+          남지 않는다. */}
+      {callError && (
+        <p className={j.jobCallError} title={callError}>
+          {callError}
         </p>
       )}
     </div>

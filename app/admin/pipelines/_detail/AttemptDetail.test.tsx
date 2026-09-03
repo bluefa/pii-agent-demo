@@ -238,4 +238,56 @@ describe('AttemptDetail — Job 현황', () => {
     expect(out).toContain('aria-label="TerraformJob ok-1 · 성공 · 로그 열기"');
     expect(out).not.toContain('로그 보기');
   });
+
+  /**
+   * 폴 호출 실패는 job 의 실패 사유와 다른 값이다. terraform 사유는 앞 절이 실패의
+   * 종류를 말해 주지만 `last_error` 는 앞 절이 늘 "infra-manager call failed" 라,
+   * 여기에 failHead 를 걸면 상태 코드도 URL 도 화면에서 사라진다.
+   */
+  it('폴 호출 실패는 자르지 않고 통째로 싣는다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-1]';
+    const out = html(
+      attempt({
+        job_states: [jobState({ job_id: 'call-1', last_state: 'FAILED', last_error: message })],
+      }),
+    );
+
+    expect(out).toContain(message);
+    // 앞 절만 남기고 버리던 회귀 — 이 단언이 이 테스트의 존재 이유다.
+    expect(out).not.toContain('>infra-manager call failed</p>');
+  });
+
+  /**
+   * 폴이 닿지 못한 job 은 상태를 못 읽어 판정이 실패로 서지 않는다(none/running).
+   * 실패 판정에 걸어 두면 정작 호출이 실패한 그 job 에서만 오류가 안 보인다 —
+   * 사용자가 실제로 부딪힌 모양이다.
+   */
+  it('상태를 못 읽어 판정이 서지 않은 job 도 호출 오류는 보여준다', () => {
+    const message = 'infra-manager call failed: [500] during [GET] to [http://infra-manager/jobs/j-9]';
+    const out = html(
+      attempt({
+        job_states: [jobState({ job_id: 'unknown-1', last_state: null, last_error: message })],
+      }),
+    );
+
+    expect(out).toContain(message);
+  });
+
+  it('job 자신의 실패 사유가 있으면 그 쪽만 싣는다 — 호출 오류 줄은 만들지 않는다', () => {
+    const out = html(
+      attempt({
+        job_states: [
+          jobState({
+            job_id: 'both-1',
+            last_state: 'FAILED',
+            last_fail_reason: 'Error acquiring the state lock: ConditionalCheckFailedException',
+            last_error: 'infra-manager call failed: [500] during [GET] to [http://infra-manager]',
+          }),
+        ],
+      }),
+    );
+
+    expect(out).toContain('>Error acquiring the state lock</p>');
+    expect(out).not.toContain('infra-manager call failed');
+  });
 });
