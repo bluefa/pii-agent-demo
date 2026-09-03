@@ -244,6 +244,16 @@
   }
 }
 
+/* Users who ask the OS for more contrast get borders one more ramp step up
+   (gray-400 / gray-500 / blue-500). Service-side Tailwind classes are not covered. */
+@media (prefers-contrast: more) {
+  :root {
+    --pl-border: #98A2B3;
+    --pl-border-strong: #667085;
+    --pl-info-border: #2E90FA;
+  }
+}
+
 /* =============================================================================
    Tailwind Theme Integration
    ============================================================================= */
