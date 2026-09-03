@@ -200,7 +200,7 @@ const styles = {
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
   gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
   textarea:
-    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none disabled:opacity-75', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
 
   statusBar: 'flex h-7 flex-none items-center justify-between gap-3 border-t border-[var(--pl-editor-line)] bg-[var(--pl-editor-bar)] px-3 text-[12px]',
   statusLeft: 'text-[var(--pl-editor-text-muted)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
@@ -216,7 +216,7 @@ const styles = {
   footActions: 'flex flex-none items-center gap-2',
 
   // ── 결과 프레임 ──────────────────────────────────────────────────────────
-  resultWrap: 'px-8 py-8',
+  resultWrap: 'px-6 pt-5 pb-6',
   resultTitle: 'text-[20px] font-bold tracking-[-0.02em] text-[var(--pl-text-strong)]',
   resultDesc: 'mt-1.5 text-[12px] text-[var(--pl-text-weak)]',
   kv: 'mt-6 grid grid-cols-3 gap-x-8 gap-y-3.5',
@@ -313,11 +313,13 @@ export function ConfirmEditorModal({
     }
     if (recommendation.state !== 'ready') return;
     // 친 글이 있으면 바로 갈아 끼우지 않는다 — 같은 버튼을 한 번 더 눌러야 덮어쓴다
-    // (상태줄이 그 대기를 말한다).
-    if (dirty && draft !== recommendation.text) {
+    // (상태줄이 그 대기를 말한다). `!armedSwap` 이 없으면 두 번째 누름도 매번 같은
+    // 조건(dirty && draft !== recommendation.text)에 걸려 무장이 절대 풀리지 않는다.
+    if (dirty && draft !== recommendation.text && !armedSwap) {
       setArmedSwap(true);
       return;
     }
+    setArmedSwap(false);
     setDraft(recommendation.text);
   };
 
@@ -520,10 +522,10 @@ export function ConfirmEditorModal({
                     gutterRef.current.scrollTop = event.currentTarget.scrollTop;
                   }
                 }}
-                disabled={busy}
+                readOnly={busy}
                 spellCheck={false}
                 wrap="off"
-                className={styles.textarea}
+                className={cn(styles.textarea, busy && 'opacity-75')}
                 aria-label="확정 정보 JSON 초안"
               />
             </div>

@@ -100,6 +100,25 @@ describe('입력 프레임', () => {
     expect(createConfirmedResources).toHaveBeenCalledWith(1642, 'AWS', expect.anything(), false);
   });
 
+  it('추천값을 두 번 눌러야 덮어쓴다 — 무장이 풀리지 않던 회귀', async () => {
+    const recommended = { resource_infos: [{ resource_id: 'rec-1', resource_name: 'recommended-1' }] };
+    getApprovedRecommendations.mockResolvedValue(recommended);
+    mount();
+    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
+
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: draftJson(1) } });
+
+    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
+    fireEvent.click(load);
+    // 첫 누름은 무장만 한다 — 초안은 그대로다.
+    expect(textarea.value).toBe(draftJson(1));
+
+    fireEvent.click(load);
+    // 두 번째 누름이 실제로 덮어쓴다.
+    expect(textarea.value).toBe(JSON.stringify(recommended, null, 2));
+  });
+
   it('[취소] 는 확인 없이 바로 닫는다', async () => {
     mount();
     await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
