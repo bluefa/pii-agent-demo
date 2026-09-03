@@ -113,7 +113,7 @@ export const Table = <T,>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-gray-200">
           {data.map((item, index) => (
             <tr
               key={keyExtractor(item, index)}

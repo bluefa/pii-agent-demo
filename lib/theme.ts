@@ -230,7 +230,7 @@ export const statusColors = {
     bg: 'bg-gray-100',
     text: 'text-gray-400',
     textDark: 'text-gray-600',
-    border: 'border-gray-300',
+    border: 'border-gray-400',
     dot: 'bg-gray-400',
   },
   info: {
@@ -330,9 +330,9 @@ export const bgColors = {
  * 보더 색상
  */
 export const borderColors = {
-  light: 'border-gray-100',
-  default: 'border-gray-200',
-  strong: 'border-gray-300',
+  light: 'border-gray-200',
+  default: 'border-gray-300',
+  strong: 'border-gray-400',
   /**
    * The only neutral border that clears WCAG 1.4.11 (3:1) against light grounds —
    * 4.63:1 on gray-50, 5.9:1 on white, where `strong` manages 1.4:1. Use it when the
@@ -346,7 +346,7 @@ export const borderColors = {
    * on the canvas and 1.39:1 on the card, roughly doubling the line's share of
    * the edge without darkening it into a table rule.
    */
-  card: 'border-[#D6DBE6]',
+  card: 'border-[#C6CCD6]',
 } as const;
 
 /**
@@ -354,11 +354,11 @@ export const borderColors = {
  */
 export const interactiveColors = {
   closeButton: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-  inactiveTab: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+  inactiveTab: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400',
   /** Underline tab without hover-border (Guide CMS provider tabs) */
   underlineTab: 'border-transparent text-gray-500 hover:text-gray-900',
-  unselectedBorder: 'border-gray-200 hover:border-gray-300',
-  unselectedText: 'text-gray-600 hover:border-gray-300',
+  unselectedBorder: 'border-gray-300 hover:border-gray-400',
+  unselectedText: 'text-gray-600 hover:border-gray-400',
 } as const;
 
 // =============================================================================
@@ -597,7 +597,7 @@ export const cardStyles = {
    * ⛔ 1px, and the colour is the lever. Widening to 2px does not make a 1.27:1 line
    * visible — it makes it a table rule. If it still reads faint, darken the hex.
    */
-  base: 'bg-white rounded-[20px] ring-1 ring-[#D6DBE6] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+  base: 'bg-white rounded-[20px] ring-1 ring-[#C6CCD6] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
   padding: {
     none: '',
     sm: 'p-4',
@@ -661,9 +661,9 @@ export const cardStyles = {
   providerTag: 'text-[12px] text-[#6B7684]',
   providerTagName: 'text-[#191F28]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
-  editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
+  editorFrame: 'border border-gray-300 rounded-lg bg-white overflow-hidden',
   /** Toolbar surface — muted bg sitting above the Tiptap area */
-  toolbarSurface: 'flex items-center gap-1 bg-gray-50 border-b border-gray-200 px-2 py-1.5',
+  toolbarSurface: 'flex items-center gap-1 bg-gray-50 border-b border-gray-300 px-2 py-1.5',
   /** 30×30 toolbar button (idle) — paired with toolbarBtnActive when pressed */
   toolbarBtn:
     'inline-flex items-center justify-center w-[30px] h-[30px] rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-900',
@@ -694,7 +694,7 @@ export const chipStyles = {
   variant: {
     auto: 'bg-blue-50 text-blue-700 border border-blue-200',
     manual: 'bg-amber-50 text-amber-800 border border-amber-200',
-    prep: 'bg-gray-100 text-gray-500 border border-gray-200',
+    prep: 'bg-gray-100 text-gray-500 border border-gray-300',
   },
 } as const;
 
@@ -702,7 +702,7 @@ export const chipStyles = {
  * Pill segmented control — shared by editor lang tabs and preview lang toggle.
  */
 export const segmentedControlStyles = {
-  container: 'inline-flex bg-gray-50 border border-gray-200 rounded-lg p-0.5 gap-0.5',
+  container: 'inline-flex bg-gray-50 border border-gray-300 rounded-lg p-0.5 gap-0.5',
   item:
     'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
   itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
@@ -1270,7 +1270,7 @@ export const installStepperStyles = {
 export const inputStyles = {
   // Placeholder is gray-500, not gray-400: WCAG counts placeholder text as text, and
   // gray-400 measures 2.6:1 on white — well under AA. gray-500 gives 4.83:1.
-  base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
+  base: 'w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
   error: 'border-red-300 bg-red-50 text-red-700 focus:ring-red-500',
   success: 'border-[#45CB85]/30 bg-[#45CB85]/5',
 } as const;
@@ -1300,9 +1300,9 @@ const CONFIRM_WARNING_FILL = 'bg-[#B45309] hover:bg-[#92400E]';
 export const modalStyles = {
   overlay: 'fixed inset-0 bg-black/50 flex items-center justify-center z-50',
   container: 'bg-white rounded-xl shadow-xl overflow-hidden',
-  header: 'px-6 py-4 border-b border-gray-100 flex items-center justify-between',
+  header: 'px-6 py-4 border-b border-gray-200 flex items-center justify-between',
   body: 'p-6',
-  footer: 'px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3',
+  footer: 'px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3',
   /**
    * IDC opt-in Toss chrome (Modal `chrome="toss"`) — radius 24, 26px title,
    * 28/40 body, white footer with #EBEEF2 divider, 38px round icon circle.
@@ -1322,7 +1322,7 @@ export const modalStyles = {
        정해지지 않는다(Tailwind 가 CSS 에 찍는 순서가 결정한다). */
     subtitleTight: 'mt-3 text-[14px] font-medium leading-[1.6] text-[#6B7280]',
     body: 'px-10 pt-7 pb-2',
-    footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
+    footer: 'px-10 pt-5 pb-6 border-t border-[#D1D6DB] bg-white flex justify-end gap-2.5',
     iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
     iconInfo: 'bg-[#E8F1FF] text-[#0064FF]',
     iconWarn: 'bg-[#FEF3C7] text-[#B45309]',
@@ -1387,7 +1387,7 @@ export const tableStyles = {
    */
   header: 'bg-[#F7F8FA] text-left text-xs font-semibold text-[#4E5968]',
   headerCell: 'px-[18px] py-[12px]',
-  body: 'divide-y divide-[#EBEEF2]',
+  body: 'divide-y divide-[#D1D6DB]',
   row: 'hover:bg-gray-50 transition-colors',
   /** v15 td — 16/18 padding, #191F28 / weight 500. */
   cell: 'px-[18px] py-[16px] text-[#191F28] font-medium',
@@ -1466,7 +1466,7 @@ export const navStyles = {
     chip: 'w-9 h-9 rounded-full inline-flex items-center justify-center text-sm font-semibold hover:ring-2 hover:ring-white/25 transition-shadow',
     menu: {
       container:
-        'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-200 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex flex-col text-left',
+        'absolute right-0 top-full mt-2 z-50 min-w-[240px] max-w-[320px] rounded-xl border border-gray-300 bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,0.14)] flex flex-col text-left',
       /** 신원 행 — 카드가 이 한 줄뿐이던 시절의 원래 레이아웃. */
       identity: 'flex items-center gap-3',
       avatar:
@@ -1497,7 +1497,7 @@ export const confirmModalStyles = {
   dangerOutlineButton:
     'inline-flex items-center justify-center px-4 py-2 rounded-[12px] text-sm font-semibold border-0 bg-red-50 text-[#991B1B] hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
   outlineButton:
-    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
+    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
 } as const;
 
 /**
@@ -1726,17 +1726,17 @@ export const logicalDbStyles = {
    * 필터와 페이저가 있어서, 표 끝에 매단 입력 행은 그 둘 아래로 사라진다.
    */
   manual: {
-    box: 'mt-4 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-4 py-3',
+    box: 'mt-4 rounded-lg border border-[#D1D6DB] bg-[#F7F8FA] px-4 py-3',
     label: 'text-[12px] font-semibold text-[#6B7684]',
     row: 'mt-2 flex flex-wrap items-center gap-2',
     field:
-      'h-9 rounded-lg border border-[#E5E8EB] bg-white px-3 text-[14px] text-[#191F28] placeholder:text-[#6B7684] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+      'h-9 rounded-lg border border-[#D1D6DB] bg-white px-3 text-[14px] text-[#191F28] placeholder:text-[#6B7684] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
     /** database 는 이름이 길다 — schema 보다 한 칸 넓게 준다. */
     fieldDatabase: 'w-[186px] font-mono',
     fieldSchema: 'w-[160px] font-mono',
     /** 사유 select — 한국어 라벨이 앉으므로 mono 슬롯이 아니다. */
     select:
-      'h-9 rounded-lg border border-[#E5E8EB] bg-white px-2 text-[14px] text-[#191F28] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+      'h-9 rounded-lg border border-[#D1D6DB] bg-white px-2 text-[14px] text-[#191F28] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
     hint: 'text-[12px] text-[#6B7684]',
     error: 'mt-2 text-[12px] font-medium text-[#B42318]',
   },
@@ -1774,7 +1774,7 @@ export const logicalDbStyles = {
      * 이것이 없으면 스크롤 상자가 내용 밑으로 못 줄어들고 프레임이 넘친다.
      */
     ledger:
-      'mt-6 flex min-h-0 w-full max-w-[560px] flex-col overflow-hidden rounded-[10px] border border-[#E5E8EB]',
+      'mt-6 flex min-h-0 w-full max-w-[560px] flex-col overflow-hidden rounded-[10px] border border-[#D1D6DB]',
     ledgerHead:
       'flex shrink-0 items-center justify-between bg-[#F7F8FA] px-4 py-2 text-[12px] font-semibold text-[#4E5968]',
     /**
@@ -1797,7 +1797,7 @@ export const logicalDbStyles = {
       'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#FBDCA7] bg-[#FFF6E8] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',
     /** 실패 프레임의 중립 상자 — 고른 변경이 아직 화면에 남아 있다는 사실만 말한다. */
     keptBox:
-      'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',
+      'mt-4 w-full max-w-[560px] shrink-0 rounded-lg border border-[#D1D6DB] bg-[#F7F8FA] px-4 py-3 text-left text-[14px] leading-[1.5] text-[#4E5968]',
     actions: 'mt-8 flex shrink-0 gap-2.5',
   },
 } as const;
@@ -1937,7 +1937,7 @@ export const idcStyles = {
    * #4E5968 on #F7F8FA = 6.9:1. 아이콘은 #6B7280 (4.5:1) — #98A2B3 는 2.5:1 로 1.4.11 미달이다.
    */
   reasonChip: {
-    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#E1E5EB] bg-[#F7F8FA] px-[9px] py-[3px] text-[11.5px] font-medium text-[#4E5968] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#EFF1F5] hover:border-[#C9CFD8]', // design-exempt: 11.5px 는 v16 `.reason-chip-inline` 원문 값 — 이번 변경은 색만 건드린다
+    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#D0D5DD] bg-[#F7F8FA] px-[9px] py-[3px] text-[11.5px] font-medium text-[#4E5968] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#EFF1F5] hover:border-[#C9CFD8]', // design-exempt: 11.5px 는 v16 `.reason-chip-inline` 원문 값 — 이번 변경은 색만 건드린다
     text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
     icon: 'flex-shrink-0 text-[#6B7280]',
     /** 팁 헤딩(제외 사유 / 안내) + 그 앞 4px 점. 칩과 같은 중립 — 칩만 내리면 같은 정보의
@@ -1978,7 +1978,7 @@ export const idcStyles = {
   rowActionDelete: 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
   /** Exclusion-reason popover — `.idc-reason-pop`. */
   popover: {
-    container: 'fixed z-[120] min-w-[248px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
+    container: 'fixed z-[120] min-w-[248px] rounded-xl border border-gray-300 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
     title: 'px-2.5 pb-2 pt-2 text-[14px] font-semibold text-[#191F28]',
     // 프리셋 값은 칩(태그 피커) — 맨텍스트 행은 휴지 상태에서 선택지로 읽히지
     // 않는다. 표면은 승인 요청 모달 타일과 같은 흰 카드+스트로크+lg 섀도 패턴,
@@ -1988,7 +1988,7 @@ export const idcStyles = {
     // join — 순서가 승자를 못 정한다).
     chipRow: 'flex flex-wrap gap-1.5 px-2.5 pb-1.5',
     chip: `rounded-[6px] border px-3 py-1.5 text-[13px] transition-colors ${tossShadow.lg}`,
-    chipRest: 'border-gray-200 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
+    chipRest: 'border-gray-300 bg-white font-medium text-gray-700 hover:border-[#0064FF] hover:text-[#0064FF]',
     chipSelected: 'border-[#0064FF] bg-[#E8F1FF] font-semibold text-[#0050D6]',
     // 직접 입력은 텍스트 버튼(언더라인) — 칩(값)과 형태를 달리해 행동으로 읽히게.
     // 구분선 없이 여백만으로 칩 구역과 가른다. hover는 색 다크닝만으로는 약해서
@@ -2125,7 +2125,7 @@ export const idcStyles = {
      * 명도를 옮기려거든 이 네 줄을 다시 재라.
      */
     state: {
-      idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
+      idle: 'bg-[#F7F8FA] border-[#D1D6DB]',
       running: 'bg-[#F1F6FE] border-[#D9E5F9]',
       pending: 'bg-[#FDF8F0] border-[#F3E8D3]',
       success: 'bg-[#EFF9F3] border-[#D2EADD]',
@@ -2246,7 +2246,7 @@ export const idcStyles = {
   table: {
     header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
     headerCell: 'px-4 py-3.5',
-    body: 'divide-y divide-[#EBEEF2]',
+    body: 'divide-y divide-[#D1D6DB]',
     // `group/row` so the chips in these rows get `tableRowLift.chipEdge` too. This tint is
     // ABOVE the whole chip band (L* 97.6), so chips stay the darker plate and mostly survive
     // it — except `tag.gray`, whose fill IS #F7F8FA, i.e. 1.00:1 and gone outright.
@@ -2254,7 +2254,7 @@ export const idcStyles = {
     cell: 'px-4 py-3.5',
     /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
     frame:
-      'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
+      'overflow-hidden rounded-xl border border-[#D1D6DB] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
     /**
      * `frame` for a table that a `Pagination` bar closes from underneath. The bar draws its
      * own sides and the 10px bottom radius, so the two read as one box only if the table
@@ -2263,7 +2263,7 @@ export const idcStyles = {
      * cast a shadow onto the bar, which left the bar hanging under a finished card rather
      * than continuing it. The bar's `border-t-0` still relies on the bottom border here.
      */
-    framePaged: 'overflow-hidden rounded-t-[10px] border border-[#E5E7EB] bg-white',
+    framePaged: 'overflow-hidden rounded-t-[10px] border border-[#D1D5DB] bg-white',
     /**
      * `framePaged` for a table that mounts NO pager — same border, same fill, closed at the
      * bottom by its own 10px round instead of by the bar. A console table short enough to
@@ -2273,7 +2273,7 @@ export const idcStyles = {
      * and a shadow the paged sibling was chosen to avoid, and the two states of one table
      * must read as one box that merely gained or lost its bar.
      */
-    frameClosed: 'overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white',
+    frameClosed: 'overflow-hidden rounded-[10px] border border-[#D1D5DB] bg-white',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
     /**
@@ -2333,7 +2333,7 @@ export const idcStyles = {
      * large-text threshold, so the guard's 4.5:1 floor for this pair is unchanged.
      */
     approvalHeaderFlat:
-      'bg-[#F1F6FE] text-left text-[14px] font-semibold text-[#4E5968] border-b border-[#D1D5DB]',
+      'bg-[#F1F6FE] text-left text-[14px] font-semibold text-[#4E5968] border-b border-[#9CA3AF]',
     /**
      * Approval-table header, chrome variant — admin P3 only (both provider tables).
      *
@@ -2406,7 +2406,7 @@ export const idcStyles = {
      * #D1D5DB rule, and a second line would draw a box around a label.
      */
     consoleGroupHeaderCell:
-      'px-[18px] py-2 text-center text-[12px] font-semibold text-[#4E5968] border-b border-[#E5E8EB]',
+      'px-[18px] py-2 text-center text-[12px] font-semibold text-[#4E5968] border-b border-[#D1D6DB]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
     /**
@@ -2533,7 +2533,7 @@ export const idcStyles = {
      * than as background. Parked 8px off the boundary by the caller, clear of the
      * seam's ±8px tracer zone.
      */
-    copyOverlayChip: 'border border-[#E5E7EB] bg-white',
+    copyOverlayChip: 'border border-[#D1D5DB] bg-white',
     /**
      * 열 폭 조절 손잡이 (useColumnResize) — 헤더 셀 안쪽 오른쪽 끝 8px. 밖으로 내밀면
      * 마지막 열에서 표가 가로로 넘친다. 선은 평소 보이지 않는다: 표에 세로줄을 하나 더 그으면
@@ -2611,7 +2611,7 @@ export const idcStyles = {
      * need the seam on its cells instead.
      */
     tbodySeam:
-      '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#EBEEF2]',
+      '[&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-[#D1D6DB]',
     /**
      * Grouped parent row (Athena × Region) — Cloudscape "nested resources" 시안.
      * Chosen in `docs/ux/athena-group-samples.html` §04 over the v16 orange band.
@@ -2831,7 +2831,7 @@ export const ec2Styles = {
    * 활성 표시는 테두리 색 하나뿐 — 링을 더하면 굵기가 다른 선 두 줄이 겹쳐 보인다.
    */
   searchField:
-    'ec2-search-field h-[52px] w-full rounded-xl border border-[#E5E8EB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF]', // design-exempt: mirrors idcStyles.input 15px token
+    'ec2-search-field h-[52px] w-full rounded-xl border border-[#D1D6DB] bg-white pl-12 pr-12 font-mono text-[15px] font-medium text-[#191F28] transition-colors focus:border-[#0064FF]', // design-exempt: mirrors idcStyles.input 15px token
   /** placeholder 는 값이 아니라 형식 예시 — 값과 같은 무게로 읽히면 안 된다. */
   searchPlaceholder: 'placeholder:font-sans placeholder:text-[#B0B8C1]', // design-exempt: placeholder hint, not content
   /**
@@ -2862,7 +2862,7 @@ export const ec2Styles = {
   stepFrame: '-mt-3.5 -mx-2 h-[452px] overflow-y-auto px-2',
   /** 검색 결과 한 행. */
   resultRow:
-    'flex items-center justify-between gap-3 rounded-xl border border-[#EBEEF2] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
+    'flex items-center justify-between gap-3 rounded-xl border border-[#D1D6DB] bg-white px-3.5 py-2.5 transition-colors hover:border-[#D6E7FF] hover:bg-[#F8FAFF]',
   resultId: 'font-mono text-[14px] font-semibold text-[#191F28]',
   /** 질의와 일치한 앞부분 — 어디까지 입력해서 걸린 결과인지 보여준다. */
   resultMatch: 'text-[#0064FF]',
@@ -2928,7 +2928,7 @@ export const rowLabelColor = 'text-[#3B6BB5]';
  */
 export const rowMenuStyles = {
   panel:
-    'absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-gray-200 bg-white p-1 shadow-lg',
+    'absolute right-0 top-full z-10 mt-1 min-w-[160px] rounded-lg border border-gray-300 bg-white p-1 shadow-lg',
   item: 'block w-full rounded-md px-3 py-2 text-left text-[12px] font-medium',
 } as const;
 
@@ -3156,11 +3156,11 @@ export const railStyles = {
   zoneMark: 'text-[#F59E0B]', // design-exempt: 장식 글리프 — 뜻은 옆의 「N단계 가이드」와 스트립 aria-label 이 전부 싣는다. 텍스트 4.5:1 도, 1.4.11 의 3:1 도 대상이 아님
   /**
    * Hairline between the size control and the entries — half the strip, so it reads as
-   * a seam. #D2D8DC is the left rail's `divider`, i.e. the value already chosen for a
+   * a seam. #C6CCD6 is the left rail's `divider`, i.e. the value already chosen for a
    * seam on this exact plane. ⛔ It was gray-100, which was lighter than the rail it now
    * sits on — a seam that reads as a highlight rather than a cut.
    */
-  divider: 'my-2 h-px w-8 bg-[#D2D8DC]',
+  divider: 'my-2 h-px w-8 bg-[#C6CCD6]',
   /**
    * One fold entry: a 20px glyph over a 12px label, the whole block a single button.
    *
@@ -3247,7 +3247,7 @@ export const guideStyles = {
    * alongside `railStyles.surface`; that plane move was reverted, and this followed it
    * back rather than being left as the only re-hued neutral in the panel.
    */
-  note: 'my-2 rounded-lg border border-gray-200 bg-[#F2F4F6] px-3 py-2.5',
+  note: 'my-2 rounded-lg border border-gray-300 bg-[#F2F4F6] px-3 py-2.5',
   /**
    * Brand-coloured emphasis — `<em>`.
    *
@@ -3395,8 +3395,8 @@ export const serviceSidebarStyles = {
    * borders — and read at 4.12 on the canvas.
    */
   canvas: 'bg-[#F4F4FB]',
-  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. ΔE00 3.45. */
-  divider: 'border-[#D2D8DC]',
+  /** Full-bleed hairline between rail zones — darker than the rail, or it inverts. ΔE00 7.03. */
+  divider: 'border-[#C6CCD6]',
   /** Rail heading — nav-chrome tier, deliberately under the content column's page title. */
   title: 'text-[14px] font-semibold tracking-[-0.01em] text-[#191F28]',
   /**
@@ -3496,7 +3496,7 @@ export const serviceSidebarStyles = {
   rowCodeCurrent:
     'inline-flex shrink-0 min-w-[38px] items-center justify-center rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[12px] font-semibold leading-5 text-[#5F519A]',
   /** Hairline between rows — rows that stretch to fill the rail need a rule to read as a list instead of as floating text. */
-  rowDivide: 'divide-y divide-[#D2D8DC]',
+  rowDivide: 'divide-y divide-[#C6CCD6]',
   /** Skeleton bar for the rail — a step darker than the surface, or it vanishes into it. */
   skeletonBar: 'animate-pulse bg-[#D6DCE0]',
   /**
@@ -4637,8 +4637,8 @@ export const pipelineStyles = {
  */
 export const postStyles = {
   /** 카드 — 그림자가 아니라 테두리로 면을 만든다(목업 `.list-card`). */
-  card: 'bg-white border border-[#E5E7EB] rounded-xl',
-  cardHeader: 'flex items-center gap-2.5 px-[22px] py-[18px] border-b border-[#E5E7EB]',
+  card: 'bg-white border border-[#D1D5DB] rounded-xl',
+  cardHeader: 'flex items-center gap-2.5 px-[22px] py-[18px] border-b border-[#D1D5DB]',
   cardTitle: 'text-[16px] font-bold tracking-[-0.02em] text-[#191F28]',
   /** 건수 필 — "전체보기"를 누를 이유를 주는 값. */
   cardCount:
@@ -4649,10 +4649,10 @@ export const postStyles = {
    * (Cloudscape Dashboard items: "View all" element at the end of the list).
    */
   cardMore:
-    'flex items-center justify-center px-[22px] py-3 border-t border-[#F3F4F6] text-[12px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+    'flex items-center justify-center px-[22px] py-3 border-t border-[#E5E7EB] text-[12px] font-medium text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
 
   /** 행 — `items-stretch` 라야 우측 레일이 행 높이를 다 차지해 날짜↔캐럿이 위아래로 벌어진다. */
-  row: 'flex items-stretch gap-4 px-[22px] py-4 border-b border-[#F3F4F6] last:border-b-0',
+  row: 'flex items-stretch gap-4 px-[22px] py-4 border-b border-[#E5E7EB] last:border-b-0',
   rowHover: 'transition-colors hover:bg-[#F9FAFB]',
   rowOpen: 'bg-[#F9FAFB]',
   /** 숨김 행 — 배지 하나로는 스캔에 안 걸려서 면 전체로 말한다. */
@@ -4667,17 +4667,17 @@ export const postStyles = {
    * 목록 전체가 게시판으로 읽힌다.
    */
   entryRow:
-    'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#F3F4F6] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
+    'group relative flex w-full items-start gap-5 px-[22px] py-[14px] text-left border-b border-[#E5E7EB] last:border-b-0 transition-colors duration-150 hover:bg-[#FAFBFD] motion-reduce:transition-none',
   entryRowOpen: 'bg-[#F7F9FC]',
   /** 행을 감싸는 `li` — 구분선은 행이 아니라 항목이 긋는다(펼침 패널이 그 안에 있다). */
-  entryItem: 'border-b border-[#F3F4F6] last:border-b-0',
+  entryItem: 'border-b border-[#E5E7EB] last:border-b-0',
   entryFocus:
     'focus-visible:outline-2 focus-visible:outline-[#0064FF] focus-visible:-outline-offset-2',
   /** 목록이 비었을 때의 한 줄. 카드와 그룹 목록이 같은 문장을 같은 자리에 놓는다. */
   emptyRow: 'px-[22px] py-10 text-center text-[14px] text-[#6B7280]',
   /** Admin row action (고정 · 숨김) and the header's 'Category 관리' — one quiet outlined button. */
   rowAction:
-    'rounded-md border border-[#E5E7EB] px-[11px] py-1.5 text-[12px] font-semibold text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+    'rounded-md border border-[#D1D5DB] px-[11px] py-1.5 text-[12px] font-semibold text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
   /** Admin header's hidden-post count, beside the shown count. */
   cardHiddenCount: 'text-[12px] text-[#6B7280] tabular-nums',
   /**
@@ -4759,20 +4759,20 @@ export const postStyles = {
    * 값은 `idcStyles.tag.red` 와 같은 쌍이다(#FEECEC 위 #B42318 = 5.77:1).
    */
   badgePin: 'bg-[#FEECEC] text-[#B42318]',
-  badgeCat: 'bg-white text-[#4E5968] border border-[#E5E7EB] font-semibold',
-  badgeHidden: 'bg-[#F3F4F6] text-[#4E5968] border border-dashed border-[#D1D5DB]',
+  badgeCat: 'bg-white text-[#4E5968] border border-[#D1D5DB] font-semibold',
+  badgeHidden: 'bg-[#F3F4F6] text-[#4E5968] border border-dashed border-[#9CA3AF]',
   badgeIcon: 'w-[13px] h-[13px] flex-none',
 
   /** 필터 아이콘 버튼 + 활성 개수 닷 — 아이콘만으로는 "지금 걸려 있다"를 못 말한다. */
   iconBtn:
-    'relative w-[30px] h-[30px] flex-none inline-flex items-center justify-center rounded-md border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+    'relative w-[30px] h-[30px] flex-none inline-flex items-center justify-center rounded-md border border-[#D1D5DB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
   iconBtnOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6]',
   iconBtnDot:
     'absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] rounded-full bg-[#0064FF] text-white text-[10px] font-bold leading-[14px] tabular-nums',
   filterPop:
-    'absolute right-[22px] top-[calc(100%-6px)] z-10 w-[236px] p-3.5 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_28px_rgba(15,23,42,0.14)] flex flex-col gap-3.5',
+    'absolute right-[22px] top-[calc(100%-6px)] z-10 w-[236px] p-3.5 bg-white border border-[#D1D5DB] rounded-[10px] shadow-[0_12px_28px_rgba(15,23,42,0.14)] flex flex-col gap-3.5',
   filterChip:
-    'text-[12px] font-medium px-2.5 py-[5px] rounded-full border border-[#E5E7EB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
+    'text-[12px] font-medium px-2.5 py-[5px] rounded-full border border-[#D1D5DB] bg-white text-[#4E5968] transition-colors hover:bg-[#F9FAFB]',
   filterChipOn: 'bg-[#E8F1FF] border-[#E8F1FF] text-[#0050D6] font-bold hover:bg-[#E8F1FF]',
 
   /**
@@ -4792,7 +4792,7 @@ export const postStyles = {
    * 아니라 한 화면 안의 필터라 그쪽이 같은 역할이다.
    */
   grouped:
-    'grid grid-cols-[240px_minmax(0,1fr)] gap-3 flex-1 p-3 bg-[#E7ECF5] border border-[#D6DEEC] rounded-xl overflow-hidden',
+    'grid grid-cols-[240px_minmax(0,1fr)] gap-3 flex-1 p-3 bg-[#E7ECF5] border border-[#C9CFD8] rounded-xl overflow-hidden',
   /**
    * 레일은 이제 자기 면을 갖지 않는다 — 바깥 패널의 회색 위에 바로 놓인다. 선택 항목의
    * 흰 알약이 그 회색 위로 떠오르는 것도 같은 이유로 그대로 성립한다.
@@ -4819,7 +4819,7 @@ export const postStyles = {
    * "전체"와 Category 목록 사이의 선. 전체는 Category 가 아니라 필터를 푸는 자리라
    * 같은 줄에 세워 두면 4개 중 하나로 읽힌다.
    */
-  catNavDivide: 'my-1.5 border-t border-[#D6DEEC]',
+  catNavDivide: 'my-1.5 border-t border-[#C9CFD8]',
   /**
    * GitHub Issues 사이드바 실측(항목 32 · radius 6 · 14px)에서 시작했지만 그쪽은
    * 필터가 십수 개인 조밀한 목록이다. 여기는 서너 개가 656px 칸에 놓여 조밀할 이유가
@@ -4848,12 +4848,12 @@ export const postStyles = {
    * 불투명하면 그냥 목록이 잘린 것처럼 보인다.
    */
   groupHead:
-    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-3 bg-white/90 backdrop-blur-[6px] border-b border-[#E5E7EB]',
+    'sticky top-0 z-[1] flex items-baseline gap-2 px-[22px] py-3 bg-white/90 backdrop-blur-[6px] border-b border-[#D1D5DB]',
   /** 레일 항목(16px)과 같은 이름을 이고 있어 한 칸 위여야 한다 — 저쪽은 고르는 자리고 여기는 구역의 머리다. */
   groupTitle: 'text-[18px] font-bold tracking-[-0.01em] text-[#141A24]',
   groupCount: 'text-[12px] text-[#54627A] tabular-nums',
   /** 그룹 사이의 선 — 첫 그룹은 카드 위 테두리가 대신한다. */
-  groupSection: 'border-t border-[#E5E7EB] first:border-t-0',
+  groupSection: 'border-t border-[#D1D5DB] first:border-t-0',
 
   /**
    * 페이지 골격. 좌우 44 = 셸의 24 + 20. 셸(TopNav 의 `px-6`, 서비스 화면 본문의
@@ -4886,7 +4886,7 @@ export const postStyles = {
    * 면 색은 레일과 같은 값을 쓴다. 이 화면의 규칙이 "회색은 구조, 흰색은 내용" 하나라,
    * 밴드에 새 회색을 들이면 규칙이 둘이 된다.
    */
-  pageBand: 'flex-none px-[44px] py-7 bg-[#E7ECF5] border-b border-[#D6DEEC]',
+  pageBand: 'flex-none px-[44px] py-7 bg-[#E7ECF5] border-b border-[#C9CFD8]',
   /**
    * 목록 칸. 긴 글을 펼쳐도 페이지가 아니라 이 칸이 흐른다.
    * 회색 패널 위에 떠 있는 흰 판이다 — 테두리 대신 그림자로 띄운다. 패널 회색과
@@ -4929,19 +4929,19 @@ export const postStyles = {
  * 언어 탭이 있는 화면에서 "지금 어느 언어의 무슨 필드인지"를 말해 줄 수 없다.
  */
 export const postFormStyles = {
-  card: 'bg-white border border-[#E5E7EB] rounded-xl flex flex-col',
-  section: 'p-[22px] border-b border-[#F3F4F6] last:border-b-0',
+  card: 'bg-white border border-[#D1D5DB] rounded-xl flex flex-col',
+  section: 'p-[22px] border-b border-[#E5E7EB] last:border-b-0',
   grid: 'grid grid-cols-[200px_1fr] gap-x-6 gap-y-5 items-start',
   label: 'text-[12px] font-bold tracking-[0.02em] text-[#4E5968]',
   required: 'text-[#0064FF] ml-[3px]',
   input:
-    'w-full border border-[#E5E7EB] rounded-md px-3 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent',
+    'w-full border border-[#D1D5DB] rounded-md px-3 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent',
   /** 언어별 작성 상태 — 저장을 눌러야 알 수 있으면 이미 늦다. */
   langState: 'text-[12px] font-bold rounded-full px-2.5 py-[3px]',
   langDone: 'bg-[#E7F6ED] text-[#2A7D52]',
   langTodo: 'bg-[#FFF4EC] text-[#9A3412]',
   hint: 'text-[12px] text-[#6B7280] mt-2 leading-[1.6]',
-  foot: 'flex items-center gap-3 justify-end px-[22px] py-[18px] border-t border-[#E5E7EB]',
+  foot: 'flex items-center gap-3 justify-end px-[22px] py-[18px] border-t border-[#D1D5DB]',
   footWarn: 'mr-auto text-[12px] text-[#9A3412]',
 } as const;
 
