@@ -508,8 +508,9 @@ describe('ProjectPageMeta — path heading', () => {
   it('sets the block name one rung above the path root (오너 2026-08-28)', () => {
     // What is guarded is the RAMP, not any one string: the block eyebrow tier sits one
     // rung above the 14px path root and two above the 12px crumb line, so an eyebrow can
-    // never share its size with the path. 16 is the rung `opsStyles.fmLabel` took after
-    // the same instruction.
+    // never share its size with the path. That ramp is now this header's alone:
+    // `opsStyles.fmLabel` came down to 14px on 2026-09-03, so the ops masthead
+    // deliberately diverged downward and the two screens no longer share this rung.
     expect(projectHeaderStyles.blockLabel).toContain('text-[16px]');
     expect(projectHeaderStyles.crumbRoot).toContain('text-[14px]');
     expect(projectHeaderStyles.crumb).toContain('text-[12px]');
