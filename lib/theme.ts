@@ -2796,6 +2796,24 @@ export const idcStyles = {
       parentCellLow:
         "relative after:absolute after:-bottom-px after:left-[16px] after:top-[calc(50%_+_20px)] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
       /**
+       * The same trunk for a cluster parent whose chevron is pinned to the name line
+       * (`toggleNameAligned`, `top-[34.5px]` inside `lead`) instead of the row's centre — the
+       * two-line cluster identity `parentCell`'s own comment assumed away. That chevron's box
+       * starts at `lead`'s top (the cell's padding-top) + 34.5px, is 16px tall, and is
+       * vertically centred on that point, so the glyph ends at padding-top + 34.5 + 8 =
+       * padding-top + 42.5. The target-source tables pad this cell 20px, putting the glyph's
+       * end at 62.5 — 63 is the whole-pixel value that clears it without re-opening the gap.
+       * The admin queue table pads this cell 16px, so there the trunk starts ~4px below the
+       * glyph instead of exactly at it: a small gap, deliberately preferred over the overlap a
+       * smaller constant would reintroduce on the 20px hosts.
+       *
+       * A full duplicate rather than a modifier on `parentCell`, for the same reason
+       * `parentCellLow` is: `cn` has no tailwind-merge, so two `after:top-*` utilities in one
+       * class list would be settled by stylesheet order.
+       */
+      parentCellNameAligned:
+        "relative after:absolute after:-bottom-px after:left-[16px] after:top-[63px] after:w-px after:bg-[var(--rail,#C4CEDA)] after:content-['']",
+      /**
        * Rail lit — put on every `<tr>` of ONE group while its parent row is hovered, so the
        * trunk and each elbow answer together and the group says which rows it owns. The rail
        * reads its colour from `--rail`, inherited through the row, because parent and children

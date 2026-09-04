@@ -187,7 +187,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                     primaryColors.textGroupHover,
                     // The rail's first segment runs from the chevron down into the open band;
                     // without it the members' rail hangs off nothing.
-                    instancesOpen && table.group.parentCell,
+                    instancesOpen && table.group.parentCellNameAligned,
                   )}
                 >
                   {/* One line, always — wrapping left row heights ragged. The full value

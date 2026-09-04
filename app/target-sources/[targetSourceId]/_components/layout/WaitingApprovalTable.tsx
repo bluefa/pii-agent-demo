@@ -988,7 +988,11 @@ export const WaitingApprovalTable = memo(
               !grouped && idcStyles.table.nameCell,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
+              // The cluster chevron is name-line pinned (`toggleNameAligned`), not row-centred —
+              // the trunk needs the matching start. The folded-region case keeps the row-centred
+              // `parentCell`: its chevron is untouched by that pin.
+              instancesOpen && idcStyles.table.group.parentCellNameAligned,
+              folded && open && idcStyles.table.group.parentCell,
             )}
           >
             {hasInstances ? (

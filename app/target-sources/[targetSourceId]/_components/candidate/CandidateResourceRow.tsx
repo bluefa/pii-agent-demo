@@ -298,7 +298,7 @@ export const CandidateResourceRow = ({
             // Open cluster: carry the rail's first stretch down to the band, exactly as an open
             // Athena parent carries it down to its first child row. Only while open — a segment
             // dangling off a closed chevron points at an unrelated row.
-            isRdsClusterRow && instancesExpanded && idcStyles.table.group.parentCell,
+            isRdsClusterRow && instancesExpanded && idcStyles.table.group.parentCellNameAligned,
           )}
         >
           {isRdsClusterRow ? (
