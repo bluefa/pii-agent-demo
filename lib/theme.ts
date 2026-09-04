@@ -1364,11 +1364,20 @@ export const modalStyles = {
    * tier belongs to the tall approval modals and overwhelmed a two-line dialog.
    * focus-visible = the app's #0064FF halo (`--color-primary`), offset so it reads on the
    * blue fill too; keyboard focus gets the branded ring, mouse clicks stay ring-free.
+   *
+   * `cancelBtn` carries a 1px stroke because its fill cannot draw its own edge: #F7F8FA
+   * measures 1.06:1 on the white dialog card, so on a bright monitor the button has no
+   * outline at all — the same failure #876 fixed for dividers and card edges. #D1D6DB is
+   * where that commit's map sends this Toss neutral family (#E5E8EB, #EBEEF2 → #D1D6DB),
+   * and it reads 1.46:1 on white, level with the raised `--pl-border` (1.47:1). A
+   * separator is not held to WCAG 1.4.11's 3:1 — forcing that would draw a grey-500 rule
+   * around a quiet secondary button. `h-10` is fixed, so the stroke costs no height and
+   * the filled buttons beside it stay 40px.
    */
   confirm: {
     focusRing: CONFIRM_FOCUS_RING,
     cancelBtn:
-      'inline-flex h-10 items-center justify-center rounded-[12px] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60 '
+      'inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D1D6DB] bg-[#F7F8FA] px-5 text-[14px] font-semibold text-[#191F28] transition-colors hover:bg-[#EBEEF2] disabled:cursor-not-allowed disabled:opacity-60 '
       + CONFIRM_FOCUS_RING,
     btnBase: CONFIRM_BTN_BASE,
     /** The fill alone — what a test names when it asks which tone the commit button wears. */
