@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScanStrip, type ScanFunnelCounts, type ScanStripProps } from '@/app/components/features/scan/ScanStrip';
+import { borderColors } from '@/lib/theme';
 
 const successJob: ScanStripProps['job'] = {
   id: 1,
@@ -118,6 +119,14 @@ describe('ScanStrip funnel row', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // divide-x colors its lines through divide-*, not border-* — a borderColors.*
+  // token silently no-ops on it.
+  it('colors the funnel grid dividers with the divideDefault token', () => {
+    const { container } = render(<ScanStrip {...baseProps} job={successJob} funnel={baseFunnel} />);
+    const funnelGrid = container.querySelector('.grid-cols-3');
+    expect(funnelGrid?.className).toContain(borderColors.divideDefault);
   });
 
   // The three cells speak one unit (candidate DBs) and selected + excluded ===

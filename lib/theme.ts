@@ -334,6 +334,12 @@ export const borderColors = {
   default: 'border-gray-300',
   strong: 'border-gray-400',
   /**
+   * `divide-x`/`divide-y` utilities color through `divide-*`, not `border-*` — a
+   * `borderColors.*` token never applies to them. Same ramp step as `default`,
+   * for use beside a frame that uses `default`.
+   */
+  divideDefault: 'divide-gray-300',
+  /**
    * The only neutral border that clears WCAG 1.4.11 (3:1) against light grounds —
    * 4.63:1 on gray-50, 5.9:1 on white, where `strong` manages 1.4:1. Use it when the
    * border *is* the state indicator, not when it merely separates.
