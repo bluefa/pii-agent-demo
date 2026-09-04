@@ -110,7 +110,7 @@ export const opsStyles = {
   /**
    * 블록 머리 — 이름 왼쪽, 여는 큐 오른쪽. **닫는 선은 없다** (오너 2026-08-27
    * "하단에 구분선을 없애고"). 이 바닥 위에서 탭 띠는 `--pl-gray-400` 한 칸 위의 획을
-   * 쓴다 — 위 한 줄과, 그룹마다 끊기는 아래 도막들(`tabGroup`). 전부 한 덩어리로 같은
+   * 쓴다 — 위아래 두 줄, 둘 다 `tabStrip`. 한 덩어리로 같은
    * 한 가지를 말하므로("여기서 내비게이션이 시작한다"), 블록 머리가 획을 하나라도
    * 얹으면 그 말이 흐려진다. 블록을 묶는 일은 이름의 크기(16)와 그 아래 간격(22)이 진다.
    */
@@ -445,14 +445,15 @@ export const opsStyles = {
    * 하나의 띠가 된다 — 칠을 하나도 쓰지 않고 묶는다("Structure should be felt not seen").
    *
    * 위 여백은 20px 로, 블록↔블록과 같은 칸이다. 블록 머리의 헤어라인이 사라진 뒤로
-   * (오너 2026-08-27) 이 바닥 위에서 `--pl-gray-400` 획은 **이 띠뿐**이다 — 위 한
-   * 줄과, 그룹마다 끊기는 아래 도막들. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
+   * (오너 2026-08-27) 이 바닥 위에서 `--pl-gray-400` 획은 **이 띠뿐**이다 — 위아래
+   * 두 줄. 그래서 마스트헤드의 마지막 사실과 이 띠 사이는
    * 블록이 갈리는 거리만큼 떨어져 있으면 되고, 이 획들이 하는 말은 하나다:
    * "여기서 내비게이션이 시작한다".
    * 탭의 py-2.5 가 선 안쪽 10px 을 위아래로 똑같이 준다 — 띠는 대칭이다.
    *
-   * 아래 선만 `tabGroup` 으로 내려갔다 (ops-nav 시안 A). 위 선은 통으로 남아 띠의
-   * 천장을 진다 — 두 선 중 하나가 끊기면 나머지가 띠를 계속 붙들고 있어야 한다.
+   * Both lines are drawn by the strip, not the group (owner 2026-09-04: the bottom
+   * line should be one continuous stroke, not one segment per group). `tabGroup`
+   * is now only a flex box that gives each group equal width.
    *
    * 획은 `--pl-border-strong` 이 아니라 **gray-400** 이다. 바닥이 gray-200 이 되면서
    * `--pl-border-strong` 은 1.338(옛 워시 위) → **1.189** 로 주저앉았다 — 칠이 사라진 자리에서
@@ -467,26 +468,12 @@ export const opsStyles = {
    * 옮긴 값이다. 구간이 갈리는 거리는 시안 A 에서 **변경 대상이 아니었다**: 바뀌는
    * 것은 그 갭에서 선이 끊긴다는 것 하나뿐이다. `gap-5`(20)·`gap-6`(24)로 반올림하면
    * 조정한 적 없는 간격이 조용히 움직인다. */
-  tabStrip: 'mt-5 flex items-stretch gap-[22px] border-t border-[var(--pl-gray-400)]',
-  /**
-   * 구간 헤어라인 — 아래 선을 그룹마다 따로 긋는다. 아홉 탭은 네 가지 일이고
-   * (보기 · 실행 · 승인·근거 · 초기화), 그 경계는 지금까지 빈 칸 하나로만 서 있었다. 선이
-   * 갭에서 **끊기면** 그 빈 칸이 우연한 여백이 아니라 구간의 끝으로 읽힌다 — 칠도
-   * 밴드도 라벨도 없이(전부 이 줄에서 기각된 것들이다) 묶음이 보인다.
-   *
-   * 그룹 안의 `gap-1` 아래로도 선은 이어진다 — 선이 끊기는 곳은 오직 그룹 사이다.
-   * 활성 탭의 `-mb-px` 는 이제 제 그룹의 선을 먹는다(기하는 그대로).
-   */
+  tabStrip:
+    'mt-5 flex items-stretch gap-[22px] border-t border-b border-[var(--pl-gray-400)]',
   /** ⛔ `min-w-0` 를 주지 않는다. 탭은 `min-width:auto` 라 내용 밑으로 줄지 않으므로,
-      그룹만 줄 수 있게 하면 탭이 제 그룹 상자를 넘고 **그룹이 긋는 아래 선이 탭보다 짧아진다**.
+      그룹만 줄 수 있게 하면 탭이 제 그룹 상자를 넘는다.
       그룹도 내용 폭에서 멈추면, 열이 좁아졌을 때 균등 폭을 포기하고 오늘의 행동으로 돌아간다. */
-  tabGroup: 'flex basis-0 items-end gap-1 border-b border-[var(--pl-gray-400)]',
-  /** 스켈레톤에서만 아래 선을 **스트립**이 진다. 구간이 몇 개이고 어디서 끊기는지는 탭
-      구성이고 탭 구성은 데이터라, 도착 전에는 지어낼 수가 없다. `tabGroup` 하나로 감싸면
-      아래 선이 보이지 않는 탭 하나의 폭만 덮어(44px) 도착 순간 세 도막(732px)으로 뛴다 —
-      1px 획이라 레이아웃은 안 움직이지만 잉크가 통째로 바뀐다. 통으로 그어 두면 바뀌는
-      것은 선이 **끊기는 자리**뿐이다. */
-  tabStripLoading: 'border-b border-[var(--pl-gray-400)]',
+  tabGroup: 'flex basis-0 items-end gap-1',
   /**
    * Geometry is `accessStyles.tab` verbatim (the 접근 권한 page tabs) — the admin
    * console should have one line-tab, not two that differ by a few px.

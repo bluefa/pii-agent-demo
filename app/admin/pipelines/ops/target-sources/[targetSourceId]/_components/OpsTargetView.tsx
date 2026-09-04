@@ -67,8 +67,8 @@ import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 type TabLabel = OpsTargetTabLabel;
 
 /**
- * The render order, in four groups — 보기 · 실행 · 승인·근거 · 초기화. The strip draws one
- * hairline per group (`opsStyles.tabGroup`), so this array is what the segmentation
+ * The render order, in four groups — 보기 · 실행 · 승인·근거 · 초기화. `opsStyles.tabGroup`
+ * is a flex box that gives each group equal width; this array is what the grouping
  * is made of, not a label on top of a flat list.
  *
  * **This is the only list of tabs.** The flat list the strip's selection logic needs
@@ -517,12 +517,9 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               ))}
             </div>
           </div>
-          {/* 아래 선은 `tabGroup` 이 아니라 스트립이 긋는다 — 구간이 몇 개이고 어디서
-              끊기는지는 **탭 구성**, 곧 데이터다. 그룹 하나를 두르면 아래 선이 보이지 않는
-              탭 하나의 폭(44px)만 덮어, 도착하는 순간 44px 토막이 세 도막 732px 로 뛴다.
-              모르는 것을 지어내지 않고 통으로 긋는다: 띠는 도착 전에도 선 두 개 사이에 있고,
-              바뀌는 것은 아래 선이 **끊기는 자리**뿐이다. */}
-          <div className={cn(opsStyles.tabStrip, opsStyles.tabStripLoading)}>
+          {/* `tabStrip` draws both lines, so the skeleton strip already looks like the
+              settled one — nothing here depends on the tab data that hasn't arrived. */}
+          <div className={opsStyles.tabStrip}>
             {/* 보이지 않는 탭 하나가 레일 높이를 정확히 잡는다. */}
             <span className={cn(opsStyles.tab, 'invisible select-none')} aria-hidden>
               탭
@@ -612,9 +609,8 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
         />
         <div className={opsStyles.tabStrip} role="tablist" aria-label="Target Source 운영 탭">
           {tabGroups.map((group) => (
-            // 한 그룹 = 아래 헤어라인 한 도막. 그룹 사이 22px 에서 선이 끊긴다(실측).
-            // `role="presentation"` — 그룹은 선을 긋는 상자일 뿐이라, tablist 가 소유하는
-            // 것은 계속 탭 버튼이어야 한다.
+            // `role="presentation"` — 그룹은 균등 폭을 위한 상자일 뿐이라, tablist 가
+            // 소유하는 것은 계속 탭 버튼이어야 한다.
             <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
               {group.map((tab) => {
                 const active = tab === currentTab;
