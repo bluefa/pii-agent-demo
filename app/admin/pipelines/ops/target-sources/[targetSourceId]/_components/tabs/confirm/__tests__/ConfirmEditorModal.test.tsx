@@ -7,8 +7,8 @@
  * 성공·실패로 갈려 성공은 닫기만, 실패는 편집으로 돌아가는 길을 하나 더 연다 —
  * 돌아가면 친 초안이 그대로 남는다. 그리고 저장하지 않은 초안을 들고 나가려 하면
  * 어느 문으로 나가든(취소·ESC·오버레이) 확인창이 먼저 선다. 그리고 **여는 것만으로는
- * 아무 요청도 나가지 않는다** — 추천값은 누를 때만 조회한다. 조회가 실패하면 줄은 짧게
- * 말하고, 서버가 준 본문은 「상세 에러보기」가 여는 창이 든다.
+ * 아무 요청도 나가지 않는다** — 추천값은 누를 때만 조회한다. 조회가 부재로든 실패로든
+ * 끝나면 줄은 짧게 말하고, 서버가 준 본문은 「상세 에러보기」가 여는 창이 든다.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -223,8 +223,27 @@ describe('입력 프레임', () => {
     // 404 는 부재지 실패가 아니다 — 실패 말은 서지 않고, 버튼도 「다시 확인」이 되지 않는다.
     expect(screen.queryByText(/추천값을 불러오지 못했습니다/)).toBeNull();
     expect(screen.queryByRole('button', { name: '다시 확인' })).toBeNull();
-    // 부재에는 펼 본문이 없다 — 문도 서지 않는다.
-    expect(screen.queryByRole('button', { name: '상세 에러보기' })).toBeNull();
+    // 부재도 서버가 말을 담아 온다 — 지어낸 한 문장 옆에 같은 문이 선다.
+    expect(screen.getByRole('button', { name: '상세 에러보기' })).toBeTruthy();
+  });
+
+  it('부재의 [상세 에러보기] 도 서버가 준 본문을 편다 — 지어낸 한 문장 뒤에 가리지 않는다', async () => {
+    mount();
+
+    fireEvent.click(button('추천값 불러오기'));
+    fireEvent.click(await screen.findByRole('button', { name: '상세 에러보기' }));
+
+    // 창의 제목은 마침표가 없다 — 줄의 그것과 다른 문자열이다.
+    expect(screen.getByText('연동 승인 정보가 존재하지 않습니다')).toBeTruthy();
+    expect(screen.getByText('404 Not Found')).toBeTruthy();
+    expect(screen.getByText(/추천값이 없습니다/)).toBeTruthy();
+    expect(screen.getByText(/CONFIRMED_INTEGRATION_NOT_FOUND/)).toBeTruthy();
+
+    // 창만 닫힌다 — 줄도 막힌 버튼도 그대로다.
+    fireEvent.click(button('닫기'));
+    expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다')).toBeNull();
+    expect(screen.getByText('연동 승인 정보가 존재하지 않습니다.')).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('추천값이 있으면 이유 줄은 서지 않는다', async () => {

@@ -13,8 +13,8 @@
  *
  * **구성은 한 상자, 두 프레임이다** — `ModalShell variant="editor"` 하나 위에서 상태만
  * 바뀐다. 그 위에 겹치는 창은 둘이다(오너 지시 2026-09-04): 저장하지 않은 초안을 들고
- * 나가려 하면 `ConfirmStepModal` 이 되묻고, 추천값 조회가 실패했으면 「상세 에러보기」가
- * 서버가 준 본문을 그대로 펴 보이는 창을 연다.
+ * 나가려 하면 `ConfirmStepModal` 이 되묻고, 추천값 조회가 부재로든 실패로든 끝났으면
+ * 「상세 에러보기」가 서버가 준 본문을 그대로 펴 보이는 창을 연다.
  *
  * ① 입력 프레임 — 머리(제목만) / 다크 편집기 상자(툴바 + textarea·gutter + 상태줄) /
  * 바닥(NLB 스위치 + 취소·입력). 실행 중에는 머리 아래 진행 바 + 편집기 흐림 + 텍스트영역
@@ -119,13 +119,48 @@ type RecommendationLoad =
   | { state: 'idle' }
   | { state: 'loading' }
   | { state: 'ready'; text: string }
-  /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
-  | { state: 'absent' }
+  /**
+   * 추천할 것이 없다(404). 오류가 아니라 부재다. 그러나 **부재도 서버가 말을 담아 온다**
+   * (`detail`·`code`·`requestId`) — 우리가 지어낸 한 문장 뒤에 서버의 말이 가려지지 않게
+   * 실패와 같은 `{ code, body }` 를 들고 있는다.
+   */
+  | { state: 'absent'; code: number; body: string }
   /**
    * 못 봤다 — 관측한 status 와 **읽을 수 있게 편 본문**을 들고 있는다. `0` 은 응답이 오지
    * 않았다는 뜻이다. 본문은 줄 위가 아니라 「상세 에러보기」가 여는 창에서 보인다.
    */
   | { state: 'failed'; code: number; body: string };
+
+/**
+ * 두 끝 상태(부재·실패)가 화면에 내놓는 것 — 줄의 말, 창의 제목, 톤, 서버 본문.
+ * 줄과 창이 **같은 값**을 쓰도록 좁히기는 여기 한 번뿐이다.
+ *
+ * 부재는 사실이라 주황, 실패는 오류라 빨강 — 자리는 같고 색과 말이 갈린다.
+ */
+const recommendDetail = (
+  load: RecommendationLoad,
+): { code: number; body: string; tone: 'warn' | 'err'; line: string; title: string } | null => {
+  if (load.state === 'absent') {
+    return {
+      code: load.code,
+      body: load.body,
+      tone: 'warn',
+      line: '연동 승인 정보가 존재하지 않습니다.',
+      title: '연동 승인 정보가 존재하지 않습니다',
+    };
+  }
+  if (load.state === 'failed') {
+    return {
+      code: load.code,
+      body: load.body,
+      tone: 'err',
+      // status 도 본문도 이 줄에 없다 — 「상세 에러보기」가 여는 창이 그것을 든다.
+      line: '추천값을 불러오지 못했습니다.',
+      title: '추천값을 불러오지 못했습니다',
+    };
+  }
+  return null;
+};
 
 /** 계약이 선언한 reason phrase — 성공(201)과 실패 태그가 함께 쓴다. 계약에 없는 코드에는
  *  아무 말도 붙이지 않는다. */
@@ -164,8 +199,8 @@ interface Exchange {
  * 실패 응답의 본문 — `fetchJson` 이 ProblemDetails 를 `AppError` 로 접으면서 원문을 버리므로,
  * 그 때 읽어 간 필드를 같은 이름으로 되편다(lib/fetch-json.ts `parseErrorResponse`).
  *
- * 오류가 읽을 수 있는 본문이 되는 자리는 여기 하나다 — 입력 실패(결과 프레임)와 추천값 조회
- * 실패(상세 창)가 같은 모양을 보이게 둘 다 이 함수를 통과한다.
+ * 오류가 읽을 수 있는 본문이 되는 자리는 여기 하나다 — 입력 실패(결과 프레임)와 추천값 조회의
+ * 부재·실패(상세 창)가 같은 모양을 보이게 모두 이 함수를 통과한다.
  */
 const errorDetail = (error: unknown): { code: number; body: string } =>
   error instanceof AppError
@@ -218,9 +253,11 @@ const styles = {
   blockedReason: 'ml-3 min-w-0 truncate text-[12px]',
   blockedReasonWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
   blockedReasonErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
-  /** 「상세 에러보기」 — 이유 줄 옆의 밑줄 링크. 같은 12px 눈금, 포커스 링은 파일의 그것. */
+  /** 「상세 에러보기」 — 이유 줄 옆의 밑줄 링크. 색은 옆 줄의 톤을 따라간다. */
   detailLink:
-    'ml-2 flex-none rounded-[3px] text-[12px] underline underline-offset-2 text-[var(--pl-editor-err)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary-ring)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+    'ml-2 flex-none rounded-[3px] text-[12px] underline underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary-ring)]',
+  detailLinkWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  detailLinkErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
   gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
@@ -250,6 +287,7 @@ const styles = {
   tag: 'inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[12px] font-semibold leading-[1.34]',
   tagOk: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   tagErr: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  tagWarn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   section: 'mt-6',
   sectionTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
   row: 'flex items-center gap-3 border-b border-[var(--pl-border)] py-[7px] text-[12px]',
@@ -267,6 +305,12 @@ const styles = {
   errorLabel: 'text-[12px] font-semibold text-[var(--pl-err-text)]',
   errorBody: cn('mt-2 whitespace-pre-wrap break-all text-[12px] leading-[20px] text-[var(--pl-text-medium)]', MONO),
   resultFoot: 'mt-8 flex justify-end gap-2',
+} as const;
+
+/** 톤 하나가 줄·링크·태그의 색을 함께 정한다 — 어느 상태였는지 다시 묻지 않는다. */
+const toneClass = {
+  warn: { reason: styles.blockedReasonWarn, link: styles.detailLinkWarn, tag: styles.tagWarn },
+  err: { reason: styles.blockedReasonErr, link: styles.detailLinkErr, tag: styles.tagErr },
 } as const;
 
 export interface ConfirmEditorModalProps {
@@ -292,7 +336,7 @@ export function ConfirmEditorModal({
   const [returnedFailure, setReturnedFailure] = useState<Exchange | null>(null);
   // 초안을 버리고 나갈지 되묻는 확인창(모달 위의 모달).
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  // 추천값 조회 실패의 본문을 펴 보이는 창 — 「상세 에러보기」가 연다.
+  // 추천값 조회가 받아 온 본문을 펴 보이는 창 — 부재든 실패든 「상세 에러보기」가 연다.
   const [detailOpen, setDetailOpen] = useState(false);
 
   const parse = useMemo(() => {
@@ -348,7 +392,8 @@ export function ConfirmEditorModal({
         if (isRecommendationAbsent(loadError)) {
           // 부재면 버튼이 막힌다 — 무장을 남기면 상태줄이 지킬 수 없는 약속을 하게 된다.
           setArmedSwap(false);
-          setRecommendation({ state: 'absent' });
+          // 부재도 서버가 말을 담아 온다 — 본문을 버리지 않는다.
+          setRecommendation({ state: 'absent', ...errorDetail(loadError) });
           return;
         }
         setRecommendation({ state: 'failed', ...errorDetail(loadError) });
@@ -410,17 +455,10 @@ export function ConfirmEditorModal({
     busy || recommendation.state === 'loading' || recommendation.state === 'absent';
   // 버튼 옆에서 이유를 말한다 — 「추천값 불러오기」가 회색인 이유도, 눌렀는데 아무 일도
   // 일어나지 않은 이유도 화면에 없으면 고장으로 읽힌다. 지나가는 상태(저장 중·조회 중)는
-  // 말하지 않는다.
+  // 말하지 않는다. 부재도 실패도 물어본 사람에게만 보이므로 토스트로 띄우지 않는다.
   //
-  // 부재는 사실이라 주황, 실패는 오류라 빨강 — 자리는 같고 색과 말이 갈린다. 실패는
-  // 물어본 사람에게만 보이므로 토스트로 띄우지 않는다.
-  const recommendReason: { text: string; tone: 'warn' | 'err' } | null =
-    recommendation.state === 'absent'
-      ? { text: '연동 승인 정보가 존재하지 않습니다.', tone: 'warn' }
-      : recommendation.state === 'failed'
-        // status 도 본문도 이 줄에 없다 — 「상세 에러보기」가 여는 창이 그것을 든다.
-        ? { text: '추천값을 불러오지 못했습니다.', tone: 'err' }
-        : null;
+  // 줄과 링크와 상세 창이 이 하나에서 나온다 — 톤도 여기 담겨 있다.
+  const detail = recommendDetail(recommendation);
 
   const save = (): void => {
     let body: unknown;
@@ -441,9 +479,8 @@ export function ConfirmEditorModal({
     setExchange(null);
   };
 
-  // 창이 서는 조건은 하나다 — 열렸고, 아직 실패 상태다.
-  const failureDetail =
-    detailOpen && recommendation.state === 'failed' ? recommendation : null;
+  // 창이 서는 조건은 하나다 — 열렸고, 아직 들고 있을 말이 있다(부재든 실패든).
+  const detailView = detailOpen ? detail : null;
 
   const sentCount = exchange ? countOf(exchange.sent) : null;
   const statusCode = (code: number): string => (code > 0 ? String(code) : '응답 없음');
@@ -562,7 +599,7 @@ export function ConfirmEditorModal({
                   className={recommendBlocked ? undefined : styles.recommendBtn}
                   onClick={loadRecommendation}
                   blocked={recommendBlocked}
-                  aria-describedby={recommendReason ? RECOMMEND_REASON_ID : undefined}
+                  aria-describedby={detail ? RECOMMEND_REASON_ID : undefined}
                 >
                   {recommendation.state === 'failed' ? (
                     <ReloadIcon className={styles.recommendIcon} />
@@ -571,25 +608,23 @@ export function ConfirmEditorModal({
                   )}
                   {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
                 </PlButton>
-                {recommendReason && (
+                {detail && (
                   <span
                     id={RECOMMEND_REASON_ID}
                     role="status"
-                    className={cn(
-                      styles.blockedReason,
-                      recommendReason.tone === 'err'
-                        ? styles.blockedReasonErr
-                        : styles.blockedReasonWarn,
-                    )}
+                    className={cn(styles.blockedReason, toneClass[detail.tone].reason)}
                   >
-                    {recommendReason.text}
+                    {detail.line}
                   </span>
                 )}
-                {/* 실패에만 선다 — 부재(404)는 볼 본문이 없다. */}
-                {recommendation.state === 'failed' && (
+                {/*
+                  부재에도 선다 — 부재도 서버가 말을 담아 온다(`detail`·`code`·`requestId`).
+                  우리가 지어낸 한 문장 뒤에 서버의 말이 가려지지 않게 같은 링크를 단다.
+                */}
+                {detail && (
                   <button
                     type="button"
-                    className={styles.detailLink}
+                    className={cn(styles.detailLink, toneClass[detail.tone].link)}
                     onClick={() => setDetailOpen(true)}
                   >
                     상세 에러보기
@@ -693,8 +728,8 @@ export function ConfirmEditorModal({
         cancelLabel="계속 작성"
         confirmLabel="닫기"
       />
-      {/* 추천값 조회 실패의 본문 — 서버가 준 말을 그대로 편다. */}
-      {failureDetail && (
+      {/* 추천값 조회가 받아 온 본문 — 부재든 실패든 서버가 준 말을 그대로 편다. */}
+      {detailView && (
         <ModalShell
           open
           onClose={() => setDetailOpen(false)}
@@ -703,21 +738,21 @@ export function ConfirmEditorModal({
         >
           <div className={styles.resultWrap}>
             <h2 id={RECOMMEND_ERROR_TITLE_ID} className={styles.resultTitle}>
-              추천값을 불러오지 못했습니다
+              {detailView.title}
             </h2>
             <div className={styles.kv}>
               <div className="min-w-0">
                 <p className={styles.kvKey}>서버 응답</p>
                 <p className={cn(styles.kvValue, 'flex')}>
-                  <span className={cn(styles.tag, styles.tagErr)}>
-                    {codeLabel(failureDetail.code)}
+                  <span className={cn(styles.tag, toneClass[detailView.tone].tag)}>
+                    {codeLabel(detailView.code)}
                   </span>
                 </p>
               </div>
             </div>
             <div className={styles.errorCard}>
               <p className={styles.errorLabel}>서버 응답 본문</p>
-              <p className={styles.errorBody}>{failureDetail.body}</p>
+              <p className={styles.errorBody}>{detailView.body}</p>
             </div>
             <div className={styles.resultFoot}>
               <PlButton variant="primary" onClick={() => setDetailOpen(false)}>
