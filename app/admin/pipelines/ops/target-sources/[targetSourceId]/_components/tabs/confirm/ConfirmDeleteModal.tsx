@@ -17,14 +17,21 @@
  *
  * **Terraform 게이트는 없다**(오너 결정 09-04). `APPLIED` 에서 삭제를 막던 것은 계약이
  * 아니라 프론트가 지어낸 안전장치였다 — swagger 의 DELETE 에는 그런 거부 응답이 없다.
- * 막는 대신 말한다: `APPLIED` 면 설명에 문장 하나가 붙고, 삭제는 언제나 시도할 수 있다.
- * 그 문장은 부모 탭이 이미 들고 있는 상태로 쓰므로 **이 모달은 제 조회를 하지 않는다**.
+ * 막지 않고 말한다: `APPLIED` 면 경고 카드 한 장이 서고(같은 ops 폴더의
+ * `InstallPendingNotice` 문법 — warn 워시 · 12px 라운드 · 글리프 + 14/600 제목),
+ * 삭제는 언제나 시도할 수 있다. 될지 안 될지는 서버가 답한다.
+ * 카드의 바로가기는 **출구가 아니라 지름길**이다 — 막힌 화면이 없으므로 나갈 이유도
+ * 없고, 철거를 정말 하려는 사람에게 그 탭을 한 번에 열어 줄 뿐이다.
+ * 그 판정은 부모 탭이 이미 들고 있는 상태로 쓰므로 **이 모달은 제 조회를 하지 않는다**.
  *
  * 마운트가 곧 열림이다(편집기와 같은 규칙): 부모는 열려 있는 동안만 이것을 렌더한다.
  */
 import { useRef, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { useApiAction } from '@/app/hooks/useApiMutation';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   ConfirmStepModal,
   type ConfirmStepResult,
@@ -46,9 +53,14 @@ export interface ConfirmDeleteModalProps {
   provider: ConfirmedResourceProvider;
   /** 지워질 확정 정보 — 부모가 이미 들고 있다. 이 화면이 쓰는 것은 그 **건수**뿐이다. */
   current: ConfirmedIntegrationResponse;
-  /** 부모 탭이 이미 읽어 둔 상태. `APPLIED` 일 때 경고 한 문장을 더할 뿐이다. */
+  /** 부모 탭이 이미 읽어 둔 상태. `APPLIED` 일 때 경고 카드 한 장을 더할 뿐이다. */
   terraform: TerraformStatusResponse | null;
   onClose: () => void;
+  /**
+   * 경고 카드의 **지름길** — 게이트의 출구가 아니다. 막힌 화면이 없으므로 나갈 일도
+   * 없고, 이것은 철거를 하려는 사람이 인프라 작업 탭을 한 번에 여는 길일 뿐이다.
+   */
+  onOpenInfra: () => void;
   /** 삭제가 성공했을 때만 — 뒤 화면을 다시 읽는다. */
   onDone: () => void;
 }
@@ -59,6 +71,7 @@ export function ConfirmDeleteModal({
   current,
   terraform,
   onClose,
+  onOpenInfra,
   onDone,
 }: ConfirmDeleteModalProps): ReactElement {
   const [typed, setTyped] = useState('');
@@ -88,11 +101,6 @@ export function ConfirmDeleteModal({
   // 인프라가 올라가 있다는 사실만 말한다 — 그 밖의 상태에서 같은 말을 하면 계약에 없는
   // 것을 단정하는 일이 된다. 철거는 여전히 인프라 작업 탭이 소유한다.
   const applied = terraform?.overall_state === 'APPLIED';
-  const description =
-    '삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다.' +
-    (applied
-      ? ' Terraform 이 이 확정 정보로 인프라를 올린 상태입니다. 삭제해도 인프라는 남습니다.'
-      : '');
 
   return (
     <ConfirmStepModal
@@ -100,7 +108,7 @@ export function ConfirmDeleteModal({
       size="sm"
       tone="warning"
       title={`확정 정보 ${count}건을 삭제할까요?`}
-      description={description}
+      description="삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다."
       confirmLabel="삭제"
       confirmDisabled={!typedOk}
       isPending={removeAction.loading}
@@ -110,7 +118,33 @@ export function ConfirmDeleteModal({
       onConfirm={() => void removeAction.execute()}
       onClose={onClose}
     >
-      <div>
+      {applied && (
+        <div className="rounded-[12px] border border-[var(--pl-warn-border)] bg-[var(--pl-warn-bg)] px-3.5 py-3 text-left">
+          {/* 경고를 색만으로 말하지 않는다(WCAG 1.4.1) — 마크가 색 없이도 같은 뜻을 진다. */}
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--pl-warn-text)]">
+            <StatusWarningIcon className="h-4 w-4 shrink-0" />
+            인프라 설치가 이미 되어 있습니다
+          </div>
+          {/* 제목의 글리프 열(16px + gap-2)에 본문과 바로가기를 맞춘다. */}
+          <p className="mt-1.5 break-keep pl-6 text-[14px] leading-[1.5] text-[var(--pl-warn-text)]">
+            삭제를 시도할 수는 있지만, 인프라가 올라가 있어 삭제되지 않을 수 있습니다.
+          </p>
+          {/* 먼저 닫는다 — 탭 전환이 모달 뒤에서 일어나면 바뀐 화면을 못 본다. */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenInfra();
+            }}
+            className={cn(opsStyles.detailLink, 'mt-2 ml-6')}
+          >
+            인프라 작업 탭으로 이동
+            <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+          </button>
+        </div>
+      )}
+
+      <div className={cn(applied && 'mt-4')}>
         <label className={styles.label} htmlFor="confirm-delete-typed">
           확인을 위해 <b>{targetSourceId}</b> 를 입력하세요
         </label>

@@ -723,6 +723,9 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               // 워크벤치의 세 축 중 「연동 요청 확인」은 SDU 에 없다 — 승인이 없어(§0)
               // 요청이 만들어지지 않으므로. 판정은 여기서 내린 것을 그대로 받는다.
               isSdu={isSdu}
+              // 삭제 모달의 경고 카드가 여는 지름길이다 — 게이트의 출구가 아니다.
+              // 삭제는 막히지 않고, 철거만 저쪽 탭의 일이라 그리로 한 번에 보낸다.
+              onOpenInfra={() => selectTab('인프라 작업')}
             />
           )}
           {currentTab === '인프라 작업' && (

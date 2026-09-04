@@ -4,8 +4,9 @@
  *
  * 여기 테스트가 지키는 것은 배치가 아니라 **누를 수 있는 것**이다: 입력은 처음부터 살아
  * 있고, 지우는 문은 대상 id 를 친 뒤에만 열린다. Terraform 은 더 이상 아무것도 막지
- * 않는다(오너 결정 09-04) — `APPLIED` 면 경고 한 문장이 붙을 뿐이고, 그 상태에서도
- * 삭제는 끝까지 간다. 그 문장은 부모가 준 값으로만 쓰므로 모달은 제 조회를 하지 않는다.
+ * 않는다(오너 결정 09-04) — `APPLIED` 면 경고 카드 한 장이 설 뿐이고, 그 상태에서도
+ * 삭제는 끝까지 간다. 카드의 바로가기는 출구가 아니라 지름길이라, 먼저 닫고 탭을
+ * 바꾼다. 그 판정은 부모가 준 값으로만 쓰므로 모달은 제 조회를 하지 않는다.
  * 모달은 건수만 말한다 — 지워질 것의 목록은 없다(오너 지시 09-04). 성공은 프레임 없이
  * 그대로 닫히고, 결과 프레임은 실패만 받는다.
  */
@@ -48,8 +49,9 @@ const current = (count: number): ConfirmedIntegrationResponse => ({
 
 const onClose = vi.fn();
 const onDone = vi.fn();
+const onOpenInfra = vi.fn();
 
-/** `terraform` 은 부모 탭이 이미 읽어 둔 상태다 — 이 모달이 쓰는 것은 경고 문장 하나뿐이다. */
+/** `terraform` 은 부모 탭이 이미 읽어 둔 상태다 — 이 모달이 쓰는 것은 경고 카드 하나뿐이다. */
 const mount = (count = 2, overallState: string | null = null) =>
   render(
     <ConfirmDeleteModal
@@ -62,6 +64,7 @@ const mount = (count = 2, overallState: string | null = null) =>
           : ({ overall_state: overallState } as TerraformStatusResponse)
       }
       onClose={onClose}
+      onOpenInfra={onOpenInfra}
       onDone={onDone}
     />,
   );
@@ -69,7 +72,11 @@ const mount = (count = 2, overallState: string | null = null) =>
 const button = (name: string): HTMLButtonElement =>
   screen.getByRole('button', { name }) as HTMLButtonElement;
 
-const TERRAFORM_SENTENCE = /Terraform 이 이 확정 정보로 인프라를 올린 상태입니다\./;
+const CARD_TITLE = '인프라 설치가 이미 되어 있습니다';
+const CARD_BODY = '삭제를 시도할 수는 있지만, 인프라가 올라가 있어 삭제되지 않을 수 있습니다.';
+const SHORTCUT = '인프라 작업 탭으로 이동';
+/** 게이트 시절의 문장 — 설명은 어떤 상태에서도 Terraform 을 말하지 않는다. */
+const TERRAFORM_SENTENCE = /Terraform/;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -120,13 +127,15 @@ describe('한 화면 — 대상 id 를 친 뒤에만 열린다', () => {
 });
 
 describe('Terraform — 막지 않고 말한다', () => {
-  it('APPLIED 면 경고 한 문장이 붙고, 그래도 삭제는 끝까지 간다', async () => {
+  it('APPLIED 면 경고 카드가 서고, 그래도 삭제는 끝까지 간다', async () => {
     mount(2, 'APPLIED');
 
     expect(screen.getByText('확정 정보 2건을 삭제할까요?')).toBeTruthy();
-    expect(screen.getByText(TERRAFORM_SENTENCE)).toBeTruthy();
-    // 막힌 화면도, 그 화면의 출구도 없다.
-    expect(screen.queryByRole('button', { name: '인프라 작업 탭으로' })).toBeNull();
+    expect(screen.getByText(CARD_TITLE)).toBeTruthy();
+    expect(screen.getByText(CARD_BODY)).toBeTruthy();
+    // 설명은 늘 같은 한 줄이다 — 경고는 카드가 지고 설명이 지지 않는다.
+    expect(screen.getByText(/삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다\./)).toBeTruthy();
+    expect(screen.queryByText(TERRAFORM_SENTENCE)).toBeNull();
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '1642' } });
     expect(button('삭제').disabled).toBe(false);
@@ -136,14 +145,32 @@ describe('Terraform — 막지 않고 말한다', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
   });
 
-  it('NEVER_APPLIED 와 값 없음은 Terraform 을 말하지 않는다', () => {
+  it('바로가기는 먼저 닫고 탭을 바꾼다 — 바뀐 화면이 모달 뒤에 있으면 안 보인다', () => {
+    mount(2, 'APPLIED');
+
+    const order: string[] = [];
+    onClose.mockImplementation(() => order.push('close'));
+    onOpenInfra.mockImplementation(() => order.push('infra'));
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(SHORTCUT) }));
+
+    expect(order).toEqual(['close', 'infra']);
+    // 지름길이지 실행이 아니다 — 삭제는 여기서 일어나지 않는다.
+    expect(deleteConfirmedResources).not.toHaveBeenCalled();
+  });
+
+  it('NEVER_APPLIED 와 값 없음은 카드도 바로가기도 없다', () => {
     const { unmount } = mount(2, 'NEVER_APPLIED');
     expect(screen.getByText(/삭제하면 재승인 절차를 처음부터 다시 진행해야 합니다\./)).toBeTruthy();
+    expect(screen.queryByText(CARD_TITLE)).toBeNull();
     expect(screen.queryByText(TERRAFORM_SENTENCE)).toBeNull();
+    expect(screen.queryByRole('button', { name: new RegExp(SHORTCUT) })).toBeNull();
     unmount();
 
     mount();
+    expect(screen.queryByText(CARD_TITLE)).toBeNull();
     expect(screen.queryByText(TERRAFORM_SENTENCE)).toBeNull();
+    expect(screen.queryByRole('button', { name: new RegExp(SHORTCUT) })).toBeNull();
   });
 
   it('이 모달은 terraform-status 를 제가 부르지 않는다', () => {
