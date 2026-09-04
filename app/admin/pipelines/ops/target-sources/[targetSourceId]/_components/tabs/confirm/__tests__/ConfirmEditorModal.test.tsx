@@ -6,7 +6,8 @@
  * 갖고, NLB 는 스위치가 켜졌을 때만 query 에 실리며, 결과는 같은 상자 안에서
  * 성공·실패로 갈려 성공은 닫기만, 실패는 편집으로 돌아가는 길을 하나 더 연다 —
  * 돌아가면 친 초안이 그대로 남는다. 그리고 저장하지 않은 초안을 들고 나가려 하면
- * 어느 문으로 나가든(취소·ESC·오버레이) 확인창이 먼저 선다.
+ * 어느 문으로 나가든(취소·ESC·오버레이) 확인창이 먼저 선다. 그리고 **여는 것만으로는
+ * 아무 요청도 나가지 않는다** — 추천값은 누를 때만 조회한다.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,6 +76,51 @@ describe('입력 프레임', () => {
     expect(screen.getByText('확정 정보 입력')).toBeTruthy();
   });
 
+  it('모달을 여는 것만으로는 아무것도 조회하지 않는다 — 버튼은 살아 있다', async () => {
+    mount();
+
+    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
+    // 진입 콜 0 — 렌더가 가라앉은 뒤에도 호출은 없다.
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeTruthy());
+    expect(getApprovedRecommendations).not.toHaveBeenCalled();
+    // 유무를 모르므로 막을 근거도 없다 — 문은 열려 있고 이유 줄도 서지 않는다.
+    expect(load.getAttribute('aria-disabled')).toBeNull();
+    expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
+  });
+
+  it('빈 초안에서 누르면 한 번 조회하고 그 자리에서 편집기를 채운다', async () => {
+    const recommended = { resource_infos: [{ resource_id: 'rec-1', resource_name: 'recommended-1' }] };
+    getApprovedRecommendations.mockResolvedValue(recommended);
+    mount();
+
+    fireEvent.click(button('추천값 불러오기'));
+
+    await waitFor(() =>
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+        JSON.stringify(recommended, null, 2),
+      ),
+    );
+    expect(getApprovedRecommendations).toHaveBeenCalledTimes(1);
+    expect(getApprovedRecommendations).toHaveBeenCalledWith(1642, 'AWS');
+  });
+
+  it('조회가 실패하면 [다시 확인] 이 되고, 다시 누르면 한 번 더 묻는다', async () => {
+    getApprovedRecommendations.mockRejectedValue(
+      new AppError({ status: 500, code: 'INTERNAL_ERROR', message: '서버 오류', retriable: true }),
+    );
+    mount();
+
+    fireEvent.click(button('추천값 불러오기'));
+
+    const retry = await screen.findByRole('button', { name: '다시 확인' });
+    // 실패는 부재가 아니다 — 막지 않고, 부재 이유도 말하지 않는다.
+    expect(retry.getAttribute('aria-disabled')).toBeNull();
+    expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
+
+    fireEvent.click(retry);
+    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalledTimes(2));
+  });
+
   it('IDC 는 계약이 NLB query 를 주지 않으므로 스위치째 없다', async () => {
     mount('IDC');
     await screen.findByRole('button', { name: '추천값 불러오기' });
@@ -104,30 +150,58 @@ describe('입력 프레임', () => {
     expect(createConfirmedResources).toHaveBeenCalledWith(1642, 'AWS', expect.anything(), false);
   });
 
-  it('추천값을 두 번 눌러야 덮어쓴다 — 무장이 풀리지 않던 회귀', async () => {
+  it('친 초안이 있으면 첫 누름은 무장만 한다 — 요청도 나가지 않는다', async () => {
     const recommended = { resource_infos: [{ resource_id: 'rec-1', resource_name: 'recommended-1' }] };
     getApprovedRecommendations.mockResolvedValue(recommended);
     mount();
-    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
 
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: draftJson(1) } });
 
-    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
+    const load = button('추천값 불러오기');
     fireEvent.click(load);
-    // 첫 누름은 무장만 한다 — 초안은 그대로다.
+    // 첫 누름은 무장만 한다 — 초안은 그대로고, 콜도 쓰지 않는다.
     expect(textarea.value).toBe(draftJson(1));
+    expect(getApprovedRecommendations).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('다시 누르면 지금 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.'),
+    ).toBeTruthy();
 
     fireEvent.click(load);
-    // 두 번째 누름이 실제로 덮어쓴다.
-    expect(textarea.value).toBe(JSON.stringify(recommended, null, 2));
+    // 두 번째 누름이 조회하고 덮어쓴다.
+    await waitFor(() => expect(textarea.value).toBe(JSON.stringify(recommended, null, 2)));
+    expect(getApprovedRecommendations).toHaveBeenCalledTimes(1);
   });
 
-  it('추천값이 없으면(404) 막힌 버튼 옆이 그 이유를 말한다', async () => {
+  it('받아 둔 추천값이 있어도 초안을 고치면 다시 두 번 눌러야 덮어쓴다 — 무장이 풀리지 않던 회귀', async () => {
+    const recommended = { resource_infos: [{ resource_id: 'rec-1', resource_name: 'recommended-1' }] };
+    getApprovedRecommendations.mockResolvedValue(recommended);
     mount();
 
-    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
-    expect(load.getAttribute('aria-disabled')).toBe('true');
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    const load = button('추천값 불러오기');
+
+    fireEvent.click(load);
+    await waitFor(() => expect(textarea.value).toBe(JSON.stringify(recommended, null, 2)));
+
+    fireEvent.change(textarea, { target: { value: draftJson(1) } });
+    fireEvent.click(load);
+    // 이미 받아 둔 글이 있으므로 조회는 늘지 않고 무장만 한다.
+    expect(textarea.value).toBe(draftJson(1));
+    expect(getApprovedRecommendations).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(load);
+    expect(textarea.value).toBe(JSON.stringify(recommended, null, 2));
+    expect(getApprovedRecommendations).toHaveBeenCalledTimes(1);
+  });
+
+  it('눌러서 404 를 받아야 막힌 버튼 옆이 그 이유를 말한다', async () => {
+    mount();
+
+    const load = button('추천값 불러오기');
+    fireEvent.click(load);
+
+    await waitFor(() => expect(load.getAttribute('aria-disabled')).toBe('true'));
     const reason = screen.getByText('연동 승인 정보가 존재하지 않습니다.');
     expect(reason).toBeTruthy();
     // 이유는 버튼에 묶인다 — blocked 버튼은 포커스를 잃지 않으므로 읽어 줄 수 있다.
@@ -138,15 +212,17 @@ describe('입력 프레임', () => {
     getApprovedRecommendations.mockResolvedValue({ resource_infos: [] });
     mount();
 
-    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
-    await waitFor(() => expect(load.getAttribute('aria-disabled')).toBeNull());
+    const load = button('추천값 불러오기');
+    fireEvent.click(load);
+
+    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
+    expect(load.getAttribute('aria-disabled')).toBeNull();
     expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
     expect(load.getAttribute('aria-describedby')).toBeNull();
   });
 
-  it('손대지 않은 초안이면 [취소] 는 묻지 않고 바로 닫는다', async () => {
+  it('손대지 않은 초안이면 [취소] 는 묻지 않고 바로 닫는다', () => {
     mount();
-    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
 
     fireEvent.click(button('취소'));
     expect(screen.queryByText(LEAVE_TITLE)).toBeNull();
@@ -156,9 +232,8 @@ describe('입력 프레임', () => {
 });
 
 describe('나가기 확인', () => {
-  it('작성 중인 초안이 있으면 [취소] 는 확인창을 세운다 — [계속 작성] 은 초안째 편집기로 돌려보낸다', async () => {
+  it('작성 중인 초안이 있으면 [취소] 는 확인창을 세운다 — [계속 작성] 은 초안째 편집기로 돌려보낸다', () => {
     mount();
-    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
 
     const sent = draftJson(1);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: sent } });
@@ -179,9 +254,8 @@ describe('나가기 확인', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  it('ESC 도 같은 문이다 — 초안이 있으면 닫지 않고 확인창을 세운다', async () => {
+  it('ESC 도 같은 문이다 — 초안이 있으면 닫지 않고 확인창을 세운다', () => {
     mount();
-    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: draftJson(1) } });
     fireEvent.keyDown(document, { key: 'Escape' });

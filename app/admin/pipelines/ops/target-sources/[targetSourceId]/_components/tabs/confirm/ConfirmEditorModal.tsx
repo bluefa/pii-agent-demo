@@ -25,16 +25,10 @@
  * 그대로 남는다. **201 응답 본문은 opaque**(계약이 `type: object` 로만 선언)이므로
  * "등록된 리소스" 목록은 응답이 아니라 **보낸 초안**의 `resource_infos` 로 그린다.
  *
- * 진입 콜은 1회(추천값 유무 확인)다.
+ * 진입 콜은 0이다 — 열기만 해서는 아무것도 조회하지 않는다(오너 지시 2026-09-04).
+ * 입력 전에 이 화면이 보내는 요청은 「추천값 불러오기」가 부르는 그 한 번뿐이다.
  */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactElement,
-} from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { cn, confirmEditorProgressBar } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
@@ -120,6 +114,8 @@ export const isRecommendationAbsent = (error: unknown): boolean =>
   error instanceof AppError && error.status === 404;
 
 type RecommendationLoad =
+  /** 아직 물어보지 않았다 — 모달이 열린 직후의 자리. */
+  | { state: 'idle' }
   | { state: 'loading' }
   | { state: 'ready'; text: string }
   /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
@@ -264,7 +260,7 @@ export function ConfirmEditorModal({
 }: ConfirmEditorModalProps): ReactElement {
   // 초안은 즉시 열린다 — 추천값을 기다리지 않는다.
   const [draft, setDraft] = useState<string>(BLANK);
-  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'loading' });
+  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'idle' });
   const [armedSwap, setArmedSwap] = useState(false);
   const [applyNlb, setApplyNlb] = useState(false);
   const [exchange, setExchange] = useState<Exchange | null>(null);
@@ -272,28 +268,6 @@ export function ConfirmEditorModal({
   const [returnedFailure, setReturnedFailure] = useState<Exchange | null>(null);
   // 초안을 버리고 나갈지 되묻는 확인창(모달 위의 모달).
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-
-  // 진입 1콜 — 초안에 넣기 위해서가 아니라 **버튼 옆에 유무를 적기 위해** 미리 본다.
-  // 부재(404)는 실패가 아니고, 실패해도 편집·저장은 그대로 간다.
-  const fetchRecommendation = useCallback(
-    (signal?: AbortSignal): Promise<void> =>
-      getApprovedRecommendations(targetSourceId, provider, { signal })
-        .then((doc) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: 'ready', text: pretty(doc) });
-        })
-        .catch((loadError: unknown) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: isRecommendationAbsent(loadError) ? 'absent' : 'failed' });
-        }),
-    [targetSourceId, provider],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetchRecommendation(controller.signal);
-    return () => controller.abort();
-  }, [fetchRecommendation]);
 
   const parse = useMemo(() => {
     try {
@@ -312,22 +286,47 @@ export function ConfirmEditorModal({
   const showNlb = provider === 'AWS';
   const nlb = showNlb && applyNlb;
 
+  /** 추천값을 부르는 **유일한** 자리 — 조회도 덮어쓰기도 이 누름에서만 일어난다. */
   const loadRecommendation = (): void => {
-    if (recommendation.state === 'failed') {
-      setRecommendation({ state: 'loading' });
-      void fetchRecommendation();
+    // 조회 중이거나 부재로 판명된 뒤에는 버튼이 이미 막혀 있다.
+    if (recommendation.state === 'loading' || recommendation.state === 'absent') return;
+
+    if (recommendation.state === 'ready') {
+      // 친 글이 있으면 바로 갈아 끼우지 않는다 — 같은 버튼을 한 번 더 눌러야 덮어쓴다
+      // (상태줄이 그 대기를 말한다). `!armedSwap` 이 없으면 두 번째 누름도 매번 같은
+      // 조건(dirty && draft !== recommendation.text)에 걸려 무장이 절대 풀리지 않는다.
+      if (dirty && draft !== recommendation.text && !armedSwap) {
+        setArmedSwap(true);
+        return;
+      }
+      setArmedSwap(false);
+      setDraft(recommendation.text);
       return;
     }
-    if (recommendation.state !== 'ready') return;
-    // 친 글이 있으면 바로 갈아 끼우지 않는다 — 같은 버튼을 한 번 더 눌러야 덮어쓴다
-    // (상태줄이 그 대기를 말한다). `!armedSwap` 이 없으면 두 번째 누름도 매번 같은
-    // 조건(dirty && draft !== recommendation.text)에 걸려 무장이 절대 풀리지 않는다.
-    if (dirty && draft !== recommendation.text && !armedSwap) {
+
+    // idle·failed — 아직 받아 본 적이 없어 초안과 견줄 글이 없다. 그래서 초안이 있기만
+    // 하면 무장한다: ready 보다 한 눈금 보수적이고, 그 대신 헛누름이 콜을 쓰는 것도 막는다.
+    if (dirty && !armedSwap) {
       setArmedSwap(true);
       return;
     }
-    setArmedSwap(false);
-    setDraft(recommendation.text);
+    setRecommendation({ state: 'loading' });
+    void getApprovedRecommendations(targetSourceId, provider)
+      .then((doc) => {
+        const text = pretty(doc);
+        setRecommendation({ state: 'ready', text });
+        setArmedSwap(false);
+        setDraft(text);
+      })
+      .catch((loadError: unknown) => {
+        if (isRecommendationAbsent(loadError)) {
+          // 부재면 버튼이 막힌다 — 무장을 남기면 상태줄이 지킬 수 없는 약속을 하게 된다.
+          setArmedSwap(false);
+          setRecommendation({ state: 'absent' });
+          return;
+        }
+        setRecommendation({ state: 'failed' });
+      });
   };
 
   const onDraftChange = (value: string): void => {
