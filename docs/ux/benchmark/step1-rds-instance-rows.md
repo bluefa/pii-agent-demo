@@ -64,6 +64,8 @@
 - **접었을 때는 그대로** — 접힌 부모가 답을 들고 있어야 한다는 판례(오너, 2026-08-11)는 손대지 않았다.
 - **읽기 전용 세 화면에는 적용 안 함** — 라디오가 없으므로 거기서는 부모 줄이 선택을 말하는 **유일한** 것이다.
 
+> ⛔ **2026-09-04 정정, superseded.** 위 두 번째 항목은 폐기됐다 — `RdsInstancePanel` 은 `readonly && chosen` 이면 언제나 `RdsSelectionChip` 을 그리므로, "라디오가 없다" 는 "부모 줄이 유일한 목소리" 를 뜻하지 않았다. 술어는 이제 세 호스트 전부에서 `!instancesExpanded` 하나다. 자세한 내용과 근거는 하단 「후속 결정 (2026-09-04)」 §1 참조.
+
 ## 실측 — 전 / 후 (1920px 뷰포트, `/pass/target-sources/1006`)
 
 | 확인 항목 | 전 | 후 |
@@ -94,13 +96,62 @@
 
 | 화면 | 컴포넌트 | 결과 |
 |---|---|---|
-| Step 3 `/pass/target-sources/2001` | `WaitingApprovalTable` | 6열(name 344 · id 594 · dbType 780 · region 922 · target 1078 · reason 1194), 인스턴스 행 3개 · 셀 6/6 · **경계 전부 `thead th` 와 일치** · 행 우측 1336 == 표 우측 · 이름 x 398 · **AZ x 940 == 클러스터 행 Region 값의 x 940** · 라디오 0 · `선택됨` 1 · 중첩 `role="table"` 0 · 이음매 그라디언트 있음 · 클러스터 행과 같은 면 · 레일 트렁크 16px 팔꿈치 16px/22px(= `group.childCell` 그대로) · **↳ 줄 유지**(시안 B 미적용 확인) |
+| Step 3 `/pass/target-sources/2001` | `WaitingApprovalTable` | 6열(name 344 · id 594 · dbType 780 · region 922 · target 1078 · reason 1194), 인스턴스 행 3개 · 셀 6/6 · **경계 전부 `thead th` 와 일치** · 행 우측 1336 == 표 우측 · 이름 x 398 · **AZ x 940 == 클러스터 행 Region 값의 x 940** · 라디오 0 · `선택됨` 1 · 중첩 `role="table"` 0 · 이음매 그라디언트 있음 · 클러스터 행과 같은 면 · 레일 트렁크 16px 팔꿈치 16px/22px(= `group.childCell` 그대로) · ~~↳ 줄 유지(시안 B 미적용 확인)~~ |
 | Admin 큐 `/pass/admin/pipelines/queue/requests/2113` | `CloudResourceTable` | 6열(name 249 · id 557 · dbType 915 · region 1057 · target 1213 · reason 1329), 위와 같은 항목 전부 통과. 행 우측 1471 == 표 우측 · 이름 x 303 · **AZ x 1075 == 클러스터 Region x 1075** |
 | Admin 운영 `/pass/admin/pipelines/ops/target-sources/2113` 「연동 요청 정보」 탭 | `CloudResourceTable` (`ResourceSection` 경유 — `WaitingApprovalTable` 이 **아니다**) | 6열(name 274 · id 569.4 · dbType 890 · region 1032 · target 1188 · reason 1304), 전부 통과. 행 우측 1446 == 표 우측 · 이름 x 328 · **AZ x 1050 == 클러스터 Region x 1050** |
 
+> ⛔ **2026-09-04 정정, superseded.** Step 3 행의 취소선 항목 — "↳ 줄 유지" 는 이 표가 잰 순간에는 맞았지만 "시안 B 미적용" 은 술어를 오독한 것이었다(시안 B 는 처음부터 "OPEN 이면 뗀다" 였고, 이 표의 측정은 접힌 기본값에서 잰 값이다). commit `33521d2f` 이후 세 읽기 전용 화면도 열리면 ↳ 줄이 빠지고 `선택됨` 칩이 그 자리를 대신한다 — 하단 「후속 결정」 §1 참조. 또한 Admin 큐 행은 그 시점의 기본값(`row.selected` 로 열림)을 잰 것인데, 같은 커밋이 `clusterFold(rowKey, false)` 로 admin 두 화면도 기본 접힘으로 바꿨다 — §2 참조.
+
 > ⚠️ **목 드리프트 — 이 변경과 무관.** 큐/운영 두 화면의 유일한 클러스터 픽스처(`SEED_APPROVAL_DEMO` 의 요청 2113)는 지금 화면에 닿지 않는다. 2026-09-02 의 `f3b23708`(PR #859)이 `mock-data.ts` 에서 `APPROVAL_QUEUE_TARGETS` 의 모든 ts 에 대해 **리소스 없는 store project 를 합성**하기 시작했고, 그래서 `getProjectByTargetSourceId(2113)` 가 이제 적중해 `confirm.ts:1301` 의 데모 폴백이 죽었다. 같은 파일의 주석 "Admin Task Queue demo targets (1031/2113) live outside the store" 도 함께 낡았다. 두 화면 모두 「요청 리소스가 없습니다」를 그린다. 위 두 줄은 그 응답을 브라우저(CDP `Fetch.fulfillRequest`)에서 시드 페이로드로 갈아끼워 실제 `CloudResourceTable` 을 렌더시켜 잰 값이다 — 저장소는 건드리지 않았다. **목 복구는 이 PR 범위 밖**이다.
+>
+> ⛔ **2026-09-04 정정, superseded.** 이 목 드리프트는 commit `da72b6fb` 에서 고쳐졌다 — `getApprovalRequestLatest` 의 스토어 조회 조건을 "없거나 비었으면" 으로 넓혀, 2113 과 1907 이 원래 승인 요청 픽스처에 다시 닿는다. "목 복구는 이 PR 범위 밖" 은 더 이상 맞지 않는다. 자세한 내용은 하단 「확인 링크」 참조.
 
 ## 후속 / 스코프 밖
 
 - **판정 레일(`verdictRail`)은 예전에도 없었다.** 인스턴스 행의 선행 칸은 비어 있고, 제외/설치 불가 클러스터의 4px 레일은 클러스터 행에서 끊긴다. **2026-09-03 이 만든 구멍이 아니다** — 옛 밴드의 colspan `<td>` 도 `verdictRailClass` 를 달지 않았으므로, 이 화면은 처음부터 이랬다. 멤버 행이 클러스터의 판정을 입을지는 디자인 결정이고 오너에게 물은 적이 없어, 이번에 임의로 더하지 않았다.
 - **이름 열의 폭 배분** — 위 리뷰 항목의 ⚠️. 250px 열에서 54px 단 + 이름 + 역할 칩이면 이름은 구조적으로 잘린다. 역할 칩을 엔드포인트 줄로 내리는 안이 있지만, 「Reader/Writer 가 인스턴스와 최대한 가까이」는 오너 지시(2026-08-12)라 임의로 못 옮긴다.
+
+## 후속 결정 (2026-09-04)
+
+이 문서가 기록된 다음 날 나온 오너 결정 넷. commit `33521d2f`(셰브론·이름 굵기·fold 기본값)과 `ebedd892`(레일)에서 실장됐다.
+
+### 1. 시안 B 가 네 화면 전부로 확대됐다 (commit `33521d2f`)
+
+최초 커밋(`11d7bff1`)은 시안 B 를 Step 1 에만 적용했고, 술어는 "이 표면이 라디오를 그리는가" 였다. 그 예외는 같은 커밋(`33521d2f`)에서 죽었다 — `RdsInstancePanel` 은 `readonly && chosen` 이면 언제나 `RdsSelectionChip` 을 그리므로, OPEN 상태의 블록은 항상 선택을 이름 붙인다: 라디오가 있는 곳에서는 체크된 라디오로, 없는 곳에서는 `선택됨` 칩으로. 술어는 세 호스트 컴포넌트(`CandidateResourceRow`, `WaitingApprovalTable`, `CloudResourceTable`) 전부에서 `!instancesExpanded` 하나로 통일됐다.
+
+실측 근거(수정 전, `/pass/target-sources/2001`): 부모 행이 `RDS Cluster demo-aurora-mysql-cluster ↳ Reader demo-aurora-mysql-2` 를 읽는 바로 다음 행이 `demo-aurora-mysql-2 Reader 선택됨 …` 을 또 읽었다 — 같은 이름과 같은 역할 칩이 인접한 두 줄에서 두 번 말해졌다.
+
+기록해둘 결과 하나: EXCLUDED 클러스터의 `총 N개` 폴백도 이제 열렸을 때는 함께 숨는다. 의도한 것이다 — 보이는 행들 자체가 그 개수이고, 자기 열린 자식을 스스로 집계하는 부모는 PR #630 이 이미 기각한 모양이다.
+
+### 2. admin 두 화면도 기본 접힘 (commit `33521d2f`, 오너 결정 2026-09-04)
+
+`CloudResourceTable` 은 `clusterFold(rowKey, row.selected)` 를 써서, 선택된 클러스터는 거기서만 기본 펼침이었다 — Step 1 과 Step 2·3 은 둘 다 기본 접힘이었는데 admin 큐만 어긋났다. `clusterFold(rowKey, false)` 로 통일해 네 화면 모두 기본 접힘으로 맞췄다. 이유: 접힌 부모의 ↳ 줄이 이미 선택된 멤버를 말하고 있어서, 기본 펼침은 그 줄이 하는 말을 행으로 되풀이하는 셈이었다.
+
+### 3. 이름 열 굵기 — 08-23 결정이 09-04 에 뒤집혔다 (commit `33521d2f`)
+
+오너는 2026-08-23 에 Step 2·3 의 Resource Name 을 색이 아니라 굵기(WEIGHT)로 순위 매기라고 결정했다 — 그 표에서는 색이 이미 판정(마젠타 제외, 호박 연동 불가)을 뜻하고 틴트가 이미 hover 를 뜻해서, 색에 세 번째 뜻을 얹는 건 하나 과했다. 실측(2026-09-04, 1512px): Step 1(`/1006`) 이름 `<td>` = 400, admin 큐(`/2113`) = 400, Step 2·3(`/2001`) = **600** — 유일한 예외였다. 오너는 08-23 결정을 뒤집어 나머지 셋과 맞췄다.
+
+**두 결정을 모두 기록한다.** 그리고 오너가 받아들인 결과도 함께 남긴다: Step 2·3 은 이제 이름을 hover 할 때만 순위 매긴다 — 이는 08-23 결정이 정확히 기각했던 그 상태다. 이 항목이 이 절에서 가장 중요하다 — 나중에 읽는 사람이 "첫 판정이 지워졌다"가 아니라 "이 질문이 두 번 결정됐다"는 것을 봐야 한다.
+
+### 4. 셰브론과 레일 (commits `33521d2f`, `ebedd892`)
+
+첫 커밋 이후 오너가 발견한, 서로 맞물린 기하 결함 두 개.
+
+**(a) 셰브론이 접힘/펼침 사이에서 12px 튀었다.** `idcStyles.table.group.lead` 는 `items-center` 라 셰브론을 정체성 스택 전체 위에서 가운데 맞췄는데, 그 가운데는 스택이 3줄이던 동안에만 이름 줄과 우연히 맞았고 시안 B 가 3번째 줄을 없애면서 어긋났다. 실측(`/2001`, `lead` 상단 기준 중심): 접힘 상태 이름 34.5 / 셰브론 34.5, 펼침 상태 이름 34.5 / 셰브론 22.5. `idcStyles.table.group.toggleNameAligned` 로 고쳤다 — `toggle` 을 통째로 복제하고 `top-1/2` 를 `top-[34.5px]` 로 바꾼 것(34.5 = 태그 줄 20 + `gap-1` 4 = 이름의 top 24, 여기에 21px 이름 줄상자 절반을 더한 값). 모디파이어가 아니라 전체 복제본으로 둔 이유: `cn` 에는 tailwind-merge 가 없어서 `top-*` 유틸리티 두 개가 붙으면 스타일시트 순서가 승자를 정하기 때문 — `instanceBand.nameCell` 이 쓰는 것과 같은 전례. 고친 뒤: 세 화면 모두에서 셰브론 중심이 접힘·펼침 모두 이름 중심과 같아졌다, 이동 0, x 고정.
+
+솔직히 적어둘 것: 이 수정의 첫 시도는 실패했다. `self-start mt-[26px]` 는 효과가 없었다 — 토글이 `position: absolute` 라 `align-self` 는 거기엔 작동하지 않고, `top-1/2` 는 `lead` 자신의 높이에 대해 퍼센트로 풀리는데, 그 퍼센트 자체가 버그의 전부였다.
+
+**(b) (a) 를 고치자 `parentCell` 이 깨졌다.** 그 주석은 "모든 부모 셰브론은 세로 중앙에 있으므로 `50% + 8px` 하나가 전부에 맞는 오프셋"이라고 전제했다. 셰브론이 중앙에서 벗어나자 트렁크가 화살표의 아래쪽 11~13px 를 뚫고 지나갔다. 실측(펼침 상태): `/2001` 겹침 12.5px, `/1006` 11.2px, `/2113` 13.2px. `parentCellNameAligned`(`after:top-[63px]`) 로 고쳤다 — `parentCellLow` 전례를 따른 것. 63 = 셀의 padding-top 20px + 34.5 + 8 = 글리프 끝, 정수 픽셀로 올림한 값. 고친 뒤: `/2001` 겹침 0(정확히 맞닿음), `/1006` 여백 1.3px, `/2113` 여백 4px. 알려진 비대칭 하나를 기록해둔다: admin 큐 셀의 padding 은 20px 이 아니라 16px 이라, 그 트렁크는 글리프 바로 아래가 아니라 ~4px 아래에서 시작한다 — 20px 표에서 겹침을 되살릴 더 작은 상수보다 이 여백을 의도적으로 택했고, 오너가 정확히 맞추길 원하면 후속 과제로 남긴다.
+
+## 확인 링크
+
+모두 HTTP 200 확인. 인스턴스 행이 그려지는 화면:
+
+- `/pass/target-sources/1006` — Step 1, 라디오
+- `/pass/target-sources/2001` — Step 2·3, `선택됨` 칩
+- `/pass/admin/pipelines/queue/requests/2113` — admin 큐
+- `/pass/admin/pipelines/ops/target-sources/1642?tab=request` — admin 운영
+
+태그만 있는 클러스터(후보 없음, 셰브론 없음): `/pass/target-sources/1007`, `/pass/admin/pipelines/queue/requests/1907`.
+
+> 2113 과 운영 탭이 지금 렌더링되는 건 commit `da72b6fb` 덕분이다: PR #859 가 `getApprovalRequestLatest` 의 스토어 조회를 빈 `resources: []` 합성 프로젝트에 적중시켜 Task Queue 픽스처 폴백을 죽였었다. 조건을 "없거나 비었으면"으로 넓혀 복구했다. 1642 는 클러스터가 멤버 인스턴스를 갖는, ops 「연동 요청 정보」 탭에서 확인 가능한 유일한 대상이라 확정→승인 이력 쌍을 새로 시딩했다.
