@@ -371,8 +371,7 @@ const SURFACES: SurfacePair[] = [
   // 내비게이션은 이 화면에서 칠을 하나도 쓰지 않는다 — 위·아래 두 획이 띠의 전부다.
   // 바닥이 한 칸 내려가면 그 획이 하는 일은 늘고 대비는 줄어서, 다음 사람이 램프를
   // 되돌리기 가장 쉬운 자리다. 획은 면이므로 여기서 잰다.
-  { what: 'ops tab band top stroke on the ops ground', top: borderOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-200)') },
-  { what: 'ops tab band group stroke on the ops ground', top: borderOf(classOf(opsSrc, 'tabGroup')), under: resolve('var(--pl-gray-200)') },
+  { what: 'ops tab band stroke on the ops ground', top: borderOf(classOf(opsSrc, 'tabStrip')), under: resolve('var(--pl-gray-200)') },
   // 마스트헤드 스켈레톤은 **1.000 으로 사라진 적이 있다** — gray-200 이 바닥이 되는
   // 순간 제 값과 같아졌고, 테스트가 아니라 눈이 잡았다. 같은 실패가 다시 오면 여기서
   // 걸린다. 그것이 이 게이트가 있는 이유다.
