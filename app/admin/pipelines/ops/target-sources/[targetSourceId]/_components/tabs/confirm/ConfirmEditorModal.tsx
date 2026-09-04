@@ -198,19 +198,19 @@ const styles = {
 
   toolbar: 'flex h-11 flex-none items-center border-b border-[var(--pl-editor-line)] bg-[var(--pl-editor-bar)] px-3',
   recommendBtn:
-    '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+    '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
   recommendIcon: 'h-3.5 w-3.5',
-  blockedReason: 'ml-3 min-w-0 truncate text-[12px] text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
+  blockedReason: 'ml-3 min-w-0 truncate text-[12px] text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
-  gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+  gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
   textarea:
-    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
 
   statusBar: 'flex h-7 flex-none items-center justify-between gap-3 border-t border-[var(--pl-editor-line)] bg-[var(--pl-editor-bar)] px-3 text-[12px]',
-  statusLeft: 'text-[var(--pl-editor-text-muted)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
-  statusOk: 'font-semibold text-[var(--pl-editor-ok)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
-  statusErr: 'min-w-0 flex-1 truncate text-right font-semibold text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
+  statusLeft: 'text-[var(--pl-editor-text-muted)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  statusOk: 'font-semibold text-[var(--pl-editor-ok)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  statusErr: 'min-w-0 flex-1 truncate text-right font-semibold text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   foot: 'flex flex-none items-center justify-between gap-4 border-t border-[var(--pl-border)] px-6 py-4',
   nlbGroup: 'flex items-start gap-3',
