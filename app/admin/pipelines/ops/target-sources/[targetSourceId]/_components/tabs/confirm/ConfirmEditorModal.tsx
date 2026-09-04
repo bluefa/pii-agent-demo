@@ -12,7 +12,8 @@
  * 스키마를 발명해야 하고, 화면이 검사하는 것은 **JSON 으로 파싱되는가** 하나뿐이다.
  *
  * **구성은 한 상자, 두 프레임이다** — `ModalShell variant="editor"` 하나 위에서 상태만
- * 바뀐다(모달 안에 모달을 열지 않는다).
+ * 바뀐다. 그 위에 겹치는 것은 나갈 때의 확인창 하나뿐이다(오너 지시 2026-09-04):
+ * 저장하지 않은 초안을 들고 나가려 하면 `ConfirmStepModal` 이 되묻는다.
  *
  * ① 입력 프레임 — 머리(제목만) / 다크 편집기 상자(툴바 + textarea·gutter + 상태줄) /
  * 바닥(NLB 스위치 + 취소·입력). 실행 중에는 머리 아래 진행 바 + 편집기 흐림 + 텍스트영역
@@ -39,6 +40,7 @@ import { AppError } from '@/lib/errors';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { DownloadIcon, ReloadIcon } from '@/app/components/ui/icons';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
@@ -177,6 +179,8 @@ const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
 const MONO = '[font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]';
 /** 목록은 최대 열 줄이다 — 그 아래는 건수 한 줄(ConfirmDeleteModal 과 같은 상한). */
 const MAX_ROWS = 10;
+/** 막힌 이유 한 줄의 id — 버튼이 `aria-describedby` 로 가리킨다. */
+const RECOMMEND_REASON_ID = 'confirm-editor-recommend-reason';
 
 const styles = {
   head: 'flex-none px-6 pb-4 pt-5',
@@ -196,6 +200,7 @@ const styles = {
   recommendBtn:
     '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
   recommendIcon: 'h-3.5 w-3.5',
+  blockedReason: 'ml-3 min-w-0 truncate text-[12px] text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
   gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
@@ -265,6 +270,8 @@ export function ConfirmEditorModal({
   const [exchange, setExchange] = useState<Exchange | null>(null);
   // 실패 뒤 [편집으로 돌아가기] 로 돌아온 흔적 — 초안이 바뀌기 전까지 상태줄에 남는다.
   const [returnedFailure, setReturnedFailure] = useState<Exchange | null>(null);
+  // 초안을 버리고 나갈지 되묻는 확인창(모달 위의 모달).
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   // 진입 1콜 — 초안에 넣기 위해서가 아니라 **버튼 옆에 유무를 적기 위해** 미리 본다.
   // 부재(404)는 실패가 아니고, 실패해도 편집·저장은 그대로 간다.
@@ -335,8 +342,20 @@ export function ConfirmEditorModal({
     onClose();
   };
 
+  /**
+   * 닫는 문 셋(취소·ESC·오버레이)이 이 함수 하나로 모이므로 여기서만 막으면 된다.
+   * 오탈자가 아니라 오클릭을 막는 장치다 — 확인은 다른 자리의 다른 버튼을 누르게 한다.
+   * 성공한 뒤에는 잃을 초안이 없어 묻지 않는다.
+   */
   const requestClose = (): void => {
     if (busy) return;
+    // 확인창이 서 있는 동안에도 편집기의 ESC 핸들러는 살아 있다 — 여기서 되돌리지 않으면
+    // ESC 가 방금 띄운 확인창을 한 번 더 무장시킨다.
+    if (leaveConfirm) return;
+    if (dirty && !exchange?.ok) {
+      setLeaveConfirm(true);
+      return;
+    }
     closeAndSync();
   };
 
@@ -362,6 +381,10 @@ export function ConfirmEditorModal({
   const busy = saveMutation.loading;
   const recommendBlocked =
     busy || recommendation.state === 'loading' || recommendation.state === 'absent';
+  // 막힌 이유를 버튼 옆에서 말한다 — 「추천값 불러오기」가 회색인 이유가 화면에 없으면
+  // 고장으로 읽힌다. 부재(404)만 말하고, 지나가는 상태(저장 중·조회 중)는 말하지 않는다.
+  const blockedReason =
+    recommendation.state === 'absent' ? '연동 승인 정보가 존재하지 않습니다.' : null;
 
   const save = (): void => {
     let body: unknown;
@@ -386,213 +409,232 @@ export function ConfirmEditorModal({
   const statusCode = (code: number): string => (code > 0 ? String(code) : '응답 없음');
 
   return (
-    <ModalShell
-      open
-      onClose={requestClose}
-      variant="editor"
-      labelledBy="confirm-editor-title"
-      className={exchange ? '!h-auto' : undefined}
-    >
-      {exchange ? (
-        exchange.ok ? (
-          // ── 결과 — 성공 ──────────────────────────────────────────────────
-          <div className={styles.resultWrap} role="status" aria-live="polite">
-            <h2 id="confirm-editor-title" className={styles.resultTitle}>
-              확정 정보를 입력했습니다
-            </h2>
-            <div className={styles.kv}>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>서버 응답</p>
-                <p className={cn(styles.kvValue, 'flex')}>
-                  <span className={cn(styles.tag, styles.tagOk)}>
-                    {exchange.code} {phraseOf(exchange.code)}
-                  </span>
-                </p>
+    <>
+      <ModalShell
+        open
+        onClose={requestClose}
+        variant="editor"
+        labelledBy="confirm-editor-title"
+        className={exchange ? '!h-auto' : undefined}
+      >
+        {exchange ? (
+          exchange.ok ? (
+            // ── 결과 — 성공 ──────────────────────────────────────────────────
+            <div className={styles.resultWrap} role="status" aria-live="polite">
+              <h2 id="confirm-editor-title" className={styles.resultTitle}>
+                확정 정보를 입력했습니다
+              </h2>
+              <div className={styles.kv}>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>서버 응답</p>
+                  <p className={cn(styles.kvValue, 'flex')}>
+                    <span className={cn(styles.tag, styles.tagOk)}>
+                      {exchange.code} {phraseOf(exchange.code)}
+                    </span>
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>소요</p>
+                  <p className={styles.kvValue}>{exchange.ms} ms</p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>등록 리소스</p>
+                  <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>소요</p>
-                <p className={styles.kvValue}>{exchange.ms} ms</p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>등록 리소스</p>
-                <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+              <ResourceRows title="등록된 리소스" sent={exchange.sent} />
+              <details className={styles.disclosure}>
+                <summary className={styles.summary}>서버 응답 본문 보기</summary>
+                <pre className={styles.pre}>{exchange.body}</pre>
+              </details>
+              <div className={styles.resultFoot}>
+                <PlButton variant="primary" onClick={closeAndSync}>
+                  닫기
+                </PlButton>
               </div>
             </div>
-            <ResourceRows title="등록된 리소스" sent={exchange.sent} />
-            <details className={styles.disclosure}>
-              <summary className={styles.summary}>서버 응답 본문 보기</summary>
-              <pre className={styles.pre}>{exchange.body}</pre>
-            </details>
-            <div className={styles.resultFoot}>
-              <PlButton variant="primary" onClick={closeAndSync}>
-                닫기
-              </PlButton>
+          ) : (
+            // ── 결과 — 실패 ──────────────────────────────────────────────────
+            <div className={styles.resultWrap} role="alert" aria-live="assertive">
+              <h2 id="confirm-editor-title" className={styles.resultTitle}>
+                입력하지 못했습니다
+              </h2>
+              <p className={styles.resultDesc}>
+                {exchange.code > 0
+                  ? '서버가 본문을 거절했습니다. 편집으로 돌아가 고친 뒤 다시 입력하세요.'
+                  : '응답을 받지 못했습니다. 편집으로 돌아가 다시 입력하세요.'}
+              </p>
+              <div className={styles.kv}>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>서버 응답</p>
+                  <p className={cn(styles.kvValue, 'flex')}>
+                    <span className={cn(styles.tag, styles.tagErr)}>
+                      {exchange.code > 0 ? `${exchange.code} ${phraseOf(exchange.code) ?? ''}`.trim() : '응답 없음'}
+                    </span>
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>소요</p>
+                  <p className={styles.kvValue}>{exchange.ms} ms</p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>보낸 리소스</p>
+                  <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+                </div>
+              </div>
+              <div className={styles.errorCard}>
+                <p className={styles.errorLabel}>서버 응답 본문</p>
+                <p className={styles.errorBody}>{exchange.body}</p>
+              </div>
+              <div className={styles.resultFoot}>
+                <PlButton variant="secondary" onClick={requestClose}>
+                  닫기
+                </PlButton>
+                <PlButton variant="primary" onClick={returnToEditor}>
+                  편집으로 돌아가기
+                </PlButton>
+              </div>
             </div>
-          </div>
+          )
         ) : (
-          // ── 결과 — 실패 ──────────────────────────────────────────────────
-          <div className={styles.resultWrap} role="alert" aria-live="assertive">
-            <h2 id="confirm-editor-title" className={styles.resultTitle}>
-              입력하지 못했습니다
-            </h2>
-            <p className={styles.resultDesc}>
-              {exchange.code > 0
-                ? '서버가 본문을 거절했습니다. 편집으로 돌아가 고친 뒤 다시 입력하세요.'
-                : '응답을 받지 못했습니다. 편집으로 돌아가 다시 입력하세요.'}
-            </p>
-            <div className={styles.kv}>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>서버 응답</p>
-                <p className={cn(styles.kvValue, 'flex')}>
-                  <span className={cn(styles.tag, styles.tagErr)}>
-                    {exchange.code > 0 ? `${exchange.code} ${phraseOf(exchange.code) ?? ''}`.trim() : '응답 없음'}
-                  </span>
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>소요</p>
-                <p className={styles.kvValue}>{exchange.ms} ms</p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>보낸 리소스</p>
-                <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
-              </div>
-            </div>
-            <div className={styles.errorCard}>
-              <p className={styles.errorLabel}>서버 응답 본문</p>
-              <p className={styles.errorBody}>{exchange.body}</p>
-            </div>
-            <div className={styles.resultFoot}>
-              <PlButton variant="secondary" onClick={closeAndSync}>
-                닫기
-              </PlButton>
-              <PlButton variant="primary" onClick={returnToEditor}>
-                편집으로 돌아가기
-              </PlButton>
-            </div>
-          </div>
-        )
-      ) : (
-        <>
-          {/* ① 머리 — 제목만. */}
-          <div className={styles.head}>
-            <h2 id="confirm-editor-title" className={styles.title}>
-              확정 정보 입력
-            </h2>
-          </div>
-
-          {busy && (
-            <div className={styles.progressTrack}>
-              <div className={cn(styles.progressBar, confirmEditorProgressBar)} />
-            </div>
-          )}
-
-          {/* 다크 편집기 상자 — 툴바 + textarea·gutter + 상태줄. */}
-          <div className={styles.box}>
-            <div className={styles.toolbar}>
-              <PlButton
-                size="sm"
-                // blocked 얼굴은 variant 를 통째로 대체한다(PlButton) — 그 위에 `!` 강제
-                // 클래스를 얹으면 "막혔다"는 신호가 파란 글자에 도로 덮인다. 그래서
-                // blocked 일 때는 이 스타일을 아예 건너뛴다.
-                className={recommendBlocked ? undefined : styles.recommendBtn}
-                onClick={loadRecommendation}
-                blocked={recommendBlocked}
-              >
-                {recommendation.state === 'failed' ? (
-                  <ReloadIcon className={styles.recommendIcon} />
-                ) : (
-                  <DownloadIcon className={styles.recommendIcon} />
-                )}
-                {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
-              </PlButton>
+          <>
+            {/* ① 머리 — 제목만. */}
+            <div className={styles.head}>
+              <h2 id="confirm-editor-title" className={styles.title}>
+                확정 정보 입력
+              </h2>
             </div>
 
-            <div className={styles.editRow}>
-              <div ref={gutterRef} className={styles.gutter} aria-hidden="true">
-                {Array.from({ length: lineCount }, (_, index) => (
-                  <div key={index}>{index + 1}</div>
-                ))}
+            {busy && (
+              <div className={styles.progressTrack}>
+                <div className={cn(styles.progressBar, confirmEditorProgressBar)} />
               </div>
-              <textarea
-                value={draft}
-                onChange={(event) => onDraftChange(event.target.value)}
-                onScroll={(event) => {
-                  if (gutterRef.current) {
-                    gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-                  }
-                }}
-                readOnly={busy}
-                spellCheck={false}
-                wrap="off"
-                className={cn(styles.textarea, busy && 'opacity-75')}
-                aria-label="확정 정보 JSON 초안"
-              />
-            </div>
-
-            <div className={styles.statusBar}>
-              <span className={styles.statusLeft}>{lineCount}줄</span>
-              {armedSwap ? (
-                <span className={styles.statusErr}>
-                  다시 누르면 지금 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
-                </span>
-              ) : returnedFailure ? (
-                <span className={styles.statusErr}>
-                  지난 응답 {statusCode(returnedFailure.code)}
-                  {returnedFailure.code > 0 && phraseOf(returnedFailure.code)
-                    ? ` · ${phraseOf(returnedFailure.code)}`
-                    : ''}
-                </span>
-              ) : !parse.ok ? (
-                <span className={styles.statusErr}>JSON 파싱 실패 — {parse.message}</span>
-              ) : emptyDraft ? (
-                <span className={styles.statusErr}>
-                  리소스 0건 — 작성하거나 추천값을 불러오세요
-                </span>
-              ) : (
-                <span className={styles.statusOk}>
-                  유효한 JSON{parse.count != null ? ` · 리소스 ${parse.count}건` : ''}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* ⑤ 바닥 — 요청 옵션(NLB) + 취소·입력. */}
-          <div className={styles.foot}>
-            {showNlb ? (
-              <div className={styles.nlbGroup}>
-                <input
-                  id="confirm-editor-nlb"
-                  type="checkbox"
-                  role="switch"
-                  checked={applyNlb}
-                  disabled={busy}
-                  onChange={(event) => setApplyNlb(event.target.checked)}
-                  className={styles.switchInput}
-                />
-                <label htmlFor="confirm-editor-nlb" className="min-w-0 cursor-pointer">
-                  <span className={cn(styles.nlbTitle, 'block')}>NLB 보안 그룹 적용</span>
-                  <span className={cn(styles.nlbDesc, 'block')}>
-                    적용하면 요청에 applyNLBSecurityGroup=true 가 실립니다
-                  </span>
-                </label>
-              </div>
-            ) : (
-              <span />
             )}
-            <div className={styles.footActions}>
-              <PlButton variant="dangerMuted" onClick={requestClose} disabled={busy}>
-                취소
-              </PlButton>
-              <PlButton variant="primary" onClick={save} disabled={busy || !parse.ok || emptyDraft || !dirty}>
-                {busy && <LoadingSpinner size="sm" />}
-                {busy ? '입력하는 중' : '입력'}
-              </PlButton>
+
+            {/* 다크 편집기 상자 — 툴바 + textarea·gutter + 상태줄. */}
+            <div className={styles.box}>
+              <div className={styles.toolbar}>
+                <PlButton
+                  size="sm"
+                  // blocked 얼굴은 variant 를 통째로 대체한다(PlButton) — 그 위에 `!` 강제
+                  // 클래스를 얹으면 "막혔다"는 신호가 파란 글자에 도로 덮인다. 그래서
+                  // blocked 일 때는 이 스타일을 아예 건너뛴다.
+                  className={recommendBlocked ? undefined : styles.recommendBtn}
+                  onClick={loadRecommendation}
+                  blocked={recommendBlocked}
+                  aria-describedby={blockedReason ? RECOMMEND_REASON_ID : undefined}
+                >
+                  {recommendation.state === 'failed' ? (
+                    <ReloadIcon className={styles.recommendIcon} />
+                  ) : (
+                    <DownloadIcon className={styles.recommendIcon} />
+                  )}
+                  {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
+                </PlButton>
+                {blockedReason && (
+                  <span id={RECOMMEND_REASON_ID} className={styles.blockedReason}>
+                    {blockedReason}
+                  </span>
+                )}
+              </div>
+
+              <div className={styles.editRow}>
+                <div ref={gutterRef} className={styles.gutter} aria-hidden="true">
+                  {Array.from({ length: lineCount }, (_, index) => (
+                    <div key={index}>{index + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  value={draft}
+                  onChange={(event) => onDraftChange(event.target.value)}
+                  onScroll={(event) => {
+                    if (gutterRef.current) {
+                      gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                    }
+                  }}
+                  readOnly={busy}
+                  spellCheck={false}
+                  wrap="off"
+                  className={cn(styles.textarea, busy && 'opacity-75')}
+                  aria-label="확정 정보 JSON 초안"
+                />
+              </div>
+
+              <div className={styles.statusBar}>
+                <span className={styles.statusLeft}>{lineCount}줄</span>
+                {armedSwap ? (
+                  <span className={styles.statusErr}>
+                    다시 누르면 지금 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
+                  </span>
+                ) : returnedFailure ? (
+                  <span className={styles.statusErr}>
+                    지난 응답 {statusCode(returnedFailure.code)}
+                    {returnedFailure.code > 0 && phraseOf(returnedFailure.code)
+                      ? ` · ${phraseOf(returnedFailure.code)}`
+                      : ''}
+                  </span>
+                ) : !parse.ok ? (
+                  <span className={styles.statusErr}>JSON 파싱 실패 — {parse.message}</span>
+                ) : emptyDraft ? (
+                  <span className={styles.statusErr}>
+                    리소스 0건 — 작성하거나 추천값을 불러오세요
+                  </span>
+                ) : (
+                  <span className={styles.statusOk}>
+                    유효한 JSON{parse.count != null ? ` · 리소스 ${parse.count}건` : ''}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        </>
-      )}
-    </ModalShell>
+
+            {/* ⑤ 바닥 — 요청 옵션(NLB) + 취소·입력. */}
+            <div className={styles.foot}>
+              {showNlb ? (
+                <div className={styles.nlbGroup}>
+                  <input
+                    id="confirm-editor-nlb"
+                    type="checkbox"
+                    role="switch"
+                    checked={applyNlb}
+                    disabled={busy}
+                    onChange={(event) => setApplyNlb(event.target.checked)}
+                    className={styles.switchInput}
+                  />
+                  <label htmlFor="confirm-editor-nlb" className="min-w-0 cursor-pointer">
+                    <span className={cn(styles.nlbTitle, 'block')}>NLB 보안 그룹 적용</span>
+                    <span className={cn(styles.nlbDesc, 'block')}>
+                      적용하면 요청에 applyNLBSecurityGroup=true 가 실립니다
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <span />
+              )}
+              <div className={styles.footActions}>
+                <PlButton variant="dangerMuted" onClick={requestClose} disabled={busy}>
+                  취소
+                </PlButton>
+                <PlButton variant="primary" onClick={save} disabled={busy || !parse.ok || emptyDraft || !dirty}>
+                  {busy && <LoadingSpinner size="sm" />}
+                  {busy ? '입력하는 중' : '입력'}
+                </PlButton>
+              </div>
+            </div>
+          </>
+        )}
+      </ModalShell>
+      <ConfirmStepModal
+        open={leaveConfirm}
+        onClose={() => setLeaveConfirm(false)}
+        onConfirm={closeAndSync}
+        size="sm"
+        tone="warning"
+        title="작성 중인 내용이 있습니다"
+        description="닫으면 작성한 내용이 사라집니다. 확정 정보는 아직 입력되지 않았습니다."
+        cancelLabel="계속 작성"
+        confirmLabel="닫기"
+      />
+    </>
   );
 }
 

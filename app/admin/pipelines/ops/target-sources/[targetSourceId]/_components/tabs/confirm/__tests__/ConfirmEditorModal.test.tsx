@@ -5,7 +5,8 @@
  * 여기 단언이 지키는 것은 배치가 아니라 **하나 뿐인 문**이다: 툴바는 버튼 하나만
  * 갖고, NLB 는 스위치가 켜졌을 때만 query 에 실리며, 결과는 같은 상자 안에서
  * 성공·실패로 갈려 성공은 닫기만, 실패는 편집으로 돌아가는 길을 하나 더 연다 —
- * 돌아가면 친 초안이 그대로 남는다.
+ * 돌아가면 친 초안이 그대로 남는다. 그리고 저장하지 않은 초안을 들고 나가려 하면
+ * 어느 문으로 나가든(취소·ESC·오버레이) 확인창이 먼저 선다.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,6 +47,9 @@ const draftJson = (count: number): string =>
       database_type: 'MYSQL',
     })),
   });
+
+/** 나가기 확인창의 제목 — 이것이 화면에 있으면 아직 닫히지 않았다. */
+const LEAVE_TITLE = '작성 중인 내용이 있습니다';
 
 const notFound = new AppError({
   status: 404,
@@ -119,13 +123,99 @@ describe('입력 프레임', () => {
     expect(textarea.value).toBe(JSON.stringify(recommended, null, 2));
   });
 
-  it('[취소] 는 확인 없이 바로 닫는다', async () => {
+  it('추천값이 없으면(404) 막힌 버튼 옆이 그 이유를 말한다', async () => {
+    mount();
+
+    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
+    expect(load.getAttribute('aria-disabled')).toBe('true');
+    const reason = screen.getByText('연동 승인 정보가 존재하지 않습니다.');
+    expect(reason).toBeTruthy();
+    // 이유는 버튼에 묶인다 — blocked 버튼은 포커스를 잃지 않으므로 읽어 줄 수 있다.
+    expect(load.getAttribute('aria-describedby')).toBe(reason.getAttribute('id'));
+  });
+
+  it('추천값이 있으면 이유 줄은 서지 않는다', async () => {
+    getApprovedRecommendations.mockResolvedValue({ resource_infos: [] });
+    mount();
+
+    const load = await screen.findByRole('button', { name: '추천값 불러오기' });
+    await waitFor(() => expect(load.getAttribute('aria-disabled')).toBeNull());
+    expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
+    expect(load.getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('손대지 않은 초안이면 [취소] 는 묻지 않고 바로 닫는다', async () => {
     mount();
     await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
 
     fireEvent.click(button('취소'));
+    expect(screen.queryByText(LEAVE_TITLE)).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
+describe('나가기 확인', () => {
+  it('작성 중인 초안이 있으면 [취소] 는 확인창을 세운다 — [계속 작성] 은 초안째 편집기로 돌려보낸다', async () => {
+    mount();
+    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
+
+    const sent = draftJson(1);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: sent } });
+    fireEvent.click(button('취소'));
+
+    expect(screen.getByText(LEAVE_TITLE)).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(button('계속 작성'));
+    expect(screen.queryByText(LEAVE_TITLE)).toBeNull();
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(sent);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 두 번째 시도에서 [닫기] 를 누르면 그제서야 닫힌다 — 다른 자리의 다른 버튼이다.
+    fireEvent.click(button('취소'));
+    fireEvent.click(button('닫기'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('ESC 도 같은 문이다 — 초안이 있으면 닫지 않고 확인창을 세운다', async () => {
+    mount();
+    await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draftJson(1) } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.getByText(LEAVE_TITLE)).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('입력에 성공하면 잃을 초안이 없다 — 결과 프레임의 [닫기] 는 묻지 않는다', async () => {
+    createConfirmedResources.mockResolvedValue({ ok: true });
+    mount();
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draftJson(1) } });
+    fireEvent.click(button('입력'));
+    await screen.findByText('확정 정보를 입력했습니다');
+
+    fireEvent.click(button('닫기'));
+    expect(screen.queryByText(LEAVE_TITLE)).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('실패 프레임의 [닫기] 는 아직 초안을 들고 있으므로 되묻는다', async () => {
+    createConfirmedResources.mockRejectedValue(
+      new AppError({ status: 400, code: 'BAD_REQUEST', message: '본문이 이상합니다', retriable: false }),
+    );
+    mount();
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: draftJson(1) } });
+    fireEvent.click(button('입력'));
+    await screen.findByText('입력하지 못했습니다');
+
+    fireEvent.click(button('닫기'));
+    expect(screen.getByText(LEAVE_TITLE)).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 

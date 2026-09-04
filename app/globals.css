@@ -244,6 +244,7 @@
   --pl-editor-string: #C8E6A0;
   --pl-editor-ok: #7BD3A0;
   --pl-editor-err: #FF8A80;
+  --pl-editor-warn: #FFB454;
   --pl-editor-recommend: #82B1FF;
   /* Desaturated-red 취소 (owner directive ④) — 4.6:1 white text. */
   --pl-danger-muted: #BC574E;
