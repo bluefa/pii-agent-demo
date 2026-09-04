@@ -12,7 +12,9 @@
  * 스키마를 발명해야 하고, 화면이 검사하는 것은 **JSON 으로 파싱되는가** 하나뿐이다.
  *
  * **구성은 한 상자, 두 프레임이다** — `ModalShell variant="editor"` 하나 위에서 상태만
- * 바뀐다(모달 안에 모달을 열지 않는다).
+ * 바뀐다. 그 위에 겹치는 창은 둘이다(오너 지시 2026-09-04): 저장하지 않은 초안을 들고
+ * 나가려 하면 `ConfirmStepModal` 이 되묻고, 추천값 조회가 부재로든 실패로든 끝났으면
+ * 「상세 에러보기」가 서버가 준 본문을 그대로 펴 보이는 창을 연다.
  *
  * ① 입력 프레임 — 머리(제목만) / 다크 편집기 상자(툴바 + textarea·gutter + 상태줄) /
  * 바닥(NLB 스위치 + 취소·입력). 실행 중에는 머리 아래 진행 바 + 편집기 흐림 + 텍스트영역
@@ -24,21 +26,16 @@
  * 그대로 남는다. **201 응답 본문은 opaque**(계약이 `type: object` 로만 선언)이므로
  * "등록된 리소스" 목록은 응답이 아니라 **보낸 초안**의 `resource_infos` 로 그린다.
  *
- * 진입 콜은 1회(추천값 유무 확인)다.
+ * 진입 콜은 0이다 — 열기만 해서는 아무것도 조회하지 않는다(오너 지시 2026-09-04).
+ * 입력 전에 이 화면이 보내는 요청은 「추천값 불러오기」가 부르는 그 한 번뿐이다.
  */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactElement,
-} from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { cn, confirmEditorProgressBar } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { DownloadIcon, ReloadIcon } from '@/app/components/ui/icons';
+import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
@@ -118,11 +115,52 @@ export const isRecommendationAbsent = (error: unknown): boolean =>
   error instanceof AppError && error.status === 404;
 
 type RecommendationLoad =
+  /** 아직 물어보지 않았다 — 모달이 열린 직후의 자리. */
+  | { state: 'idle' }
   | { state: 'loading' }
   | { state: 'ready'; text: string }
-  /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
-  | { state: 'absent' }
-  | { state: 'failed' };
+  /**
+   * 추천할 것이 없다(404). 오류가 아니라 부재다. 그러나 **부재도 서버가 말을 담아 온다**
+   * (`detail`·`code`·`requestId`) — 우리가 지어낸 한 문장 뒤에 서버의 말이 가려지지 않게
+   * 실패와 같은 `{ code, body }` 를 들고 있는다.
+   */
+  | { state: 'absent'; code: number; body: string }
+  /**
+   * 못 봤다 — 관측한 status 와 **읽을 수 있게 편 본문**을 들고 있는다. `0` 은 응답이 오지
+   * 않았다는 뜻이다. 본문은 줄 위가 아니라 「상세 에러보기」가 여는 창에서 보인다.
+   */
+  | { state: 'failed'; code: number; body: string };
+
+/**
+ * 두 끝 상태(부재·실패)가 화면에 내놓는 것 — 줄의 말, 창의 제목, 톤, 서버 본문.
+ * 줄과 창이 **같은 값**을 쓰도록 좁히기는 여기 한 번뿐이다.
+ *
+ * 부재는 사실이라 주황, 실패는 오류라 빨강 — 자리는 같고 색과 말이 갈린다.
+ */
+const recommendDetail = (
+  load: RecommendationLoad,
+): { code: number; body: string; tone: 'warn' | 'err'; line: string; title: string } | null => {
+  if (load.state === 'absent') {
+    return {
+      code: load.code,
+      body: load.body,
+      tone: 'warn',
+      line: '연동 승인 정보가 존재하지 않습니다.',
+      title: '연동 승인 정보가 존재하지 않습니다',
+    };
+  }
+  if (load.state === 'failed') {
+    return {
+      code: load.code,
+      body: load.body,
+      tone: 'err',
+      // status 도 본문도 이 줄에 없다 — 「상세 에러보기」가 여는 창이 그것을 든다.
+      line: '추천값을 불러오지 못했습니다.',
+      title: '추천값을 불러오지 못했습니다',
+    };
+  }
+  return null;
+};
 
 /** 계약이 선언한 reason phrase — 성공(201)과 실패 태그가 함께 쓴다. 계약에 없는 코드에는
  *  아무 말도 붙이지 않는다. */
@@ -141,6 +179,10 @@ const REASON_PHRASES: readonly (readonly [number, string])[] = [
 const phraseOf = (code: number): string | null =>
   REASON_PHRASES.find(([declared]) => declared === code)?.[1] ?? null;
 
+/** 실패 태그의 말 — 계약에 없는 코드에는 phrase 를 붙이지 않는다. `0` 은 응답이 없었다는 뜻. */
+const codeLabel = (code: number): string =>
+  code > 0 ? `${code} ${phraseOf(code) ?? ''}`.trim() : '응답 없음';
+
 /** 한 번의 실행과 그 응답. */
 interface Exchange {
   code: number;
@@ -156,14 +198,14 @@ interface Exchange {
 /**
  * 실패 응답의 본문 — `fetchJson` 이 ProblemDetails 를 `AppError` 로 접으면서 원문을 버리므로,
  * 그 때 읽어 간 필드를 같은 이름으로 되편다(lib/fetch-json.ts `parseErrorResponse`).
+ *
+ * 오류가 읽을 수 있는 본문이 되는 자리는 여기 하나다 — 입력 실패(결과 프레임)와 추천값 조회의
+ * 부재·실패(상세 창)가 같은 모양을 보이게 모두 이 함수를 통과한다.
  */
-const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
+const errorDetail = (error: unknown): { code: number; body: string } =>
   error instanceof AppError
     ? {
-        ms,
-        sent,
         code: error.status,
-        ok: false,
         body: pretty({
           code: error.code,
           detail: error.message,
@@ -172,11 +214,22 @@ const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
           timestamp: error.timestamp,
         }),
       }
-    : { ms, sent, code: 0, ok: false, body: pretty({ detail: message(error) }) };
+    : { code: 0, body: pretty({ detail: message(error) }) };
+
+const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange => ({
+  ms,
+  sent,
+  ok: false,
+  ...errorDetail(error),
+});
 
 const MONO = '[font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]';
 /** 목록은 최대 열 줄이다 — 그 아래는 건수 한 줄(ConfirmDeleteModal 과 같은 상한). */
 const MAX_ROWS = 10;
+/** 이유 한 줄(부재·실패)의 id — 버튼이 `aria-describedby` 로 가리킨다. */
+const RECOMMEND_REASON_ID = 'confirm-editor-recommend-reason';
+/** 상세 에러 창의 제목 id — `ModalShell` 이 `aria-labelledby` 로 가리킨다. */
+const RECOMMEND_ERROR_TITLE_ID = 'confirm-editor-recommend-error-title';
 
 const styles = {
   head: 'flex-none px-6 pb-4 pt-5',
@@ -194,18 +247,27 @@ const styles = {
 
   toolbar: 'flex h-11 flex-none items-center border-b border-[var(--pl-editor-line)] bg-[var(--pl-editor-bar)] px-3',
   recommendBtn:
-    '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+    '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
   recommendIcon: 'h-3.5 w-3.5',
+  /** 버튼 옆 이유 한 줄 — 자리(레이아웃)는 하나, 색만 갈린다. */
+  blockedReason: 'ml-3 min-w-0 truncate text-[12px]',
+  blockedReasonWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  blockedReasonErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  /** 「상세 에러보기」 — 이유 줄 옆의 밑줄 링크. 색은 옆 줄의 톤을 따라간다. */
+  detailLink:
+    'ml-2 flex-none rounded-[3px] text-[12px] underline underline-offset-2 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary-ring)]',
+  detailLinkWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  detailLinkErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
-  gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+  gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
   textarea:
-    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none', // design-exempt: text on the dark editor surface (--pl-editor-bg #1B1F27), not white
+    'min-w-0 flex-1 resize-none border-0 bg-transparent pr-4 text-[14px] leading-[22px] text-[var(--pl-editor-text)] outline-none', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
 
   statusBar: 'flex h-7 flex-none items-center justify-between gap-3 border-t border-[var(--pl-editor-line)] bg-[var(--pl-editor-bar)] px-3 text-[12px]',
-  statusLeft: 'text-[var(--pl-editor-text-muted)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
-  statusOk: 'font-semibold text-[var(--pl-editor-ok)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
-  statusErr: 'min-w-0 flex-1 truncate text-right font-semibold text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar #232834), not white
+  statusLeft: 'text-[var(--pl-editor-text-muted)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  statusOk: 'font-semibold text-[var(--pl-editor-ok)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  statusErr: 'min-w-0 flex-1 truncate text-right font-semibold text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   foot: 'flex flex-none items-center justify-between gap-4 border-t border-[var(--pl-border)] px-6 py-4',
   nlbGroup: 'flex items-start gap-3',
@@ -225,6 +287,7 @@ const styles = {
   tag: 'inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[12px] font-semibold leading-[1.34]',
   tagOk: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
   tagErr: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
+  tagWarn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   section: 'mt-6',
   sectionTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
   row: 'flex items-center gap-3 border-b border-[var(--pl-border)] py-[7px] text-[12px]',
@@ -244,6 +307,12 @@ const styles = {
   resultFoot: 'mt-8 flex justify-end gap-2',
 } as const;
 
+/** 톤 하나가 줄·링크·태그의 색을 함께 정한다 — 어느 상태였는지 다시 묻지 않는다. */
+const toneClass = {
+  warn: { reason: styles.blockedReasonWarn, link: styles.detailLinkWarn, tag: styles.tagWarn },
+  err: { reason: styles.blockedReasonErr, link: styles.detailLinkErr, tag: styles.tagErr },
+} as const;
+
 export interface ConfirmEditorModalProps {
   onClose: () => void;
   targetSourceId: number;
@@ -259,34 +328,16 @@ export function ConfirmEditorModal({
 }: ConfirmEditorModalProps): ReactElement {
   // 초안은 즉시 열린다 — 추천값을 기다리지 않는다.
   const [draft, setDraft] = useState<string>(BLANK);
-  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'loading' });
+  const [recommendation, setRecommendation] = useState<RecommendationLoad>({ state: 'idle' });
   const [armedSwap, setArmedSwap] = useState(false);
   const [applyNlb, setApplyNlb] = useState(false);
   const [exchange, setExchange] = useState<Exchange | null>(null);
   // 실패 뒤 [편집으로 돌아가기] 로 돌아온 흔적 — 초안이 바뀌기 전까지 상태줄에 남는다.
   const [returnedFailure, setReturnedFailure] = useState<Exchange | null>(null);
-
-  // 진입 1콜 — 초안에 넣기 위해서가 아니라 **버튼 옆에 유무를 적기 위해** 미리 본다.
-  // 부재(404)는 실패가 아니고, 실패해도 편집·저장은 그대로 간다.
-  const fetchRecommendation = useCallback(
-    (signal?: AbortSignal): Promise<void> =>
-      getApprovedRecommendations(targetSourceId, provider, { signal })
-        .then((doc) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: 'ready', text: pretty(doc) });
-        })
-        .catch((loadError: unknown) => {
-          if (signal?.aborted) return;
-          setRecommendation({ state: isRecommendationAbsent(loadError) ? 'absent' : 'failed' });
-        }),
-    [targetSourceId, provider],
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetchRecommendation(controller.signal);
-    return () => controller.abort();
-  }, [fetchRecommendation]);
+  // 초안을 버리고 나갈지 되묻는 확인창(모달 위의 모달).
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
+  // 추천값 조회가 받아 온 본문을 펴 보이는 창 — 부재든 실패든 「상세 에러보기」가 연다.
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const parse = useMemo(() => {
     try {
@@ -305,22 +356,48 @@ export function ConfirmEditorModal({
   const showNlb = provider === 'AWS';
   const nlb = showNlb && applyNlb;
 
+  /** 추천값을 부르는 **유일한** 자리 — 조회도 덮어쓰기도 이 누름에서만 일어난다. */
   const loadRecommendation = (): void => {
-    if (recommendation.state === 'failed') {
-      setRecommendation({ state: 'loading' });
-      void fetchRecommendation();
+    // 조회 중이거나 부재로 판명된 뒤에는 버튼이 이미 막혀 있다.
+    if (recommendation.state === 'loading' || recommendation.state === 'absent') return;
+
+    if (recommendation.state === 'ready') {
+      // 친 글이 있으면 바로 갈아 끼우지 않는다 — 같은 버튼을 한 번 더 눌러야 덮어쓴다
+      // (상태줄이 그 대기를 말한다). `!armedSwap` 이 없으면 두 번째 누름도 매번 같은
+      // 조건(dirty && draft !== recommendation.text)에 걸려 무장이 절대 풀리지 않는다.
+      if (dirty && draft !== recommendation.text && !armedSwap) {
+        setArmedSwap(true);
+        return;
+      }
+      setArmedSwap(false);
+      setDraft(recommendation.text);
       return;
     }
-    if (recommendation.state !== 'ready') return;
-    // 친 글이 있으면 바로 갈아 끼우지 않는다 — 같은 버튼을 한 번 더 눌러야 덮어쓴다
-    // (상태줄이 그 대기를 말한다). `!armedSwap` 이 없으면 두 번째 누름도 매번 같은
-    // 조건(dirty && draft !== recommendation.text)에 걸려 무장이 절대 풀리지 않는다.
-    if (dirty && draft !== recommendation.text && !armedSwap) {
+
+    // idle·failed — 아직 받아 본 적이 없어 초안과 견줄 글이 없다. 그래서 초안이 있기만
+    // 하면 무장한다: ready 보다 한 눈금 보수적이고, 그 대신 헛누름이 콜을 쓰는 것도 막는다.
+    if (dirty && !armedSwap) {
       setArmedSwap(true);
       return;
     }
-    setArmedSwap(false);
-    setDraft(recommendation.text);
+    setRecommendation({ state: 'loading' });
+    void getApprovedRecommendations(targetSourceId, provider)
+      .then((doc) => {
+        const text = pretty(doc);
+        setRecommendation({ state: 'ready', text });
+        setArmedSwap(false);
+        setDraft(text);
+      })
+      .catch((loadError: unknown) => {
+        if (isRecommendationAbsent(loadError)) {
+          // 부재면 버튼이 막힌다 — 무장을 남기면 상태줄이 지킬 수 없는 약속을 하게 된다.
+          setArmedSwap(false);
+          // 부재도 서버가 말을 담아 온다 — 본문을 버리지 않는다.
+          setRecommendation({ state: 'absent', ...errorDetail(loadError) });
+          return;
+        }
+        setRecommendation({ state: 'failed', ...errorDetail(loadError) });
+      });
   };
 
   const onDraftChange = (value: string): void => {
@@ -335,8 +412,22 @@ export function ConfirmEditorModal({
     onClose();
   };
 
+  /**
+   * 닫는 문 셋(취소·ESC·오버레이)이 이 함수 하나로 모이므로 여기서만 막으면 된다.
+   * 오탈자가 아니라 오클릭을 막는 장치다 — 확인은 다른 자리의 다른 버튼을 누르게 한다.
+   * 성공한 뒤에는 잃을 초안이 없어 묻지 않는다.
+   */
   const requestClose = (): void => {
     if (busy) return;
+    // 확인창이 서 있는 동안에도 편집기의 ESC 핸들러는 살아 있다 — 여기서 되돌리지 않으면
+    // ESC 가 방금 띄운 확인창을 한 번 더 무장시킨다.
+    if (leaveConfirm) return;
+    // 상세 에러 창도 같다 — ESC 한 번은 그 창만 닫는다.
+    if (detailOpen) return;
+    if (dirty && !exchange?.ok) {
+      setLeaveConfirm(true);
+      return;
+    }
     closeAndSync();
   };
 
@@ -362,6 +453,12 @@ export function ConfirmEditorModal({
   const busy = saveMutation.loading;
   const recommendBlocked =
     busy || recommendation.state === 'loading' || recommendation.state === 'absent';
+  // 버튼 옆에서 이유를 말한다 — 「추천값 불러오기」가 회색인 이유도, 눌렀는데 아무 일도
+  // 일어나지 않은 이유도 화면에 없으면 고장으로 읽힌다. 지나가는 상태(저장 중·조회 중)는
+  // 말하지 않는다. 부재도 실패도 물어본 사람에게만 보이므로 토스트로 띄우지 않는다.
+  //
+  // 줄과 링크와 상세 창이 이 하나에서 나온다 — 톤도 여기 담겨 있다.
+  const detail = recommendDetail(recommendation);
 
   const save = (): void => {
     let body: unknown;
@@ -382,217 +479,290 @@ export function ConfirmEditorModal({
     setExchange(null);
   };
 
+  // 창이 서는 조건은 하나다 — 열렸고, 아직 들고 있을 말이 있다(부재든 실패든).
+  const detailView = detailOpen ? detail : null;
+
   const sentCount = exchange ? countOf(exchange.sent) : null;
   const statusCode = (code: number): string => (code > 0 ? String(code) : '응답 없음');
 
   return (
-    <ModalShell
-      open
-      onClose={requestClose}
-      variant="editor"
-      labelledBy="confirm-editor-title"
-      className={exchange ? '!h-auto' : undefined}
-    >
-      {exchange ? (
-        exchange.ok ? (
-          // ── 결과 — 성공 ──────────────────────────────────────────────────
-          <div className={styles.resultWrap} role="status" aria-live="polite">
-            <h2 id="confirm-editor-title" className={styles.resultTitle}>
-              확정 정보를 입력했습니다
-            </h2>
-            <div className={styles.kv}>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>서버 응답</p>
-                <p className={cn(styles.kvValue, 'flex')}>
-                  <span className={cn(styles.tag, styles.tagOk)}>
-                    {exchange.code} {phraseOf(exchange.code)}
-                  </span>
-                </p>
+    <>
+      <ModalShell
+        open
+        onClose={requestClose}
+        variant="editor"
+        labelledBy="confirm-editor-title"
+        className={exchange ? '!h-auto' : undefined}
+      >
+        {exchange ? (
+          exchange.ok ? (
+            // ── 결과 — 성공 ──────────────────────────────────────────────────
+            <div className={styles.resultWrap} role="status" aria-live="polite">
+              <h2 id="confirm-editor-title" className={styles.resultTitle}>
+                확정 정보를 입력했습니다
+              </h2>
+              <div className={styles.kv}>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>서버 응답</p>
+                  <p className={cn(styles.kvValue, 'flex')}>
+                    <span className={cn(styles.tag, styles.tagOk)}>
+                      {exchange.code} {phraseOf(exchange.code)}
+                    </span>
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>소요</p>
+                  <p className={styles.kvValue}>{exchange.ms} ms</p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>등록 리소스</p>
+                  <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>소요</p>
-                <p className={styles.kvValue}>{exchange.ms} ms</p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>등록 리소스</p>
-                <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+              <ResourceRows title="등록된 리소스" sent={exchange.sent} />
+              <details className={styles.disclosure}>
+                <summary className={styles.summary}>서버 응답 본문 보기</summary>
+                <pre className={styles.pre}>{exchange.body}</pre>
+              </details>
+              <div className={styles.resultFoot}>
+                <PlButton variant="primary" onClick={closeAndSync}>
+                  닫기
+                </PlButton>
               </div>
             </div>
-            <ResourceRows title="등록된 리소스" sent={exchange.sent} />
-            <details className={styles.disclosure}>
-              <summary className={styles.summary}>서버 응답 본문 보기</summary>
-              <pre className={styles.pre}>{exchange.body}</pre>
-            </details>
-            <div className={styles.resultFoot}>
-              <PlButton variant="primary" onClick={closeAndSync}>
-                닫기
-              </PlButton>
+          ) : (
+            // ── 결과 — 실패 ──────────────────────────────────────────────────
+            <div className={styles.resultWrap} role="alert" aria-live="assertive">
+              <h2 id="confirm-editor-title" className={styles.resultTitle}>
+                입력하지 못했습니다
+              </h2>
+              <p className={styles.resultDesc}>
+                {exchange.code > 0
+                  ? '서버가 본문을 거절했습니다. 편집으로 돌아가 고친 뒤 다시 입력하세요.'
+                  : '응답을 받지 못했습니다. 편집으로 돌아가 다시 입력하세요.'}
+              </p>
+              <div className={styles.kv}>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>서버 응답</p>
+                  <p className={cn(styles.kvValue, 'flex')}>
+                    <span className={cn(styles.tag, styles.tagErr)}>
+                      {codeLabel(exchange.code)}
+                    </span>
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>소요</p>
+                  <p className={styles.kvValue}>{exchange.ms} ms</p>
+                </div>
+                <div className="min-w-0">
+                  <p className={styles.kvKey}>보낸 리소스</p>
+                  <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
+                </div>
+              </div>
+              <div className={styles.errorCard}>
+                <p className={styles.errorLabel}>서버 응답 본문</p>
+                <p className={styles.errorBody}>{exchange.body}</p>
+              </div>
+              <div className={styles.resultFoot}>
+                <PlButton variant="secondary" onClick={requestClose}>
+                  닫기
+                </PlButton>
+                <PlButton variant="primary" onClick={returnToEditor}>
+                  편집으로 돌아가기
+                </PlButton>
+              </div>
             </div>
-          </div>
+          )
         ) : (
-          // ── 결과 — 실패 ──────────────────────────────────────────────────
-          <div className={styles.resultWrap} role="alert" aria-live="assertive">
-            <h2 id="confirm-editor-title" className={styles.resultTitle}>
-              입력하지 못했습니다
+          <>
+            {/* ① 머리 — 제목만. */}
+            <div className={styles.head}>
+              <h2 id="confirm-editor-title" className={styles.title}>
+                확정 정보 입력
+              </h2>
+            </div>
+
+            {busy && (
+              <div className={styles.progressTrack}>
+                <div className={cn(styles.progressBar, confirmEditorProgressBar)} />
+              </div>
+            )}
+
+            {/* 다크 편집기 상자 — 툴바 + textarea·gutter + 상태줄. */}
+            <div className={styles.box}>
+              <div className={styles.toolbar}>
+                <PlButton
+                  size="sm"
+                  // blocked 얼굴은 variant 를 통째로 대체한다(PlButton) — 그 위에 `!` 강제
+                  // 클래스를 얹으면 "막혔다"는 신호가 파란 글자에 도로 덮인다. 그래서
+                  // blocked 일 때는 이 스타일을 아예 건너뛴다.
+                  className={recommendBlocked ? undefined : styles.recommendBtn}
+                  onClick={loadRecommendation}
+                  blocked={recommendBlocked}
+                  aria-describedby={detail ? RECOMMEND_REASON_ID : undefined}
+                >
+                  {recommendation.state === 'failed' ? (
+                    <ReloadIcon className={styles.recommendIcon} />
+                  ) : (
+                    <DownloadIcon className={styles.recommendIcon} />
+                  )}
+                  {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
+                </PlButton>
+                {detail && (
+                  <span
+                    id={RECOMMEND_REASON_ID}
+                    role="status"
+                    className={cn(styles.blockedReason, toneClass[detail.tone].reason)}
+                  >
+                    {detail.line}
+                  </span>
+                )}
+                {/*
+                  부재에도 선다 — 부재도 서버가 말을 담아 온다(`detail`·`code`·`requestId`).
+                  우리가 지어낸 한 문장 뒤에 서버의 말이 가려지지 않게 같은 링크를 단다.
+                */}
+                {detail && (
+                  <button
+                    type="button"
+                    className={cn(styles.detailLink, toneClass[detail.tone].link)}
+                    onClick={() => setDetailOpen(true)}
+                  >
+                    상세 에러보기
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.editRow}>
+                <div ref={gutterRef} className={styles.gutter} aria-hidden="true">
+                  {Array.from({ length: lineCount }, (_, index) => (
+                    <div key={index}>{index + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  value={draft}
+                  onChange={(event) => onDraftChange(event.target.value)}
+                  onScroll={(event) => {
+                    if (gutterRef.current) {
+                      gutterRef.current.scrollTop = event.currentTarget.scrollTop;
+                    }
+                  }}
+                  readOnly={busy}
+                  spellCheck={false}
+                  wrap="off"
+                  className={cn(styles.textarea, busy && 'opacity-75')}
+                  aria-label="확정 정보 JSON 초안"
+                />
+              </div>
+
+              <div className={styles.statusBar}>
+                <span className={styles.statusLeft}>{lineCount}줄</span>
+                {armedSwap ? (
+                  <span className={styles.statusErr}>
+                    다시 누르면 지금 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
+                  </span>
+                ) : returnedFailure ? (
+                  <span className={styles.statusErr}>
+                    지난 응답 {statusCode(returnedFailure.code)}
+                    {returnedFailure.code > 0 && phraseOf(returnedFailure.code)
+                      ? ` · ${phraseOf(returnedFailure.code)}`
+                      : ''}
+                  </span>
+                ) : !parse.ok ? (
+                  <span className={styles.statusErr}>JSON 파싱 실패 — {parse.message}</span>
+                ) : emptyDraft ? (
+                  <span className={styles.statusErr}>
+                    리소스 0건 — 작성하거나 추천값을 불러오세요
+                  </span>
+                ) : (
+                  <span className={styles.statusOk}>
+                    유효한 JSON{parse.count != null ? ` · 리소스 ${parse.count}건` : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ⑤ 바닥 — 요청 옵션(NLB) + 취소·입력. */}
+            <div className={styles.foot}>
+              {showNlb ? (
+                <div className={styles.nlbGroup}>
+                  <input
+                    id="confirm-editor-nlb"
+                    type="checkbox"
+                    role="switch"
+                    checked={applyNlb}
+                    disabled={busy}
+                    onChange={(event) => setApplyNlb(event.target.checked)}
+                    className={styles.switchInput}
+                  />
+                  <label htmlFor="confirm-editor-nlb" className="min-w-0 cursor-pointer">
+                    <span className={cn(styles.nlbTitle, 'block')}>NLB 보안 그룹 적용</span>
+                    <span className={cn(styles.nlbDesc, 'block')}>
+                      적용하면 요청에 applyNLBSecurityGroup=true 가 실립니다
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <span />
+              )}
+              <div className={styles.footActions}>
+                <PlButton variant="dangerMuted" onClick={requestClose} disabled={busy}>
+                  취소
+                </PlButton>
+                <PlButton variant="primary" onClick={save} disabled={busy || !parse.ok || emptyDraft || !dirty}>
+                  {busy && <LoadingSpinner size="sm" />}
+                  {busy ? '입력하는 중' : '입력'}
+                </PlButton>
+              </div>
+            </div>
+          </>
+        )}
+      </ModalShell>
+      <ConfirmStepModal
+        open={leaveConfirm}
+        onClose={() => setLeaveConfirm(false)}
+        onConfirm={closeAndSync}
+        size="sm"
+        tone="warning"
+        title="작성 중인 내용이 있습니다"
+        description="닫으면 작성한 내용이 사라집니다. 확정 정보는 아직 입력되지 않았습니다."
+        cancelLabel="계속 작성"
+        confirmLabel="닫기"
+      />
+      {/* 추천값 조회가 받아 온 본문 — 부재든 실패든 서버가 준 말을 그대로 편다. */}
+      {detailView && (
+        <ModalShell
+          open
+          onClose={() => setDetailOpen(false)}
+          variant="task"
+          labelledBy={RECOMMEND_ERROR_TITLE_ID}
+        >
+          <div className={styles.resultWrap}>
+            <h2 id={RECOMMEND_ERROR_TITLE_ID} className={styles.resultTitle}>
+              {detailView.title}
             </h2>
-            <p className={styles.resultDesc}>
-              {exchange.code > 0
-                ? '서버가 본문을 거절했습니다. 편집으로 돌아가 고친 뒤 다시 입력하세요.'
-                : '응답을 받지 못했습니다. 편집으로 돌아가 다시 입력하세요.'}
-            </p>
             <div className={styles.kv}>
               <div className="min-w-0">
                 <p className={styles.kvKey}>서버 응답</p>
                 <p className={cn(styles.kvValue, 'flex')}>
-                  <span className={cn(styles.tag, styles.tagErr)}>
-                    {exchange.code > 0 ? `${exchange.code} ${phraseOf(exchange.code) ?? ''}`.trim() : '응답 없음'}
+                  <span className={cn(styles.tag, toneClass[detailView.tone].tag)}>
+                    {codeLabel(detailView.code)}
                   </span>
                 </p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>소요</p>
-                <p className={styles.kvValue}>{exchange.ms} ms</p>
-              </div>
-              <div className="min-w-0">
-                <p className={styles.kvKey}>보낸 리소스</p>
-                <p className={styles.kvValue}>{sentCount != null ? `${sentCount}건` : '—'}</p>
               </div>
             </div>
             <div className={styles.errorCard}>
               <p className={styles.errorLabel}>서버 응답 본문</p>
-              <p className={styles.errorBody}>{exchange.body}</p>
+              <p className={styles.errorBody}>{detailView.body}</p>
             </div>
             <div className={styles.resultFoot}>
-              <PlButton variant="secondary" onClick={closeAndSync}>
+              <PlButton variant="primary" onClick={() => setDetailOpen(false)}>
                 닫기
               </PlButton>
-              <PlButton variant="primary" onClick={returnToEditor}>
-                편집으로 돌아가기
-              </PlButton>
             </div>
           </div>
-        )
-      ) : (
-        <>
-          {/* ① 머리 — 제목만. */}
-          <div className={styles.head}>
-            <h2 id="confirm-editor-title" className={styles.title}>
-              확정 정보 입력
-            </h2>
-          </div>
-
-          {busy && (
-            <div className={styles.progressTrack}>
-              <div className={cn(styles.progressBar, confirmEditorProgressBar)} />
-            </div>
-          )}
-
-          {/* 다크 편집기 상자 — 툴바 + textarea·gutter + 상태줄. */}
-          <div className={styles.box}>
-            <div className={styles.toolbar}>
-              <PlButton
-                size="sm"
-                // blocked 얼굴은 variant 를 통째로 대체한다(PlButton) — 그 위에 `!` 강제
-                // 클래스를 얹으면 "막혔다"는 신호가 파란 글자에 도로 덮인다. 그래서
-                // blocked 일 때는 이 스타일을 아예 건너뛴다.
-                className={recommendBlocked ? undefined : styles.recommendBtn}
-                onClick={loadRecommendation}
-                blocked={recommendBlocked}
-              >
-                {recommendation.state === 'failed' ? (
-                  <ReloadIcon className={styles.recommendIcon} />
-                ) : (
-                  <DownloadIcon className={styles.recommendIcon} />
-                )}
-                {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
-              </PlButton>
-            </div>
-
-            <div className={styles.editRow}>
-              <div ref={gutterRef} className={styles.gutter} aria-hidden="true">
-                {Array.from({ length: lineCount }, (_, index) => (
-                  <div key={index}>{index + 1}</div>
-                ))}
-              </div>
-              <textarea
-                value={draft}
-                onChange={(event) => onDraftChange(event.target.value)}
-                onScroll={(event) => {
-                  if (gutterRef.current) {
-                    gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-                  }
-                }}
-                readOnly={busy}
-                spellCheck={false}
-                wrap="off"
-                className={cn(styles.textarea, busy && 'opacity-75')}
-                aria-label="확정 정보 JSON 초안"
-              />
-            </div>
-
-            <div className={styles.statusBar}>
-              <span className={styles.statusLeft}>{lineCount}줄</span>
-              {armedSwap ? (
-                <span className={styles.statusErr}>
-                  다시 누르면 지금 초안을 추천값으로 덮어씁니다 — 적은 내용은 사라집니다.
-                </span>
-              ) : returnedFailure ? (
-                <span className={styles.statusErr}>
-                  지난 응답 {statusCode(returnedFailure.code)}
-                  {returnedFailure.code > 0 && phraseOf(returnedFailure.code)
-                    ? ` · ${phraseOf(returnedFailure.code)}`
-                    : ''}
-                </span>
-              ) : !parse.ok ? (
-                <span className={styles.statusErr}>JSON 파싱 실패 — {parse.message}</span>
-              ) : emptyDraft ? (
-                <span className={styles.statusErr}>
-                  리소스 0건 — 작성하거나 추천값을 불러오세요
-                </span>
-              ) : (
-                <span className={styles.statusOk}>
-                  유효한 JSON{parse.count != null ? ` · 리소스 ${parse.count}건` : ''}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* ⑤ 바닥 — 요청 옵션(NLB) + 취소·입력. */}
-          <div className={styles.foot}>
-            {showNlb ? (
-              <div className={styles.nlbGroup}>
-                <input
-                  id="confirm-editor-nlb"
-                  type="checkbox"
-                  role="switch"
-                  checked={applyNlb}
-                  disabled={busy}
-                  onChange={(event) => setApplyNlb(event.target.checked)}
-                  className={styles.switchInput}
-                />
-                <label htmlFor="confirm-editor-nlb" className="min-w-0 cursor-pointer">
-                  <span className={cn(styles.nlbTitle, 'block')}>NLB 보안 그룹 적용</span>
-                  <span className={cn(styles.nlbDesc, 'block')}>
-                    적용하면 요청에 applyNLBSecurityGroup=true 가 실립니다
-                  </span>
-                </label>
-              </div>
-            ) : (
-              <span />
-            )}
-            <div className={styles.footActions}>
-              <PlButton variant="dangerMuted" onClick={requestClose} disabled={busy}>
-                취소
-              </PlButton>
-              <PlButton variant="primary" onClick={save} disabled={busy || !parse.ok || emptyDraft || !dirty}>
-                {busy && <LoadingSpinner size="sm" />}
-                {busy ? '입력하는 중' : '입력'}
-              </PlButton>
-            </div>
-          </div>
-        </>
+        </ModalShell>
       )}
-    </ModalShell>
+    </>
   );
 }
 

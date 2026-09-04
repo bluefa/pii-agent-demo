@@ -506,6 +506,12 @@ const TEXT: TextPair[] = [
   // 16px/600 이라 large text 가 아니다.
   { what: '모달 머리 서비스 이름 on the white modal body', fg: textOf(classOf(accessSrc, 'serviceMeta')), on: '#FFFFFF' },
   { what: '서비스 코드 태그 label on the white modal body', fg: textOf(classOf(accessSrc, 'codeTag')), on: '#FFFFFF' },
+  // 확인 모달의 「계속 작성」 — 글자가 아니라 **획**이다. #F7F8FA 채움만으로는 흰 카드
+  // 위에서 1.06:1 이라 버튼의 윤곽이 없었고, #876 이 구분선·카드 모서리에서 고친 그
+  // 실패와 같다. 획은 1.4.11 의 3:1 이 아니라 그 램프 규칙을 따르므로, 기준은 올라간
+  // `--pl-border` 가 흰 면에서 내는 값(1.47)과 같은 눈금이다. 색은 cancelBtn 에서 읽어
+  // 온다 — 여기 hex 를 한 벌 더 적으면 버튼을 다시 납작하게 만들어도 초록으로 통과한다.
+  { what: '확인 모달 취소 버튼 stroke on the white dialog card', fg: borderOf(classOf(themeSrc, 'cancelBtn')), on: '#FFFFFF', min: 1.45 },
   { what: 'rail standing hint on rail', fg: textOf(classOf(railBlock, 'hintText')), on: rail },
   // /services 의 무권한 안내판. 레일 밖이라 잉크가 페이지 것이고, 흰 면이 아니라 **캔버스**
   // 위에 선다 — `textColors` 주석의 수치(흰 면 4.83, gray-50 4.63)는 여기서 통하지 않는다.
