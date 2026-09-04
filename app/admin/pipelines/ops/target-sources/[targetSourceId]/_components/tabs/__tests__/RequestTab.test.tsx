@@ -223,6 +223,10 @@ describe('RequestTab 요청 리소스', () => {
 
       expect(await screen.findByText('demo-cluster')).toBeTruthy();
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      // Closed (the default here, 2026-09-04): the cluster's own ↳ line names the choice, so
+      // folding the rows away cannot delete it.
+      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       // The members are ROWS of this table (2026-09-03), so they are read off a row query —
       // the cluster's own row is excluded by name, since it restates the chosen member.
       const instanceRows = [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
@@ -233,11 +237,12 @@ describe('RequestTab 요청 리소스', () => {
       // Prettified from the contract's uppercase WRITER / READER.
       expect(members.flatMap((member) => member.queryAllByText('Writer'))).toHaveLength(1);
       expect(members.flatMap((member) => member.queryAllByText('Reader'))).toHaveLength(1);
-      // Exactly one instance is the choice, and it is the one the request named.
+      // Exactly one instance is the choice, and it is the one the request named. Once opened,
+      // the OPEN band names it — the cluster's own ↳ line hides so it is not a second voice
+      // saying the same thing.
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.getByText('선택됨').closest('tr')?.textContent).toContain('demo-2');
-      // The cluster row names it too, so folding the rows away cannot delete the choice.
-      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+      expect(screen.getByText('demo-cluster').closest('td')?.textContent).not.toContain('demo-2');
     });
 
     // Read-only surface: the admin reviews the choice, it does not re-make it.

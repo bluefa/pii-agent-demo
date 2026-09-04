@@ -151,10 +151,12 @@ describe('WaitingApprovalTable', () => {
       ...(counts ? { logicalDbCount: counts[0], excludedLogicalDbCount: counts[1] } : {}),
     });
 
-    // The owner's call was about the approval screens. Steps 6·7 and the admin ops 확정 정보 tab
-    // reach the same `<td>` and were NOT in it: they replace the verdict pair with logical-DB
-    // counts, so "colour already means verdict here" — the reason weight won — does not hold.
-    it('ranks the name by weight on steps 2·3 only, leaving the hover blue on confirmed', () => {
+    // The owner ranked the approval screens' name by WEIGHT on 2026-08-23 (colour there already
+    // meant verdict, and the tint already meant hover), then REVERSED that on 2026-09-04 to match
+    // Step 1 and the admin queue — both 400 weight, approval was the lone 600 outlier. The name
+    // cell now carries the same `NAME_LIFT` token across every variant, so ranking happens only
+    // on hover, the exact state the 08-23 call rejected. This case is the tripwire on that.
+    it('carries the same NAME_LIFT weight on the name cell across every variant', () => {
       // Ungrouped rows on purpose: a group parent's own cell is a different element.
       const rows = [fixture[0]];
       const nameCell = () =>
@@ -165,10 +167,10 @@ describe('WaitingApprovalTable', () => {
 
       // Matched against the TOKEN, not the `group-hover:text-` prefix: the day this cell also
       // carries CELL_LIFT (another group-hover colour) a prefix test would pass for the wrong
-      // reason on confirmed and fail spuriously on approval.
+      // reason on one variant and fail spuriously on another.
       const { rerender } = render(<WaitingApprovalTable resources={rows} />);
-      expect(nameCell()).toContain('font-semibold');
-      expect(nameCell()).not.toContain(NAME_LIFT);
+      expect(nameCell()).toContain(NAME_LIFT);
+      expect(nameCell()).not.toContain('font-semibold');
 
       rerender(<WaitingApprovalTable variant="confirmed" resources={rows} />);
       expect(nameCell()).toContain(NAME_LIFT);
@@ -181,8 +183,7 @@ describe('WaitingApprovalTable', () => {
 
       // `install` joined the console shell in LIN-97 — the moment the old
       // `consoleVariant && !confirmedVariant` phrasing would have started carrying the
-      // owner's steps-2·3 call onto step 4. Recorded decision: it does not; the predicate
-      // names the variant now, and this line is the tripwire on that.
+      // owner's 08-23 call onto step 4. That branch is gone now that every variant matches.
       rerender(<WaitingApprovalTable variant="install" resources={rows} />);
       expect(nameCell()).toContain(NAME_LIFT);
       expect(nameCell()).not.toContain('font-semibold');
@@ -614,7 +615,7 @@ describe('WaitingApprovalTable', () => {
     /**
      * The opened instance ROWS, in render order — rows of this table since 2026-09-03, so they
      * are found by a plain row query. The cluster's own row is excluded by name: it restates
-     * the chosen member on its ↳ line, which this surface keeps in both fold states.
+     * the chosen member on its ↳ line whenever that line is showing.
      */
     const instanceRows = (): HTMLTableRowElement[] =>
       [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
@@ -685,9 +686,29 @@ describe('WaitingApprovalTable', () => {
       const rows = instanceRows().map((row) => within(row));
       expect(rows.flatMap((row) => row.queryAllByText('Reader'))).toHaveLength(2);
       expect(rows.flatMap((row) => row.queryAllByText('Writer'))).toHaveLength(1);
-      // Scoped to the rows because the cluster row carries the chosen member's role too — this
-      // surface renders no radio, so its ↳ line stays open (시안 B is step 1 only).
-      expect(screen.getAllByText('Reader')).toHaveLength(3);
+      // The cluster row's own ↳ line — which would otherwise carry the chosen member's role a
+      // second time — hides while the band is open, on every surface (시안 B, 2026-09-03): only
+      // the two instance rows say "Reader" here.
+      expect(screen.getAllByText('Reader')).toHaveLength(2);
+    });
+
+    // The regression this shape exists to prevent: with the cluster expanded, the parent row
+    // must not restate the chosen instance's name/role, and the chosen instance row must be the
+    // one thing that names the selection (`선택됨`). Collapsed, the line comes back.
+    it('drops the parent’s ↳ line while the cluster is open, and restores it once collapsed', () => {
+      render(<WaitingApprovalTable resources={[cluster()]} />);
+      const clusterCell = () =>
+        required(screen.getByText('demo-cluster').closest('td'), "the cluster's identity cell");
+      expect(clusterCell().textContent).toContain('demo-2');
+
+      openBand();
+      expect(clusterCell().textContent).not.toContain('demo-2');
+      expect(
+        required(screen.getByText('선택됨').closest('tr'), "the chosen instance's row").textContent,
+      ).toContain('demo-2');
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
+      expect(clusterCell().textContent).toContain('demo-2');
     });
 
     // The whole point of the 2026-09-03 shape: the AZ is read DOWN this table's own Region
@@ -818,12 +839,16 @@ describe('WaitingApprovalTable', () => {
         />,
       );
       expect(instanceNames()).toHaveLength(0);
+      // Nothing was chosen, so the third line falls back to the count — the honest thing left,
+      // while folded.
+      expect(screen.getByText('인스턴스 3건')).toBeTruthy();
 
       fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toHaveLength(3);
       expect(screen.queryByText('선택됨')).toBeNull();
-      // Nothing was chosen, so the third line falls back to the count — the honest thing left.
-      expect(screen.getByText('인스턴스 3건')).toBeTruthy();
+      // Open, that fallback count hides too: the visible rows already ARE the count PR #630
+      // rejected as a tally.
+      expect(screen.queryByText('인스턴스 3건')).toBeNull();
     });
 
     // Every other row shape, and every other variant, must be untouched by this addition.

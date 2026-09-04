@@ -522,12 +522,14 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
   });
 
   /**
-   * 시안 B (2026-09-03). Open and answerable, the checked radio IS the answer; the cluster
-   * row's own ↳ line said it a second time 75.1px away on the same surface, wearing the same
-   * role chip. Collapsed, the line is the ONLY thing that holds the answer, so it stays —
-   * the 2026-08-11 precedent is untouched.
+   * 시안 B (2026-09-03). The open band already names the selection itself — the checked radio
+   * here, `RdsSelectionChip` on a read-only surface — so the parent's own ↳ line would be a
+   * second voice saying the same thing on EVERY surface, not only this answerable one.
+   * Collapsed, the line is the ONLY thing that holds the answer, so it stays — the
+   * 2026-08-11 precedent is untouched. Full rule: `CandidateResourceRow`'s
+   * `showChosenInstanceLine`.
    */
-  it('drops the cluster row’s ↳ line only while the rows answer with radios', () => {
+  it('drops the cluster row’s ↳ line whenever the rows are open, not only while they answer with radios', () => {
     renderCluster();
     const nameCell = () => screen.getByText('demo-cluster').closest('td');
     expect(nameCell()?.textContent).toContain('demo-2');
@@ -539,20 +541,30 @@ describe('CandidateResourceTable — RDS cluster instances', () => {
     expect(nameCell()?.textContent).toContain('demo-2');
   });
 
-  // Read-only renders no radio, so the row's line is the only thing naming the selection —
-  // it must survive opening the rows there.
-  it('keeps the ↳ line open on a read-only surface', () => {
+  // A read-only surface renders no radio, but the open band still names the selection — by the
+  // `선택됨` chip on the chosen instance's own row — so the parent's ↳ line hides here too.
+  it('hides the ↳ line on a read-only surface, and lets the 선택됨 chip name the selection instead', () => {
     renderCluster({ readonly: true });
+    const nameCell = () => screen.getByText('demo-cluster').closest('td');
+    expect(nameCell()?.textContent).toContain('demo-2');
+
     openBand();
-    expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+    expect(nameCell()?.textContent).not.toContain('demo-2');
+    expect(
+      required(screen.getByText('선택됨').closest('tr'), "the chosen instance's row").textContent,
+    ).toContain('demo-2');
   });
 
-  // An unchecked cluster submits no instance, so no radio is offered and the line stays.
-  it('keeps the ↳ line open on an unchecked cluster', () => {
+  // An unchecked cluster submits no instance, so the line would only ever show the count — and
+  // the open block hides that too: the visible rows already ARE the count (PR #630).
+  it('hides the ↳ line and its 총 N개 fallback on an unchecked cluster, once open', () => {
     renderCluster({ selectedIds: new Set<string>() });
+    const nameCell = () => screen.getByText('demo-cluster').closest('td');
+    expect(nameCell()?.textContent).toContain('인스턴스 3건');
+
     openBand();
     expect(screen.queryAllByRole('radio')).toHaveLength(0);
-    expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('인스턴스 3건');
+    expect(nameCell()?.textContent).not.toContain('인스턴스 3건');
   });
 
   // A cluster the backend sent no instance list for is old data — it must stay a flat row.

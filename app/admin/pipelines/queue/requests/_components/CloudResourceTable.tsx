@@ -138,6 +138,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             // The TAG keys on the declared type, as on every other review surface — a cluster
             // whose request predates the candidates field is still a cluster and must say so.
             // The LIST keys on candidates, because there is nothing to list without them.
+            //
+            // The list starts COLLAPSED, like every other surface (owner, 2026-09-04): the
+            // collapsed parent's own ↳ line already names the chosen member, so opening by
+            // default would spend rows repeating what that line already says.
             const isCluster = isRdsCluster(row.resourceType ?? '');
             const isEc2 = isEc2Instance(row.resourceType);
             const instances = sortRdsInstances(row.rdsInstanceCandidates);
@@ -146,7 +150,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
             const chosenInstance = instances.find(
               (instance) => instance.resource_id === row.selectedRdsInstanceResourceId,
             );
-            const fold = clusterFold(rowKey, row.selected);
+            const fold = clusterFold(rowKey, false);
             const instancesOpen = hasInstances && fold.open;
             return (
               <Fragment key={rowKey}>
@@ -200,7 +204,7 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                         aria-label={`${row.resourceName ?? ''} 인스턴스 목록 ${instancesOpen ? '접기' : '펼치기'}`}
                         onClick={fold.toggle}
                         className={cn(
-                          table.group.toggle,
+                          table.group.toggleNameAligned,
                           instancesOpen ? table.group.toggleOpen : table.group.toggleClosed,
                           primaryColors.focusRing,
                         )}
@@ -226,9 +230,10 @@ export function CloudResourceTable({ rows }: CloudResourceTableProps): ReactElem
                       <span className={NAME_TEXT}>{row.resourceName || '—'}</span>
                     </Tooltip>
                     {/* Which member the request connects through — the same third line steps
-                        1·2·3 carry (owner, 2026-08-13). The queue exists to check that choice,
-                        so folding the band away must not be what deletes it. */}
-                    {hasInstances && (
+                        1·2·3 carry (owner, 2026-08-13). Hidden while the band is OPEN, on every
+                        surface — see the rule in `CandidateResourceRow`'s
+                        `showChosenInstanceLine`. */}
+                    {hasInstances && !instancesOpen && (
                       <RdsChosenInstanceLine chosen={chosenInstance} total={instances.length} />
                     )}
                     </span>

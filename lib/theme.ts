@@ -2705,6 +2705,25 @@ export const idcStyles = {
        * offer to be pressed.
        */
       toggleStatic: 'rotate-90 text-[#6B7684]',
+      /** Pins the cluster chevron to the NAME line instead of the identity stack's centre —
+       *  USE INSTEAD OF `toggle`, never alongside it.
+       *
+       *  `toggle` is absolutely positioned inside `lead` (`relative`), so its `top-1/2` is
+       *  inert to `align-self`/`items-*` and instead resolves against `lead`'s OWN height,
+       *  which changes with the identity stack's line count — 69px with the `↳` line, 45px
+       *  without it (since 시안 B). That is the 12px jump between the open and closed states.
+       *
+       *  34.5 is the name line's centre from the lead's top, and it does not depend on the
+       *  line count: tag line 20 + `gap-1` 4 = 24 is the name's top, and the 14px name line
+       *  box is 21 tall, so 24 + 21/2 = 34.5. `-translate-y-1/2` still centres the 16px icon
+       *  box on that y.
+       *
+       *  A full duplicate of `toggle`, not a modifier, for the same reason as
+       *  `idcStyles.table.instanceBand.nameCell`: `cn` is a plain join, and a second
+       *  `top-*` utility in the same string would be settled by stylesheet order, not by
+       *  write order. Keep the two tokens in sync if `toggle` changes. */
+      toggleNameAligned:
+        "absolute -left-[22px] top-[34.5px] grid h-4 w-4 -translate-y-1/2 place-items-center rounded-[5px] transition-[transform,background-color,color] duration-150 after:absolute after:-inset-1 after:content-[''] motion-reduce:transition-none",
       /**
        * The group's NAME line — its region. One Athena catalog per region is exactly what a
        * group is, so the region is what tells two of them apart; the service rides above it as

@@ -187,15 +187,23 @@ export const CandidateResourceRow = ({
   const chosenInstance = sortedInstances.find(
     (instance) => instance.resource_id === chosenInstanceResourceId,
   );
-  // 시안 B (2026-09-03): while the band is OPEN and answering with radios, the checked radio is
-  // the answer and this line is a second voice saying it — measured 75.1px apart on one
-  // `bgColors.panel` surface, both wearing the same `RdsMemberChip`. Collapsed it stays exactly
-  // as before: a folded parent has to hold the answer (owner, 2026-08-11).
+  // 시안 B (2026-09-03): the rule is about the block being OPEN, not about whether it renders a
+  // radio. An open block always names the selection itself — the checked radio where the
+  // cluster is answerable, `RdsSelectionChip` where it is read-only (`RdsInstancePanel` renders
+  // the chip whenever `readonly && chosen`) — so this line would be a second voice saying the
+  // same thing on EVERY surface, not only the answerable one. Hide it whenever open, full stop.
+  // Collapsed it stays exactly as before: a folded parent has to hold the answer (owner,
+  // 2026-08-11).
   //
-  // Read-only surfaces (step 1 read-only, steps 2·3, the admin queue) keep the line in BOTH
-  // states — they render no radio, so this is the only thing there that names the selection.
+  // For an EXCLUDED cluster there is no selection, so the line falls back to a `총 N개` count
+  // instead of naming one (PR #630) — open, that count is hidden too, on purpose: the visible
+  // rows ARE the count, and a parent that tallies its own open children is exactly the summary
+  // PR #630 threw out.
+  //
+  // `instancesAnswerable` is unrelated to visibility now — it only gates whether the panel below
+  // offers radios at all (`selectable`).
   const instancesAnswerable = isSelected && !readonly;
-  const showChosenInstanceLine = !(instancesExpanded && instancesAnswerable);
+  const showChosenInstanceLine = !instancesExpanded;
 
   // 제외·설치 불가 행도 본문은 대상 행과 같은 강도로 읽힌다: 표시는 왼쪽 레일이 맡고,
   // 흐리게 하는 처리는 "덜 중요하다"는 뜻이라 검토해야 하는 행에는 정반대의 신호였다.
@@ -301,8 +309,10 @@ export const CandidateResourceRow = ({
             // row states it, and the ROLE rides directly beside the instance name (owner: it is the
             // information that matters most on the line) rather than in a column of its own. It
             // drops back out while the band is open and answering with radios — see
-            // `showChosenInstanceLine`. No positional lift either way: `lead` centres the chevron
-            // on the stack, whichever height it is.
+            // `showChosenInstanceLine`. `toggleNameAligned` pins the chevron to the name line
+            // with a `top` offset from `lead`'s top (the button is absolutely positioned, so
+            // `lead`'s `items-center` never reached it) — stable across the 2-line and 3-line
+            // stack alike.
             //
             // The line names the SELECTION and never a count: a parent that tallies its members
             // says what the open band already says one line at a time, and a summary that only
@@ -325,7 +335,7 @@ export const CandidateResourceRow = ({
                   onInstancesToggle?.();
                 }}
                 className={cn(
-                  idcStyles.table.group.toggle,
+                  idcStyles.table.group.toggleNameAligned,
                   instancesExpanded
                     ? idcStyles.table.group.toggleOpen
                     : idcStyles.table.group.toggleClosed,
@@ -583,11 +593,11 @@ export const CandidateResourceRow = ({
           }
           instances={sortedInstances}
           chosenResourceId={chosenInstanceResourceId}
-          // ONE predicate, shared with the ↳ line above (`showChosenInstanceLine`): if the two
-          // ever diverged so that the line hides while no radio renders, nothing on screen
-          // would name the selection. Radios exist only inside a checked cluster — an
-          // unchecked one submits no instance, so offering the choice would promise something
-          // the payload never sends.
+          // Radios exist only inside a checked, editable cluster — an unchecked one submits no
+          // instance, so offering the choice would promise something the payload never sends.
+          // This is no longer the same predicate as `showChosenInstanceLine`: the line hides on
+          // EVERY open block (see that comment above), while this one still narrows to the
+          // answerable case, because it decides whether to render radios at all.
           selectable={instancesAnswerable}
           readonly={readonly}
           onSelect={(instanceResourceId) => actions.selectRdsInstance(candidate.id, instanceResourceId)}
