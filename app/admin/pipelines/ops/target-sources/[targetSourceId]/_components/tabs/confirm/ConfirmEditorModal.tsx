@@ -12,8 +12,9 @@
  * 스키마를 발명해야 하고, 화면이 검사하는 것은 **JSON 으로 파싱되는가** 하나뿐이다.
  *
  * **구성은 한 상자, 두 프레임이다** — `ModalShell variant="editor"` 하나 위에서 상태만
- * 바뀐다. 그 위에 겹치는 것은 나갈 때의 확인창 하나뿐이다(오너 지시 2026-09-04):
- * 저장하지 않은 초안을 들고 나가려 하면 `ConfirmStepModal` 이 되묻는다.
+ * 바뀐다. 그 위에 겹치는 창은 둘이다(오너 지시 2026-09-04): 저장하지 않은 초안을 들고
+ * 나가려 하면 `ConfirmStepModal` 이 되묻고, 추천값 조회가 실패했으면 「상세 에러보기」가
+ * 서버가 준 본문을 그대로 펴 보이는 창을 연다.
  *
  * ① 입력 프레임 — 머리(제목만) / 다크 편집기 상자(툴바 + textarea·gutter + 상태줄) /
  * 바닥(NLB 스위치 + 취소·입력). 실행 중에는 머리 아래 진행 바 + 편집기 흐림 + 텍스트영역
@@ -120,8 +121,11 @@ type RecommendationLoad =
   | { state: 'ready'; text: string }
   /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
   | { state: 'absent' }
-  /** 못 봤다 — 관측한 status 를 들고 있는다. `0` 은 응답이 오지 않았다는 뜻이다. */
-  | { state: 'failed'; code: number };
+  /**
+   * 못 봤다 — 관측한 status 와 **읽을 수 있게 편 본문**을 들고 있는다. `0` 은 응답이 오지
+   * 않았다는 뜻이다. 본문은 줄 위가 아니라 「상세 에러보기」가 여는 창에서 보인다.
+   */
+  | { state: 'failed'; code: number; body: string };
 
 /** 계약이 선언한 reason phrase — 성공(201)과 실패 태그가 함께 쓴다. 계약에 없는 코드에는
  *  아무 말도 붙이지 않는다. */
@@ -140,6 +144,10 @@ const REASON_PHRASES: readonly (readonly [number, string])[] = [
 const phraseOf = (code: number): string | null =>
   REASON_PHRASES.find(([declared]) => declared === code)?.[1] ?? null;
 
+/** 실패 태그의 말 — 계약에 없는 코드에는 phrase 를 붙이지 않는다. `0` 은 응답이 없었다는 뜻. */
+const codeLabel = (code: number): string =>
+  code > 0 ? `${code} ${phraseOf(code) ?? ''}`.trim() : '응답 없음';
+
 /** 한 번의 실행과 그 응답. */
 interface Exchange {
   code: number;
@@ -155,14 +163,14 @@ interface Exchange {
 /**
  * 실패 응답의 본문 — `fetchJson` 이 ProblemDetails 를 `AppError` 로 접으면서 원문을 버리므로,
  * 그 때 읽어 간 필드를 같은 이름으로 되편다(lib/fetch-json.ts `parseErrorResponse`).
+ *
+ * 오류가 읽을 수 있는 본문이 되는 자리는 여기 하나다 — 입력 실패(결과 프레임)와 추천값 조회
+ * 실패(상세 창)가 같은 모양을 보이게 둘 다 이 함수를 통과한다.
  */
-const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
+const errorDetail = (error: unknown): { code: number; body: string } =>
   error instanceof AppError
     ? {
-        ms,
-        sent,
         code: error.status,
-        ok: false,
         body: pretty({
           code: error.code,
           detail: error.message,
@@ -171,13 +179,22 @@ const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
           timestamp: error.timestamp,
         }),
       }
-    : { ms, sent, code: 0, ok: false, body: pretty({ detail: message(error) }) };
+    : { code: 0, body: pretty({ detail: message(error) }) };
+
+const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange => ({
+  ms,
+  sent,
+  ok: false,
+  ...errorDetail(error),
+});
 
 const MONO = '[font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]';
 /** 목록은 최대 열 줄이다 — 그 아래는 건수 한 줄(ConfirmDeleteModal 과 같은 상한). */
 const MAX_ROWS = 10;
 /** 이유 한 줄(부재·실패)의 id — 버튼이 `aria-describedby` 로 가리킨다. */
 const RECOMMEND_REASON_ID = 'confirm-editor-recommend-reason';
+/** 상세 에러 창의 제목 id — `ModalShell` 이 `aria-labelledby` 로 가리킨다. */
+const RECOMMEND_ERROR_TITLE_ID = 'confirm-editor-recommend-error-title';
 
 const styles = {
   head: 'flex-none px-6 pb-4 pt-5',
@@ -201,6 +218,9 @@ const styles = {
   blockedReason: 'ml-3 min-w-0 truncate text-[12px]',
   blockedReasonWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
   blockedReasonErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  /** 「상세 에러보기」 — 이유 줄 옆의 밑줄 링크. 같은 12px 눈금, 포커스 링은 파일의 그것. */
+  detailLink:
+    'ml-2 flex-none rounded-[3px] text-[12px] underline underline-offset-2 text-[var(--pl-editor-err)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pl-primary-ring)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
   gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
@@ -272,6 +292,8 @@ export function ConfirmEditorModal({
   const [returnedFailure, setReturnedFailure] = useState<Exchange | null>(null);
   // 초안을 버리고 나갈지 되묻는 확인창(모달 위의 모달).
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  // 추천값 조회 실패의 본문을 펴 보이는 창 — 「상세 에러보기」가 연다.
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const parse = useMemo(() => {
     try {
@@ -329,10 +351,7 @@ export function ConfirmEditorModal({
           setRecommendation({ state: 'absent' });
           return;
         }
-        setRecommendation({
-          state: 'failed',
-          code: loadError instanceof AppError ? loadError.status : 0,
-        });
+        setRecommendation({ state: 'failed', ...errorDetail(loadError) });
       });
   };
 
@@ -358,6 +377,8 @@ export function ConfirmEditorModal({
     // 확인창이 서 있는 동안에도 편집기의 ESC 핸들러는 살아 있다 — 여기서 되돌리지 않으면
     // ESC 가 방금 띄운 확인창을 한 번 더 무장시킨다.
     if (leaveConfirm) return;
+    // 상세 에러 창도 같다 — ESC 한 번은 그 창만 닫는다.
+    if (detailOpen) return;
     if (dirty && !exchange?.ok) {
       setLeaveConfirm(true);
       return;
@@ -397,15 +418,8 @@ export function ConfirmEditorModal({
     recommendation.state === 'absent'
       ? { text: '연동 승인 정보가 존재하지 않습니다.', tone: 'warn' }
       : recommendation.state === 'failed'
-        ? {
-            // 결과 프레임의 실패 태그와 같은 말 — 계약에 없는 코드에는 phrase 를 붙이지 않는다.
-            text: `추천값을 불러오지 못했습니다 · ${
-              recommendation.code > 0
-                ? `${recommendation.code} ${phraseOf(recommendation.code) ?? ''}`.trim()
-                : '응답 없음'
-            }`,
-            tone: 'err',
-          }
+        // status 도 본문도 이 줄에 없다 — 「상세 에러보기」가 여는 창이 그것을 든다.
+        ? { text: '추천값을 불러오지 못했습니다.', tone: 'err' }
         : null;
 
   const save = (): void => {
@@ -426,6 +440,10 @@ export function ConfirmEditorModal({
     setReturnedFailure(exchange);
     setExchange(null);
   };
+
+  // 창이 서는 조건은 하나다 — 열렸고, 아직 실패 상태다.
+  const failureDetail =
+    detailOpen && recommendation.state === 'failed' ? recommendation : null;
 
   const sentCount = exchange ? countOf(exchange.sent) : null;
   const statusCode = (code: number): string => (code > 0 ? String(code) : '응답 없음');
@@ -491,7 +509,7 @@ export function ConfirmEditorModal({
                   <p className={styles.kvKey}>서버 응답</p>
                   <p className={cn(styles.kvValue, 'flex')}>
                     <span className={cn(styles.tag, styles.tagErr)}>
-                      {exchange.code > 0 ? `${exchange.code} ${phraseOf(exchange.code) ?? ''}`.trim() : '응답 없음'}
+                      {codeLabel(exchange.code)}
                     </span>
                   </p>
                 </div>
@@ -566,6 +584,16 @@ export function ConfirmEditorModal({
                   >
                     {recommendReason.text}
                   </span>
+                )}
+                {/* 실패에만 선다 — 부재(404)는 볼 본문이 없다. */}
+                {recommendation.state === 'failed' && (
+                  <button
+                    type="button"
+                    className={styles.detailLink}
+                    onClick={() => setDetailOpen(true)}
+                  >
+                    상세 에러보기
+                  </button>
                 )}
               </div>
 
@@ -665,6 +693,40 @@ export function ConfirmEditorModal({
         cancelLabel="계속 작성"
         confirmLabel="닫기"
       />
+      {/* 추천값 조회 실패의 본문 — 서버가 준 말을 그대로 편다. */}
+      {failureDetail && (
+        <ModalShell
+          open
+          onClose={() => setDetailOpen(false)}
+          variant="task"
+          labelledBy={RECOMMEND_ERROR_TITLE_ID}
+        >
+          <div className={styles.resultWrap}>
+            <h2 id={RECOMMEND_ERROR_TITLE_ID} className={styles.resultTitle}>
+              추천값을 불러오지 못했습니다
+            </h2>
+            <div className={styles.kv}>
+              <div className="min-w-0">
+                <p className={styles.kvKey}>서버 응답</p>
+                <p className={cn(styles.kvValue, 'flex')}>
+                  <span className={cn(styles.tag, styles.tagErr)}>
+                    {codeLabel(failureDetail.code)}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className={styles.errorCard}>
+              <p className={styles.errorLabel}>서버 응답 본문</p>
+              <p className={styles.errorBody}>{failureDetail.body}</p>
+            </div>
+            <div className={styles.resultFoot}>
+              <PlButton variant="primary" onClick={() => setDetailOpen(false)}>
+                닫기
+              </PlButton>
+            </div>
+          </div>
+        </ModalShell>
+      )}
     </>
   );
 }

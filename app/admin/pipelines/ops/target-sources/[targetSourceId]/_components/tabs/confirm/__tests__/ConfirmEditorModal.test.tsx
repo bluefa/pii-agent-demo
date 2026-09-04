@@ -7,7 +7,8 @@
  * 성공·실패로 갈려 성공은 닫기만, 실패는 편집으로 돌아가는 길을 하나 더 연다 —
  * 돌아가면 친 초안이 그대로 남는다. 그리고 저장하지 않은 초안을 들고 나가려 하면
  * 어느 문으로 나가든(취소·ESC·오버레이) 확인창이 먼저 선다. 그리고 **여는 것만으로는
- * 아무 요청도 나가지 않는다** — 추천값은 누를 때만 조회한다.
+ * 아무 요청도 나가지 않는다** — 추천값은 누를 때만 조회한다. 조회가 실패하면 줄은 짧게
+ * 말하고, 서버가 준 본문은 「상세 에러보기」가 여는 창이 든다.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -51,6 +52,14 @@ const draftJson = (count: number): string =>
 
 /** 나가기 확인창의 제목 — 이것이 화면에 있으면 아직 닫히지 않았다. */
 const LEAVE_TITLE = '작성 중인 내용이 있습니다';
+
+/** 503 의 code 는 허용 목록에 없어 status fallback 으로 떨어진다(lib/fetch-json.ts). */
+const unavailable = new AppError({
+  status: 503,
+  code: 'INTERNAL_ERROR',
+  message: '업스트림이 응답하지 않습니다',
+  retriable: true,
+});
 
 const notFound = new AppError({
   status: 404,
@@ -104,42 +113,26 @@ describe('입력 프레임', () => {
     expect(getApprovedRecommendations).toHaveBeenCalledWith(1642, 'AWS');
   });
 
-  it('조회가 실패하면 관측한 status 를 말하고 [다시 확인] 이 되며, 다시 누르면 한 번 더 묻는다', async () => {
-    getApprovedRecommendations.mockRejectedValue(
-      // 503 의 code 는 허용 목록에 없어 status fallback 으로 떨어진다(lib/fetch-json.ts).
-      new AppError({
-        status: 503,
-        code: 'INTERNAL_ERROR',
-        message: '업스트림이 응답하지 않습니다',
-        retriable: true,
-      }),
-    );
+  it('조회가 실패하면 짧게 말하고 [다시 확인] 이 되며, 다시 누르면 한 번 더 묻는다', async () => {
+    getApprovedRecommendations.mockRejectedValue(unavailable);
     mount();
 
     fireEvent.click(button('추천값 불러오기'));
 
     const retry = await screen.findByRole('button', { name: '다시 확인' });
-    // 부재와 같은 자리에서, 계약이 선언한 reason phrase 를 달고 선다.
-    const reason = screen.getByText('추천값을 불러오지 못했습니다 · 503 Service Unavailable');
+    // 부재와 같은 자리, 같은 한 줄 — status 도 본문도 이 줄에 없다.
+    const reason = screen.getByText('추천값을 불러오지 못했습니다.');
     expect(retry.getAttribute('aria-describedby')).toBe(reason.getAttribute('id'));
     // 누른 뒤에 나타나므로 읽어 준다.
     expect(reason.getAttribute('role')).toBe('status');
+    // 자세한 것을 볼 문이 옆에 하나 선다.
+    expect(screen.getByRole('button', { name: '상세 에러보기' })).toBeTruthy();
     // 실패는 부재가 아니다 — 막지 않고, 부재 이유도 말하지 않는다.
     expect(retry.getAttribute('aria-disabled')).toBeNull();
     expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
 
     fireEvent.click(retry);
     await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalledTimes(2));
-  });
-
-  it('응답이 오지 않았으면 status 대신 응답 없음 이라고 말한다', async () => {
-    getApprovedRecommendations.mockRejectedValue(new Error('Failed to fetch'));
-    mount();
-
-    fireEvent.click(button('추천값 불러오기'));
-
-    await screen.findByRole('button', { name: '다시 확인' });
-    expect(screen.getByText('추천값을 불러오지 못했습니다 · 응답 없음')).toBeTruthy();
   });
 
   it('IDC 는 계약이 NLB query 를 주지 않으므로 스위치째 없다', async () => {
@@ -230,6 +223,8 @@ describe('입력 프레임', () => {
     // 404 는 부재지 실패가 아니다 — 실패 말은 서지 않고, 버튼도 「다시 확인」이 되지 않는다.
     expect(screen.queryByText(/추천값을 불러오지 못했습니다/)).toBeNull();
     expect(screen.queryByRole('button', { name: '다시 확인' })).toBeNull();
+    // 부재에는 펼 본문이 없다 — 문도 서지 않는다.
+    expect(screen.queryByRole('button', { name: '상세 에러보기' })).toBeNull();
   });
 
   it('추천값이 있으면 이유 줄은 서지 않는다', async () => {
@@ -252,6 +247,61 @@ describe('입력 프레임', () => {
     expect(screen.queryByText(LEAVE_TITLE)).toBeNull();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
+describe('상세 에러보기', () => {
+  /** 실패까지 몰고 간다 — 초안이 없으면 첫 누름이 곧 조회다. */
+  const failLoad = async (): Promise<HTMLButtonElement> => {
+    fireEvent.click(button('추천값 불러오기'));
+    await screen.findByRole('button', { name: '다시 확인' });
+    return button('상세 에러보기');
+  };
+
+  it('누르면 서버 응답과 서버가 준 본문을 그대로 편다', async () => {
+    getApprovedRecommendations.mockRejectedValue(unavailable);
+    mount();
+
+    fireEvent.click(await failLoad());
+
+    // 창의 제목은 마침표가 없다 — 줄의 그것과 다른 문자열이다.
+    expect(screen.getByText('추천값을 불러오지 못했습니다')).toBeTruthy();
+    expect(screen.getByText('503 Service Unavailable')).toBeTruthy();
+    expect(screen.getByText(/업스트림이 응답하지 않습니다/)).toBeTruthy();
+    expect(screen.getByText(/INTERNAL_ERROR/)).toBeTruthy();
+  });
+
+  it('응답이 오지 않았으면 창이 응답 없음 이라고 말한다', async () => {
+    getApprovedRecommendations.mockRejectedValue(new Error('Failed to fetch'));
+    mount();
+
+    fireEvent.click(await failLoad());
+
+    expect(screen.getByText('응답 없음')).toBeTruthy();
+    expect(screen.getByText(/Failed to fetch/)).toBeTruthy();
+  });
+
+  it('[닫기] 는 창만 닫는다 — 편집기도 초안도 그대로 선다', async () => {
+    getApprovedRecommendations.mockRejectedValue(unavailable);
+    mount();
+
+    const sent = draftJson(1);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: sent } });
+    // 초안이 있으면 첫 누름은 무장만 한다 — 조회는 두 번째 누름이다.
+    fireEvent.click(button('추천값 불러오기'));
+    fireEvent.click(button('추천값 불러오기'));
+    fireEvent.click(await screen.findByRole('button', { name: '상세 에러보기' }));
+    expect(screen.getByText('추천값을 불러오지 못했습니다')).toBeTruthy();
+
+    fireEvent.click(button('닫기'));
+
+    expect(screen.queryByText('추천값을 불러오지 못했습니다')).toBeNull();
+    expect(screen.getByText('확정 정보 입력')).toBeTruthy();
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(sent);
+    // 창을 닫은 것이지 편집기를 닫은 것이 아니다.
+    expect(onClose).not.toHaveBeenCalled();
+    // 줄은 그대로 남는다.
+    expect(screen.getByText('추천값을 불러오지 못했습니다.')).toBeTruthy();
   });
 });
 
