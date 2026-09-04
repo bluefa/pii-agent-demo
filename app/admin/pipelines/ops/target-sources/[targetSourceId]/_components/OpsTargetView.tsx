@@ -723,7 +723,6 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               // 워크벤치의 세 축 중 「연동 요청 확인」은 SDU 에 없다 — 승인이 없어(§0)
               // 요청이 만들어지지 않으므로. 판정은 여기서 내린 것을 그대로 받는다.
               isSdu={isSdu}
-              onOpenInfra={() => selectTab('인프라 작업')}
             />
           )}
           {currentTab === '인프라 작업' && (

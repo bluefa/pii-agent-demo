@@ -26,10 +26,10 @@
  *   - `latest_confirmed_at`(확정 시각) — 밴드의 확정 칸 부제와 `ConfirmPane` 이 쓴다.
  *     확정 계약 `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이
  *     없고, 이 화면의 확정 시각은 그 응답에만 있다.
- *   - `overall_state` — 응답 객체째로 `ConfirmDeleteModal` 에 넘어가 **삭제 게이트의
- *     초기값**이 된다. 그 모달은 마운트될 때 다시 조회하므로 이 초기값이 낡아도 판정은
- *     바로잡히지만, 그렇다고 안 읽는 것은 아니다.
- * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 삭제 모달의 게이트 초기값을 먼저 옮겨야 한다.
+ *   - `overall_state` — 응답 객체째로 `ConfirmDeleteModal` 에 넘어가 그 모달의 **경고
+ *     문장**을 정한다(`APPLIED` 면 "삭제해도 인프라는 남습니다" 한 줄이 붙는다).
+ *     모달은 제 조회를 하지 않으므로, 이 값이 그 문장의 유일한 출처다.
+ * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 삭제 모달의 경고 문장을 먼저 옮겨야 한다.
  *
  * 대신 이 콜의 실패는 오류 배너를 올리지 않는다 — 잃는 것이 날짜 한 칸이라 배너의
  * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 칸 부제가 그 자리에서
@@ -213,8 +213,6 @@ export interface ConfirmTabProps {
    * 잡히지 않는다.
    */
   isSdu: boolean;
-  /** 확정 삭제 모달이 Terraform 게이트에 걸렸을 때의 유일한 출구 — 철거는 인프라 작업 탭이 소유한다. */
-  onOpenInfra: () => void;
 }
 
 export function ConfirmTab({
@@ -222,7 +220,6 @@ export function ConfirmTab({
   detail,
   processStatus,
   isSdu,
-  onOpenInfra,
 }: ConfirmTabProps): ReactElement {
   const [fetched, setFetched] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
   const [confirmed, setConfirmed] = useState<Load<ConfirmedIntegrationResponse>>({ state: 'loading' });
@@ -357,7 +354,7 @@ export function ConfirmTab({
   const terraformData = terraform.state === 'ready' ? terraform.data : null;
   // 이 탭이 직접 읽는 필드는 이것 하나다 — 확정 계약에 시각이 없어서 남은 콜이다.
   // 다만 응답 객체는 통째로 ConfirmDeleteModal 에도 넘어가고 거기서 overall_state 가
-  // 삭제 게이트 초기값으로 쓰인다(파일 머리 주석 참조). tasks 만 아무도 안 읽는다 —
+  // 삭제 모달의 경고 문장을 정한다(파일 머리 주석 참조). tasks 만 아무도 안 읽는다 —
   // 그건 인프라 작업 탭이 그린다.
   const confirmedAt = terraformData?.latest_confirmed_at || null;
   // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 원문 비교가 casing
@@ -546,7 +543,6 @@ export function ConfirmTab({
           provider={writeProvider}
           current={confirmedWire}
           terraform={terraformData}
-          onOpenInfra={onOpenInfra}
           onClose={deleteModal.close}
           onDone={retry}
         />

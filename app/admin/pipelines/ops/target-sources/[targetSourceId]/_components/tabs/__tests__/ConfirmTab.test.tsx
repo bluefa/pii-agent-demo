@@ -90,7 +90,6 @@ const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNE
       detail={isSdu ? SDU : CSP}
       processStatus={processStatus}
       isSdu={isSdu}
-      onOpenInfra={vi.fn()}
     />,
   );
 
@@ -303,7 +302,6 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
         detail={SDU}
         processStatus="CONNECTED"
         isSdu
-        onOpenInfra={vi.fn()}
       />,
     );
 
