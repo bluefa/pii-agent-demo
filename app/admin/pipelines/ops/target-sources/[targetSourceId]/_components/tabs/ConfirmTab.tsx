@@ -26,10 +26,10 @@
  *   - `latest_confirmed_at`(확정 시각) — 밴드의 확정 칸 부제와 `ConfirmPane` 이 쓴다.
  *     확정 계약 `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이
  *     없고, 이 화면의 확정 시각은 그 응답에만 있다.
- *   - `overall_state` — 응답 객체째로 `ConfirmEditorModal` 에 넘어가 **삭제 게이트의
- *     초기값**이 된다. 모달이 삭제를 열 때 다시 조회하므로 이 초기값이 낡아도 판정은
- *     바로잡히지만, 그렇다고 안 읽는 것은 아니다.
- * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 모달의 게이트 초기값을 먼저 옮겨야 한다.
+ *   - `overall_state` — 응답 객체째로 `ConfirmDeleteModal` 에 넘어가 그 모달의 **경고
+ *     카드**를 정한다(`APPLIED` 면 인프라가 이미 올라가 있다는 카드 한 장이 선다).
+ *     모달은 제 조회를 하지 않으므로, 이 값이 그 카드의 유일한 출처다.
+ * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 삭제 모달의 경고 카드를 먼저 옮겨야 한다.
  *
  * 대신 이 콜의 실패는 오류 배너를 올리지 않는다 — 잃는 것이 날짜 한 칸이라 배너의
  * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 칸 부제가 그 자리에서
@@ -80,6 +80,7 @@ import {
   RequestPane,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmEditorModal';
+import { ConfirmDeleteModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmDeleteModal';
 
 /** `data: null` = 스냅샷이 아직 없다(404). 실패가 아니다. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
@@ -212,7 +213,11 @@ export interface ConfirmTabProps {
    * 잡히지 않는다.
    */
   isSdu: boolean;
-  /** 확정 편집 모달이 Terraform 게이트에 걸렸을 때의 유일한 출구 — 실행은 인프라 작업 탭이 소유한다. */
+  /**
+   * 확정 삭제 모달의 경고 카드가 여는 **지름길** — 게이트의 출구가 아니다(09-04 이후
+   * 삭제는 막히지 않는다). 철거는 여전히 인프라 작업 탭이 소유하므로, 그리로 한 번에
+   * 가는 길만 준다.
+   */
   onOpenInfra: () => void;
 }
 
@@ -230,8 +235,10 @@ export function ConfirmTab({
   const [cell, setCell] = useState<CellKey>('confirm');
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
-  // 입력·수정·삭제가 한 모달이다 — 삭제는 그 안의 영역 교체이므로 두 번째 모달을 두지 않는다.
+  // 편집과 삭제는 pane 머리의 두 문이고, 모달도 둘이다 — 삭제는 편집기의 크롬(파라미터·
+  // 요청 본문·응답 칸)을 쓸 일이 없고, 이 콘솔의 다른 파괴적 동작과 같은 문법으로 묻는다.
   const editorModal = useModal();
+  const deleteModal = useModal();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -353,8 +360,8 @@ export function ConfirmTab({
   const writeProvider = resolveWriteProvider(detail);
   const terraformData = terraform.state === 'ready' ? terraform.data : null;
   // 이 탭이 직접 읽는 필드는 이것 하나다 — 확정 계약에 시각이 없어서 남은 콜이다.
-  // 다만 응답 객체는 통째로 ConfirmEditorModal 에도 넘어가고 거기서 overall_state 가
-  // 삭제 게이트 초기값으로 쓰인다(파일 머리 주석 참조). tasks 만 아무도 안 읽는다 —
+  // 다만 응답 객체는 통째로 ConfirmDeleteModal 에도 넘어가고 거기서 overall_state 가
+  // 삭제 모달의 경고 카드를 정한다(파일 머리 주석 참조). tasks 만 아무도 안 읽는다 —
   // 그건 인프라 작업 탭이 그린다.
   const confirmedAt = terraformData?.latest_confirmed_at || null;
   // 정규화해서 비교한다 — RequestTab·OpsTargetView 와 같은 규칙이다. 원문 비교가 casing
@@ -521,6 +528,8 @@ export function ConfirmTab({
             // 다른 대상에서는 그 칸이 이미 말하므로 여기서 또 적으면 같은 사실이 두 벌이 된다.
             confirmedAtFailed={isSdu && terraform.state === 'failed'}
             onEdit={writeProvider ? editorModal.open : undefined}
+            // 지울 것이 있을 때만 문이 선다 — 미등록 pane 에는 삭제할 확정이 없다.
+            onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
           />
         )}
       </div>
@@ -531,9 +540,18 @@ export function ConfirmTab({
           onClose={editorModal.close}
           targetSourceId={targetSourceId}
           provider={writeProvider}
-          current={confirmedRows.length > 0 ? confirmedWire : null}
+          onDone={retry}
+        />
+      )}
+
+      {writeProvider && confirmedWire && hasConfirmed && deleteModal.isOpen && (
+        <ConfirmDeleteModal
+          targetSourceId={targetSourceId}
+          provider={writeProvider}
+          current={confirmedWire}
           terraform={terraformData}
           onOpenInfra={onOpenInfra}
+          onClose={deleteModal.close}
           onDone={retry}
         />
       )}

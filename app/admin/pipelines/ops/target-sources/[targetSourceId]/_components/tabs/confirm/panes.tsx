@@ -16,6 +16,7 @@ import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
+import { Tooltip } from '@/app/components/ui/Tooltip';
 import { ResourceList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
 import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
@@ -164,14 +165,20 @@ export interface ConfirmPaneProps {
    */
   confirmedAtFailed?: boolean;
   /**
-   * 확정 정보 입력·수정·삭제 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다.
-   * 삭제는 편집기 안의 영역 교체이므로 pane 에 두 번째 입구를 두지 않는다.
+   * 확정 정보 입력 — 계약이 쓰기 경로를 주는 provider 에서만 내려온다. 고쳐 쓰는 길은
+   * 없다: 등록이 있으면 지운 뒤 다시 넣는다(오너 2026-09-03).
    */
   onEdit?: () => void;
+  /**
+   * 확정 정보 삭제 — **편집과 나란한 두 번째 문**이다. 지우려는 사람이 편집기를 먼저
+   * 열 이유가 없고, 삭제 확인은 이 콘솔의 다른 파괴적 동작(연동 초기화)과 같은 문법을
+   * 쓴다. 지울 것이 있고(확정 등록됨) 쓰기 경로가 있을 때만 내려온다.
+   */
+  onDelete?: () => void;
 }
 
 /**
- * 현재 확정 정보만 보여 준다 — 표는 편집기의 삭제 확인 화면과 같은 표이고, provider 로
+ * 현재 확정 정보만 보여 준다 — 표는 provider 로
  * 갈린다: 클라우드는 Step 6·7 의 `ConfirmedResourceTable`, IDC 는 옆 칸(연동 요청 확인)의
  * `IdcResourceTable`. 승인 스냅샷과의 비교·Raw 렌즈는 라이브 리뷰에서 제거됐다
  * ("뭘 비교한다는 건지"가 전달되지 않았다). 승인 내역이 필요하면 옆 칸(연동 요청
@@ -184,11 +191,23 @@ export function ConfirmPane({
   hasApproval,
   confirmedAtFailed,
   onEdit,
+  onDelete,
 }: ConfirmPaneProps): ReactElement {
   const resources = wire?.resource_infos ?? [];
   const empty = resources.length === 0;
   // Step 6·7 과 같은 표가 도메인 타입을 읽는다 — 같은 응답을 같은 매퍼로 넘긴다.
   const structureRows = useMemo(() => (wire ? confirmedIntegrationToConfirmed(wire) : []), [wire]);
+
+  // 문의 낱말은 늘 「입력」이다 — 등록을 고쳐 쓰는 길은 없고 지운 뒤 다시 넣는다(오너
+  // 2026-09-03). 그래서 등록이 있는 동안 문은 자리를 지키되 잠긴다. 사유가 있는 잠금은
+  // `disabled` 가 아니라 `blocked` 다: 얼굴은 그대로지만 hover·포커스를 잃지 않아 아래
+  // 툴팁이 마우스로도 키보드로도 닿는다. native `title` 은 이 콘솔에서 버렸다(오너
+  // 2026-08-30) — OS 가 제 서체로 그리는 상자라 화면의 나머지와 같은 물건이 아니었다.
+  const editDoor = onEdit ? (
+    <PlButton variant="primary" blocked={!empty} onClick={onEdit}>
+      확정 정보 입력
+    </PlButton>
+  ) : null;
 
   return (
     <div className={paneStyles.pane}>
@@ -205,11 +224,27 @@ export function ConfirmPane({
                 : `리소스 ${resources.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)} 등록` : ''}`}
           </span>
         </p>
-        {onEdit && (
+        {(onEdit || onDelete) && (
+          /* 두 문은 같은 눈금(32px)이다 — 이 pane 안의 검색 입력이 32px 이라, 액션만
+             28px 로 내려가면 머리줄에서 셋이 서로 다른 높이로 선다. */
           <div className={paneStyles.actions}>
-            <PlButton variant="primary" size="sm" onClick={onEdit}>
-              {empty ? '확정 정보 입력' : '확정 정보 수정'}
-            </PlButton>
+            {!empty && onDelete && (
+              <PlButton variant="danger" onClick={onDelete}>
+                확정 정보 삭제
+              </PlButton>
+            )}
+            {editDoor &&
+              (empty ? (
+                editDoor
+              ) : (
+                <Tooltip
+                  content="확정 정보를 삭제한 뒤 입력할 수 있습니다"
+                  variant="value"
+                  triggerClassName="shrink-0"
+                >
+                  {editDoor}
+                </Tooltip>
+              ))}
           </div>
         )}
       </div>

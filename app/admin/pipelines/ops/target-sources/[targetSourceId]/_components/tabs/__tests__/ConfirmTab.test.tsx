@@ -90,7 +90,7 @@ const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNE
       detail={isSdu ? SDU : CSP}
       processStatus={processStatus}
       isSdu={isSdu}
-      onOpenInfra={vi.fn()}
+      onOpenInfra={() => {}}
     />,
   );
 
@@ -155,6 +155,35 @@ describe('ConfirmTab 밴드', () => {
     expect(screen.queryByText('일부 정보를 불러오지 못했습니다.')).toBeNull();
     // 그렇다고 침묵하지도 않는다 — `리소스 2건` 만 남으면 "시각 없는 확정"과 구분이 안 된다.
     expect(confirmCell.textContent).toContain('확정 시각 불러오지 못함');
+  });
+
+  /**
+   * 확정 pane 머리의 문은 둘이다 — 입력과 삭제. 삭제가 편집기 안의 모드였을 때는 지우려는
+   * 사람이 편집기를 먼저 열어야 했다. 그 배치로 돌아가면 이 단언들이 먼저 깨진다.
+   *
+   * 등록이 있는 동안 입력 문은 자리를 지키되 잠긴다 — 고쳐 쓰는 길은 없고 지운 뒤 다시
+   * 넣는다(오너 2026-09-03). 잠금은 native `disabled` 가 아니라 `aria-disabled` 다:
+   * 사유 툴팁이 hover 로도 포커스로도 닿아야 하는데 native disabled 는 둘 다 끊는다.
+   */
+  it('확정이 있으면 두 문이 서고, 입력 문은 잠긴 채로 선다', async () => {
+    mount();
+
+    const del = await screen.findByRole('button', { name: '확정 정보 삭제' });
+    expect(del.getAttribute('aria-disabled')).toBeNull();
+
+    // 「수정」이라는 낱말은 이 머리줄에서 사라졌다.
+    expect(screen.queryByRole('button', { name: '확정 정보 수정' })).toBeNull();
+    const input = screen.getByRole('button', { name: '확정 정보 입력' });
+    expect(input.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('확정이 없으면 지울 것도 없다 — 열린 입력 문 하나뿐이다', async () => {
+    getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
+    mount();
+
+    const input = await screen.findByRole('button', { name: '확정 정보 입력' });
+    expect(input.getAttribute('aria-disabled')).toBeNull();
+    expect(screen.queryByRole('button', { name: '확정 정보 삭제' })).toBeNull();
   });
 
   it('요청 조회가 실패하면 오류 배너를 올린다', async () => {
@@ -274,7 +303,7 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
         detail={SDU}
         processStatus="CONNECTED"
         isSdu
-        onOpenInfra={vi.fn()}
+        onOpenInfra={() => {}}
       />,
     );
 
