@@ -120,7 +120,8 @@ type RecommendationLoad =
   | { state: 'ready'; text: string }
   /** 추천할 것이 없다(404). 오류가 아니라 부재다. */
   | { state: 'absent' }
-  | { state: 'failed' };
+  /** 못 봤다 — 관측한 status 를 들고 있는다. `0` 은 응답이 오지 않았다는 뜻이다. */
+  | { state: 'failed'; code: number };
 
 /** 계약이 선언한 reason phrase — 성공(201)과 실패 태그가 함께 쓴다. 계약에 없는 코드에는
  *  아무 말도 붙이지 않는다. */
@@ -175,7 +176,7 @@ const errorExchange = (ms: number, sent: unknown, error: unknown): Exchange =>
 const MONO = '[font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]';
 /** 목록은 최대 열 줄이다 — 그 아래는 건수 한 줄(ConfirmDeleteModal 과 같은 상한). */
 const MAX_ROWS = 10;
-/** 막힌 이유 한 줄의 id — 버튼이 `aria-describedby` 로 가리킨다. */
+/** 이유 한 줄(부재·실패)의 id — 버튼이 `aria-describedby` 로 가리킨다. */
 const RECOMMEND_REASON_ID = 'confirm-editor-recommend-reason';
 
 const styles = {
@@ -196,7 +197,10 @@ const styles = {
   recommendBtn:
     '!border-[rgba(130,177,255,0.45)] !bg-[rgba(37,99,235,0.16)] !text-[var(--pl-editor-recommend)] !shadow-none enabled:hover:!bg-[rgba(37,99,235,0.24)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
   recommendIcon: 'h-3.5 w-3.5',
-  blockedReason: 'ml-3 min-w-0 truncate text-[12px] text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  /** 버튼 옆 이유 한 줄 — 자리(레이아웃)는 하나, 색만 갈린다. */
+  blockedReason: 'ml-3 min-w-0 truncate text-[12px]',
+  blockedReasonWarn: 'text-[var(--pl-editor-warn)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
+  blockedReasonErr: 'text-[var(--pl-editor-err)]', // design-exempt: text on the dark editor surface (--pl-editor-bar), not white
 
   editRow: cn('flex min-h-0 flex-1 pt-4', MONO),
   gutter: 'w-[44px] flex-none select-none overflow-hidden pr-[14px] text-right text-[12px] leading-[22px] tabular-nums text-[var(--pl-editor-gutter)]', // design-exempt: text on the dark editor surface (--pl-editor-bg), not white
@@ -325,7 +329,10 @@ export function ConfirmEditorModal({
           setRecommendation({ state: 'absent' });
           return;
         }
-        setRecommendation({ state: 'failed' });
+        setRecommendation({
+          state: 'failed',
+          code: loadError instanceof AppError ? loadError.status : 0,
+        });
       });
   };
 
@@ -380,10 +387,26 @@ export function ConfirmEditorModal({
   const busy = saveMutation.loading;
   const recommendBlocked =
     busy || recommendation.state === 'loading' || recommendation.state === 'absent';
-  // 막힌 이유를 버튼 옆에서 말한다 — 「추천값 불러오기」가 회색인 이유가 화면에 없으면
-  // 고장으로 읽힌다. 부재(404)만 말하고, 지나가는 상태(저장 중·조회 중)는 말하지 않는다.
-  const blockedReason =
-    recommendation.state === 'absent' ? '연동 승인 정보가 존재하지 않습니다.' : null;
+  // 버튼 옆에서 이유를 말한다 — 「추천값 불러오기」가 회색인 이유도, 눌렀는데 아무 일도
+  // 일어나지 않은 이유도 화면에 없으면 고장으로 읽힌다. 지나가는 상태(저장 중·조회 중)는
+  // 말하지 않는다.
+  //
+  // 부재는 사실이라 주황, 실패는 오류라 빨강 — 자리는 같고 색과 말이 갈린다. 실패는
+  // 물어본 사람에게만 보이므로 토스트로 띄우지 않는다.
+  const recommendReason: { text: string; tone: 'warn' | 'err' } | null =
+    recommendation.state === 'absent'
+      ? { text: '연동 승인 정보가 존재하지 않습니다.', tone: 'warn' }
+      : recommendation.state === 'failed'
+        ? {
+            // 결과 프레임의 실패 태그와 같은 말 — 계약에 없는 코드에는 phrase 를 붙이지 않는다.
+            text: `추천값을 불러오지 못했습니다 · ${
+              recommendation.code > 0
+                ? `${recommendation.code} ${phraseOf(recommendation.code) ?? ''}`.trim()
+                : '응답 없음'
+            }`,
+            tone: 'err',
+          }
+        : null;
 
   const save = (): void => {
     let body: unknown;
@@ -521,7 +544,7 @@ export function ConfirmEditorModal({
                   className={recommendBlocked ? undefined : styles.recommendBtn}
                   onClick={loadRecommendation}
                   blocked={recommendBlocked}
-                  aria-describedby={blockedReason ? RECOMMEND_REASON_ID : undefined}
+                  aria-describedby={recommendReason ? RECOMMEND_REASON_ID : undefined}
                 >
                   {recommendation.state === 'failed' ? (
                     <ReloadIcon className={styles.recommendIcon} />
@@ -530,9 +553,18 @@ export function ConfirmEditorModal({
                   )}
                   {recommendation.state === 'failed' ? '다시 확인' : '추천값 불러오기'}
                 </PlButton>
-                {blockedReason && (
-                  <span id={RECOMMEND_REASON_ID} className={styles.blockedReason}>
-                    {blockedReason}
+                {recommendReason && (
+                  <span
+                    id={RECOMMEND_REASON_ID}
+                    role="status"
+                    className={cn(
+                      styles.blockedReason,
+                      recommendReason.tone === 'err'
+                        ? styles.blockedReasonErr
+                        : styles.blockedReasonWarn,
+                    )}
+                  >
+                    {recommendReason.text}
                   </span>
                 )}
               </div>

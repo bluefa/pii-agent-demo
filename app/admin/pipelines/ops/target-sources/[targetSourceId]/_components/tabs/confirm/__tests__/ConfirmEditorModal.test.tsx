@@ -104,21 +104,42 @@ describe('입력 프레임', () => {
     expect(getApprovedRecommendations).toHaveBeenCalledWith(1642, 'AWS');
   });
 
-  it('조회가 실패하면 [다시 확인] 이 되고, 다시 누르면 한 번 더 묻는다', async () => {
+  it('조회가 실패하면 관측한 status 를 말하고 [다시 확인] 이 되며, 다시 누르면 한 번 더 묻는다', async () => {
     getApprovedRecommendations.mockRejectedValue(
-      new AppError({ status: 500, code: 'INTERNAL_ERROR', message: '서버 오류', retriable: true }),
+      // 503 의 code 는 허용 목록에 없어 status fallback 으로 떨어진다(lib/fetch-json.ts).
+      new AppError({
+        status: 503,
+        code: 'INTERNAL_ERROR',
+        message: '업스트림이 응답하지 않습니다',
+        retriable: true,
+      }),
     );
     mount();
 
     fireEvent.click(button('추천값 불러오기'));
 
     const retry = await screen.findByRole('button', { name: '다시 확인' });
+    // 부재와 같은 자리에서, 계약이 선언한 reason phrase 를 달고 선다.
+    const reason = screen.getByText('추천값을 불러오지 못했습니다 · 503 Service Unavailable');
+    expect(retry.getAttribute('aria-describedby')).toBe(reason.getAttribute('id'));
+    // 누른 뒤에 나타나므로 읽어 준다.
+    expect(reason.getAttribute('role')).toBe('status');
     // 실패는 부재가 아니다 — 막지 않고, 부재 이유도 말하지 않는다.
     expect(retry.getAttribute('aria-disabled')).toBeNull();
     expect(screen.queryByText('연동 승인 정보가 존재하지 않습니다.')).toBeNull();
 
     fireEvent.click(retry);
     await waitFor(() => expect(getApprovedRecommendations).toHaveBeenCalledTimes(2));
+  });
+
+  it('응답이 오지 않았으면 status 대신 응답 없음 이라고 말한다', async () => {
+    getApprovedRecommendations.mockRejectedValue(new Error('Failed to fetch'));
+    mount();
+
+    fireEvent.click(button('추천값 불러오기'));
+
+    await screen.findByRole('button', { name: '다시 확인' });
+    expect(screen.getByText('추천값을 불러오지 못했습니다 · 응답 없음')).toBeTruthy();
   });
 
   it('IDC 는 계약이 NLB query 를 주지 않으므로 스위치째 없다', async () => {
@@ -206,6 +227,9 @@ describe('입력 프레임', () => {
     expect(reason).toBeTruthy();
     // 이유는 버튼에 묶인다 — blocked 버튼은 포커스를 잃지 않으므로 읽어 줄 수 있다.
     expect(load.getAttribute('aria-describedby')).toBe(reason.getAttribute('id'));
+    // 404 는 부재지 실패가 아니다 — 실패 말은 서지 않고, 버튼도 「다시 확인」이 되지 않는다.
+    expect(screen.queryByText(/추천값을 불러오지 못했습니다/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '다시 확인' })).toBeNull();
   });
 
   it('추천값이 있으면 이유 줄은 서지 않는다', async () => {
