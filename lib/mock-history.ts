@@ -82,6 +82,18 @@ const OPS_DEMO_TARGET_SOURCE_ID = 1583;
  */
 const CLOUD_DEMO_TARGET_SOURCE_ID = 1007;
 
+/**
+ * Third seeded target: 1642 is the AWS target whose RDS cluster carries member instances
+ * (mock-data.ts:2446-2477 — WRITER cpn-aurora-order-1, READER cpn-aurora-order-2), so it is
+ * where the ops 연동 요청 정보 tab's cluster instance rows can actually be checked. 1642 is
+ * already CONNECTION_VERIFIED, so its trail is a single 확정→승인 pair, not a rejection or a
+ * cancellation. Timestamps reuse the same step-2/step-3 transition times 1583 uses (mock/ops
+ * SEED_TIMES[1]/[2]) — both land well before 1642's own latest event (updatedAt and
+ * task-queue.ts SEED_TC completed_at are both 2026-07-20T06:23:00Z), so the approval never
+ * predates 승인 대기.
+ */
+const RDS_CLUSTER_DEMO_TARGET_SOURCE_ID = 1642;
+
 const REQUESTER: ProjectHistoryActor = { id: 'user-1', name: '홍길동' };
 const APPROVER: ProjectHistoryActor = { id: 'admin-1', name: '관리자' };
 
@@ -110,6 +122,14 @@ export const buildSeedProjectHistory = (): ProjectHistory[] => {
     timestamp: string,
     details: ProjectHistory['details'] = {},
   ) => at(CLOUD_DEMO_TARGET_SOURCE_ID, id, type, actor, timestamp, details);
+
+  const cluster = (
+    id: string,
+    type: ProjectHistoryType,
+    actor: ProjectHistoryActor,
+    timestamp: string,
+    details: ProjectHistory['details'] = {},
+  ) => at(RDS_CLUSTER_DEMO_TARGET_SOURCE_ID, id, type, actor, timestamp, details);
 
   return [
     idc('ph-seed-15831-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-16T10:31:00+09:00', {
@@ -140,6 +160,13 @@ export const buildSeedProjectHistory = (): ProjectHistory[] => {
     cloud('ph-seed-10071-res', 'REJECTION', APPROVER, '2024-01-18T14:00:00+09:00', {
       reason: 'RDS_CLUSTER 리소스는 현재 지원되지 않습니다. RDS 단일 인스턴스만 선택해주세요.',
     }),
+
+    // 1642 has 6 resources, all selected, none excluded (mock-data.ts:2419-2481).
+    cluster('ph-seed-16421-req', 'TARGET_CONFIRMED', REQUESTER, '2026-07-16T10:31:00+09:00', {
+      resourceCount: 6,
+      excludedResourceCount: 0,
+    }),
+    cluster('ph-seed-16421-res', 'APPROVAL', APPROVER, '2026-07-17T18:56:00+09:00'),
   ];
 };
 

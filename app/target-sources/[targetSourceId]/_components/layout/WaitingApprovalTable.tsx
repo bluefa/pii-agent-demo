@@ -856,13 +856,6 @@ export const WaitingApprovalTable = memo(
     // The covered-clip cell (round 4) — `ConsoleTable`'s cell grammar. See the token for
     // why the CELL clips.
     const coveredCell = idcStyles.table.consoleCell;
-    // Steps 2·3 exactly. For the handful of choices the owner made about the approval
-    // screens specifically — recorded (LIN-97): when install and plain joined the console
-    // shell, the old `consoleVariant && !confirmedVariant` phrasing would have carried
-    // those choices onto step 4 and the admin ops 확정 정보 tab, which the owner's call
-    // (semibold names, 2026-08-23) did not cover. The predicate now names the variant.
-    const approvalConsole = variant === 'approval';
-
     // Approval rows sit one step over approvalCell's py-4 (owner request, step-1 table
     // matches). It rides the tbody rather than the table because both shells share these
     // bodies and only one of them owns a <table> element here.
@@ -973,18 +966,16 @@ export const WaitingApprovalTable = memo(
               coveredCell,
               'font-mono text-[14px]',
               textColors.primary,
-              // Steps 2·3 rank the name by WEIGHT, not colour (owner, 2026-08-23). Blue only
-              // ranked the column while the pointer was on it, and it is the column you rank a
-              // row BY — the reader picking a name out of six columns is not hovering yet.
-              // Weight ranks it at rest, in the one channel these rows have left: colour here
+              // Steps 2·3 ranked the name by WEIGHT, not colour, on 2026-08-23: colour here
               // already means verdict (magenta 제외, amber 연동 불가) and the tint already means
-              // hover, so a third meaning for colour was one too many.
+              // hover, so a third meaning for colour was one too many, and blue only ranked the
+              // column while the pointer was on it.
               //
-              // ⛔ Scoped to steps 2·3, not to every shell that reaches this branch. `confirmed`
-              // (step 6, admin ops 확정 정보) replaces the verdict pair with logical-DB counts
-              // and `plain` drops it entirely, so the argument above does not hold there and the
-              // owner's call did not cover those screens. They keep the hover blue.
-              approvalConsole ? 'font-semibold' : NAME_LIFT,
+              // The owner REVERSED that call on 2026-09-04, to match Step 1 (`/1006`) and the
+              // admin queue (`/2113`) — both 400 weight, steps 2·3 were the lone 600 outlier.
+              // Consequence: steps 2·3 now rank the name only on hover, the exact state the
+              // 08-23 call rejected. Recorded here so a future reader sees it was decided twice.
+              NAME_LIFT,
               // 그룹 자식 행은 레일을 그리지 않는다: 첫 셀 왼쪽 0~4px 는 그룹 트리 레일이 이미
               // 말하는 자리이고, 판정은 부모 행의 집계(「총 N개 중 M개 제외」)가 대신 답한다.
               !grouped &&
@@ -997,15 +988,20 @@ export const WaitingApprovalTable = memo(
               !grouped && idcStyles.table.nameCell,
               grouped && idcStyles.table.group.childCell,
               grouped && lastInGroup && idcStyles.table.group.childCellLast,
-              (instancesOpen || (folded && open)) && idcStyles.table.group.parentCell,
+              // The cluster chevron is name-line pinned (`toggleNameAligned`), not row-centred —
+              // the trunk needs the matching start. The folded-region case keeps the row-centred
+              // `parentCell`: its chevron is untouched by that pin.
+              instancesOpen && idcStyles.table.group.parentCellNameAligned,
+              folded && open && idcStyles.table.group.parentCell,
             )}
           >
             {hasInstances ? (
               // Three-line identity, exactly step 1's: kind tag → cluster name → the instance it
               // connects through (owner, 2026-08-13; recorded verbatim in the propagation section
-              // of `docs/ux/benchmark/step1-resource-table.md`). No positional lift here — with
-              // three lines the name is already the middle one, which is the line `lead` centres
-              // the chevron on.
+              // of `docs/ux/benchmark/step1-resource-table.md`). `toggleNameAligned` pins the
+              // chevron to the name line with a `top` offset from `lead`'s top (the button is
+              // absolutely positioned, so `lead`'s `items-center` never reached it) — stable
+              // across the 2-line and 3-line stack alike.
               <span className={idcStyles.table.group.lead}>
                 <button
                   type="button"
@@ -1019,7 +1015,7 @@ export const WaitingApprovalTable = memo(
                     instanceFold.toggle();
                   }}
                   className={cn(
-                    idcStyles.table.group.toggle,
+                    idcStyles.table.group.toggleNameAligned,
                     instancesOpen
                       ? idcStyles.table.group.toggleOpen
                       : idcStyles.table.group.toggleClosed,
@@ -1045,8 +1041,12 @@ export const WaitingApprovalTable = memo(
                       surface it was the wrong fact besides: which member the request connects
                       through is the thing being reviewed, and the row said only how many there
                       were. `RdsChosenInstanceLine` falls back to the count when the cluster is
-                      excluded, because then there is no selection to name. */}
-                  <RdsChosenInstanceLine chosen={chosenInstance} total={instances.length} />
+                      excluded, because then there is no selection to name. Hidden while the band
+                      is OPEN — see the rule in `CandidateResourceRow`'s
+                      `showChosenInstanceLine`. */}
+                  {!instancesOpen && (
+                    <RdsChosenInstanceLine chosen={chosenInstance} total={instances.length} />
+                  )}
                 </span>
               </span>
             ) : folded ? (
@@ -1303,22 +1303,22 @@ export const WaitingApprovalTable = memo(
         return (
           <Fragment key={rowKey}>
             {row}
-            {/* The cluster's member instances — the SAME accordion body step 1 opens, in its
-                read-only mode: the choice was made there and this surface exists to review it,
-                so the radios are gone and the 선택됨 chip states the pick (owner, 2026-08-13:
-                "모든 Step에 적용").
+            {/* The cluster's member instances — the SAME rows step 1 opens, in read-only mode:
+                the choice was made there and this surface exists to review it, so the radios
+                are gone and the 선택됨 chip states the pick (owner, 2026-08-13: "모든 Step에
+                적용").
 
-                They used to be rows of this table, which cost more than the swap saved: three
-                of the six columns are the cluster's own answer (id, verdict, reason — one
-                decision, not one per member) so they sat empty, the endpoint had no column at
-                all, and the AZ was filed under the "Region" header for want of anywhere else.
-                Inside the body those three have their own labelled columns. */}
+                Rows of THIS table, on its own columns (2026-09-03). They were a colspan band
+                with a 3-column grid of its own, and that grid landed the AZ under this table's
+                Resource ID column while the Athena children a row above put their region under
+                Region — one class of value on two axes. The columns that are the cluster's
+                single answer (id, verdict, reason) stay empty here for the same reason an
+                Athena child's do. */}
             {instancesOpen && (
               <RdsInstancePanel
                 clusterId={rowKey}
-                clusterName={resource.resourceName ?? resource.resourceId}
-                showCheckboxColumn={false}
-                colSpan={6}
+                // `approvalColumns`, in order — the AZ goes under Region.
+                columns={['name', 'blank', 'blank', 'availabilityZone', 'blank', 'blank']}
                 instances={instances}
                 chosenResourceId={resource.selectedRdsInstanceResourceId ?? undefined}
                 selectable={false}

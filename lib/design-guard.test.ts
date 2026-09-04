@@ -1069,12 +1069,13 @@ describe('detects the PR #624 regressions the hook missed', () => {
 });
 
 /**
- * The RDS instance band draws the same tree rail as an Athena group, from a different anchor:
- * the group's offsets are measured inside a name cell, the band's inside a colspan cell that
- * starts one whole column to the left. Two numbers in two tokens have to agree for the rail to
- * come out as ONE line, and nothing in the type system says so — hence a guard.
+ * RDS instance rows draw the SAME tree rail as an Athena group's children, on the same axis:
+ * since 2026-09-03 they are rows of the host table and their name cell is a `group.childCell`.
+ * `instanceBand.nameCell` exists only to shorten the elbow so a radio fits in the tier gap, and
+ * a full duplicate of a token is exactly the kind of copy that drifts — so the trunk and the
+ * tier are guarded against the original, and the radio against the elbow it has to clear.
  */
-describe('instance band rail shares the group rail axis', () => {
+describe('instance rows share the group rail axis', () => {
   /**
    * `classOf` reads single-quoted values, and a rail token is double-quoted because it carries
    * `content-['']` — whose apostrophes end that helper's match halfway through the string.
@@ -1091,26 +1092,27 @@ describe('instance band rail shares the group rail axis', () => {
   const bandSrc = themeSrc.match(/instanceBand: \{[\s\S]*?\n {4}\}/)?.[0] ?? '';
   const groupSrc = themeSrc.match(/group: \{[\s\S]*?\n {4}\}/)?.[0] ?? '';
 
-  it('the trunk lands on the group chevron, and the name on the child tier', () => {
-    // Athena: rail x = 16 inside a name cell; a child name at 54 in the same cell.
-    const groupRail = px(railClassOf(groupSrc, 'childCell'), /before:left-\[(\d+)px\]/);
-    const groupChild = px(railClassOf(groupSrc, 'childCell'), /pl-\[(\d+)px\]/);
-    // The band: content at 106 (= 52 checkbox column + 54), rail pulled back from it.
-    const bandRail = px(railClassOf(bandSrc, 'line'), /before:-left-\[(\d+)px\]/);
-    // Both cells sit on the same left edge once the checkbox column is accounted for, so the
-    // pull-back must equal the gap the group leaves between its own rail and its child name.
-    expect(bandRail).toBe(groupChild - groupRail);
+  const groupCell = railClassOf(groupSrc, 'childCell');
+  const instanceCell = railClassOf(bandSrc, 'nameCell');
+
+  it('the trunk and the name tier are the group child cell’s own, unchanged', () => {
+    // Athena: rail x = 16 inside a name cell; a child name at 54 in the same cell. An instance
+    // name is that same child name, so both numbers have to be copied, not re-derived.
+    for (const pattern of [/before:left-\[(\d+)px\]/, /pl-\[(\d+)px\]/, /after:left-\[(\d+)px\]/]) {
+      expect(px(instanceCell, pattern)).toBe(px(groupCell, pattern));
+    }
   });
 
   it('the radio hangs clear of the elbow rather than touching it', () => {
-    const axis = px(railClassOf(bandSrc, 'line'), /before:-left-\[(\d+)px\]/);
-    // Every rail pseudo-element in the band hangs off that one axis.
-    const offsets = [...bandSrc.matchAll(/-left-\[(\d+)px\]/g)].map((m) => Number(m[1]));
-    expect(new Set(offsets)).toEqual(new Set([axis]));
-    // The radio is the exception — it hangs in the tier gap, on Tailwind's 4px scale.
-    const radio = px(railClassOf(bandSrc, 'radio'), /-left-(\d+)\b/) * 4;
-    const elbow = px(railClassOf(bandSrc, 'line'), /after:w-\[(\d+)px\]/);
-    expect(axis - radio).toBeGreaterThan(elbow);
+    const axis = px(instanceCell, /after:left-\[(\d+)px\]/);
+    const elbow = px(instanceCell, /after:w-\[(\d+)px\]/);
+    const tier = px(instanceCell, /pl-\[(\d+)px\]/);
+    const radio = px(railClassOf(bandSrc, 'radio'), /left-\[(\d+)px\]/);
+    // Elbow ends, gap, radio (16px), gap, name. Neither end may touch.
+    expect(radio).toBeGreaterThan(axis + elbow);
+    expect(radio + 16).toBeLessThan(tier);
+    // The elbow yields to the radio — that is the ONE thing this token changes.
+    expect(elbow).toBeLessThan(px(groupCell, /after:w-\[(\d+)px\]/));
   });
 });
 

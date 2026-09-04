@@ -3,7 +3,6 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import { CloudResourceTable } from '@/app/admin/pipelines/queue/requests/_components/CloudResourceTable';
-import { rdsInstanceBandLabel } from '@/app/target-sources/[targetSourceId]/_components/shared/RdsInstancePanel';
 import { required } from '@/lib/test-dom';
 
 const row = (overrides: Partial<RequestResourceRow> = {}): RequestResourceRow => ({
@@ -60,24 +59,34 @@ const clusterRow = (overrides: Partial<RequestResourceRow> = {}): RequestResourc
   });
 
 /**
- * The instance names, in render order. They are not rows of the OUTER table — the members live
- * in the accordion body (`RdsInstancePanel`), which carries its own table roles, so they are
- * read out of that band and never off a page-wide row query.
+ * The opened instance ROWS — rows of this table since 2026-09-03, so they are found by a plain
+ * row query. The cluster's own row is excluded by name: it restates the chosen member on its
+ * ↳ line whenever that line is showing.
  */
-const instanceNames = () => {
-  const band = screen.queryByRole('table', { name: rdsInstanceBandLabel('demo-cluster') });
-  if (!band) return [];
-  return Array.from(band.querySelectorAll('span'))
-    .map((span) => span.textContent ?? '')
-    .filter((text) => /^demo-\d$/.test(text));
-};
+const instanceRows = (): HTMLTableRowElement[] =>
+  [...document.querySelectorAll<HTMLTableRowElement>('tbody tr')].filter(
+    (row) => !row.textContent?.includes('demo-cluster') && /demo-\d/.test(row.textContent ?? ''),
+  );
+
+/** The instance names, in render order. */
+const instanceNames = () =>
+  instanceRows().flatMap((row) =>
+    Array.from(row.querySelectorAll('span'))
+      .map((span) => span.textContent ?? '')
+      .filter((text) => /^demo-\d$/.test(text)),
+  );
+
+const columnKeys = (): string[] =>
+  [...document.querySelectorAll<HTMLElement>('thead th[data-col-key]')].map(
+    (th) => th.dataset.colKey ?? '',
+  );
 
 describe('CloudResourceTable', () => {
   it('renders a plain resource row with no cluster affordances', () => {
     render(<CloudResourceTable rows={[row()]} />);
     expect(screen.getByText('mysql-prod-01')).toBeTruthy();
     expect(screen.queryByText('RDS Cluster')).toBeNull();
-    expect(screen.queryByText('가용 영역')).toBeNull();
+    expect(instanceRows()).toHaveLength(0);
   });
 
   // The admin queue reviews a submitted request, so it has to show which member instance the
@@ -99,12 +108,12 @@ describe('CloudResourceTable', () => {
     });
 
     // item 3: the rail hangs off the chevron, so the fold and the rail arrive together.
-    it('starts expanded and collapses from the chevron', () => {
+    it('starts collapsed and expands from the chevron', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      expect(instanceNames()).toHaveLength(3);
-
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
       expect(instanceNames()).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      expect(instanceNames()).toHaveLength(3);
       // The cluster itself is still there, still tagged.
       expect(screen.getByText('demo-cluster')).toBeTruthy();
       expect(screen.getByText('RDS Cluster')).toBeTruthy();
@@ -119,57 +128,77 @@ describe('CloudResourceTable', () => {
       expect(screen.getAllByText('RDS Cluster')).toHaveLength(1);
     });
 
-    // colSpan is hand-passed by each host table (`colSpan={6}` here), so a column added to or
-    // removed from the header silently leaves the band short or overflowing.
-    it('spans the band across every column of this table', () => {
+    // The column layout is hand-passed by each host table, so a column added to or removed from
+    // the header silently knocks every instance cell one place out of register — the exact
+    // defect this shape replaced.
+    it('gives every instance row one cell per column of this table', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      const band = required(
-        screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }).closest('td'),
-        "the band's spanning cell",
-      );
-      expect(Number(band.getAttribute('colspan'))).toBe(
-        document.querySelectorAll('thead th').length,
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      const keys = columnKeys();
+      const rows = instanceRows();
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        const cells = [...row.querySelectorAll('td')];
+        expect(cells).toHaveLength(keys.length);
+        // The cluster's own answers stay blank on a member.
+        expect(cells[keys.indexOf('id')]?.textContent).toBe('');
+        expect(cells[keys.indexOf('dbType')]?.textContent).toBe('');
+        expect(cells[keys.indexOf('reason')]?.textContent).toBe('');
+      }
+      expect(document.querySelectorAll('table [role="table"]')).toHaveLength(0);
     });
 
     it('lists instances Reader-first then by resource_id, regardless of request order', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(instanceNames()).toEqual(['demo-2', 'demo-3', 'demo-1']);
     });
 
     it('marks only the chosen instance 선택됨, and offers no radio', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
       expect(screen.getAllByText('선택됨')).toHaveLength(1);
       expect(screen.queryAllByRole('radio')).toHaveLength(0);
-      // The chip rides the chosen instance's own LINE, not the band.
-      expect(screen.getByText('선택됨').closest('div')?.textContent).toContain('demo-2');
+      // The chip rides the chosen instance's own ROW, not the cluster's.
+      expect(
+        required(screen.getByText('선택됨').closest('tr'), "the chosen instance's row").textContent,
+      ).toContain('demo-2');
     });
 
     // Folding the band away must never be what deletes the choice — checking it is why this
-    // screen exists (owner, 2026-08-13: the step-1 third line applies from step 2 on).
-    it('names the chosen instance on the cluster row, folded or not', () => {
+    // screen exists (owner, 2026-08-13: the step-1 third line applies from step 2 on). Closed
+    // (the default here, 2026-09-04) the parent's own ↳ line names it — opening the band swaps
+    // to the chosen row's own `선택됨` chip.
+    it('names the chosen instance on the cluster row while folded, and via the 선택됨 chip once opened', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+      const clusterCell = () =>
+        required(screen.getByText('demo-cluster').closest('td'), "the cluster's identity cell");
+      expect(clusterCell().textContent).toContain('demo-2');
 
-      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 접기' }));
-      expect(instanceNames()).toHaveLength(0);
-      expect(screen.getByText('demo-cluster').closest('td')?.textContent).toContain('demo-2');
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      expect(instanceNames()).toHaveLength(3);
+      expect(clusterCell().textContent).not.toContain('demo-2');
+      expect(
+        required(screen.getByText('선택됨').closest('tr'), "the chosen instance's row").textContent,
+      ).toContain('demo-2');
     });
 
-    // The band is why the columns can say this at all: as rows of the outer table the AZ was
-    // filed under the Region header and the endpoint had nowhere to go.
-    it('gives each instance its own labelled AZ and endpoint columns', () => {
+    // The whole point of the 2026-09-03 shape: the AZ is read DOWN this table's own Region
+    // column instead of off a grid of the band's own, which landed it under Resource ID.
+    it('shows the member role per row and the AZ in this table’s Region column', () => {
       render(<CloudResourceTable rows={[clusterRow()]} />);
-      // Scoped to the band: the cluster row carries the chosen member's role too.
-      const band = within(screen.getByRole('table', { name: rdsInstanceBandLabel('demo-cluster') }));
-      expect(band.getAllByText('Reader')).toHaveLength(2);
-      expect(band.getAllByText('Writer')).toHaveLength(1);
+      fireEvent.click(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' }));
+      // Scoped to the rows: the cluster row carries the chosen member's role too.
+      const rows = instanceRows().map((row) => within(row));
+      expect(rows.flatMap((row) => row.queryAllByText('Reader'))).toHaveLength(2);
+      expect(rows.flatMap((row) => row.queryAllByText('Writer'))).toHaveLength(1);
       expect(screen.queryByText('WRITER')).toBeNull();
-      // The band's own headers — the outer table's Region column keeps the cluster's region.
-      expect(screen.getByText('가용 영역')).toBeTruthy();
-      expect(screen.getByText('엔드포인트')).toBeTruthy();
+      const region = columnKeys().indexOf('region');
+      expect(
+        instanceRows().map((row) => row.querySelectorAll('td')[region]?.textContent),
+      ).toEqual(['ap-northeast-2b', 'ap-northeast-2c', 'ap-northeast-2a']);
+      // The cluster row's own Region cell still says the cluster's region.
       expect(screen.getAllByText('ap-northeast-2')).toHaveLength(1);
-      expect(screen.getByText('ap-northeast-2b')).toBeTruthy();
     });
 
     // An excluded cluster chose nothing; the list is still the evidence for excluding it, but

@@ -156,10 +156,11 @@ const ko = {
   },
 
   shared: {
-    // RdsInstancePanel — the cluster's member band.
-    instanceBand: (clusterName: string) => `${clusterName} 접속 인스턴스 목록`,
+    // RdsInstancePanel — the cluster's member rows. The band's own header strip and its
+    // accessible name went with the colspan cell (2026-09-03): the rows are the host table's,
+    // so the table's `<thead>` labels them. What survives is what a control or a tip still
+    // needs to name — the two truncated-value tips and the radio.
     instance: '인스턴스',
-    availabilityZone: '가용 영역',
     endpoint: '엔드포인트',
     selectInstance: (identifier: string) => `접속 인스턴스 ${identifier} 선택`,
 
@@ -334,9 +335,7 @@ const en: typeof ko = {
   },
 
   shared: {
-    instanceBand: (clusterName: string) => `${clusterName} connection instances`,
     instance: 'Instance',
-    availabilityZone: 'Availability Zone',
     endpoint: 'Endpoint',
     selectInstance: (identifier: string) => `Select connection instance ${identifier}`,
 

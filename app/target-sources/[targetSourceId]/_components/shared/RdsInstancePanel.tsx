@@ -5,55 +5,69 @@ import { IdentifierTip, Tooltip } from '@/app/components/ui/Tooltip';
 import { rdsInstanceLabel, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import {
   bgColors,
-  borderColors,
   cn,
+  ec2Styles,
   idcStyles,
   primaryColors,
   statusColors,
   textColors,
 } from '@/lib/theme';
-import { DEFAULT_LOCALE, type Locale } from '@/lib/locale';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { TS_COPY } from '@/app/target-sources/[targetSourceId]/_components/copy';
 
 /**
- * RDS cluster member instances — the accordion body the cluster row opens.
+ * RDS cluster member instances — the rows a cluster row opens under itself.
  *
  * Used by every surface that shows a cluster's members: step 1 (choose one, radios), steps 2·3
  * and the admin request queue (review the choice, no radios, `선택됨` chip instead).
  *
- * The instances are NOT rows of the OUTER table. Half of its columns say nothing about an
- * instance (Resource ID, the verdict, 제외 사유 all belong to the cluster — one decision, not
- * one per member), and the two things the user actually compares — the endpoint and the AZ —
- * have no column at all: as outer rows they were a wide band of blanks, and the review surfaces
- * ended up filing the AZ under a "Region" header to have somewhere to put it. Inside the body
- * they get their OWN three columns and fill every one of them.
+ * The instances ARE rows of the host table. They were a colspan cell holding its own 3-column
+ * grid until 2026-09-03, and that shape put every value it showed on an axis of its own: the
+ * band's columns started at x 450 / 831.8 / 1067.3 while the table's started at 396 / 674.9 /
+ * 954.2 / 1096.2 / 1252.2 / 1364.2, so an instance's AZ rendered inside the Resource ID column
+ * while the Athena child row one row above rendered its region 268.7px away under the Region
+ * header — the same class of value, twice, in two places. A child row inherits its parent's
+ * column structure; the host table's `table-fixed` ledger is what aligns them, and nothing here
+ * re-derives it. Measurements and references: `docs/ux/benchmark/step1-rds-instance-rows.md`.
  *
- * It is an ACCORDION, not a card floating under the row: no margin, no rounded box, no shadow.
- * The body is flush against its cluster and shares that row's open tint, so the pair reads as one
- * block that opened rather than a panel that appeared somewhere below. The indent is the app's
- * own tier step, the same one a grouped child row hangs at.
+ * The columns an instance does NOT answer stay empty, exactly as an Athena child's do:
+ * the Resource ID is the parent's path plus the child's name, and the verdict, the exclusion
+ * reason and the engine are the cluster's one decision — not one per member.
  *
- * ONE LINE PER INSTANCE, and the body's height is whatever that adds up to — an Aurora cluster
+ * It is an ACCORDION, not a card floating under the row: the open cluster row and these rows
+ * share `bgColors.panel`, with no margin, radius, shadow or gap between them, so the block
+ * reads as a row that opened rather than a panel that appeared. That shape was rejected as a
+ * floating card three times; see the benchmark note.
+ *
+ * ONE ROW PER INSTANCE, and the block's height is whatever that adds up to — an Aurora cluster
  * carries a writer and up to fifteen readers, so any fixed grid is a layout that assumes the
- * count is small. A list just gets longer, and the columns stay aligned so scanning down eight
- * AZs is one eye movement instead of eight.
+ * count is small.
  *
  * Rejected shapes and the owner sessions behind them: `docs/ux/benchmark/step1-resource-table.md`.
  */
 
+/**
+ * What each column of the HOST table holds for an instance, in host column order.
+ *
+ * Declared by the caller, never derived here: the three hosts run 7 / 5 / 6 / 6 columns wide
+ * and only they know which of theirs is the Region column. A guess would put the AZ back where
+ * this shape was built to move it from.
+ */
+export type RdsInstanceHostColumn =
+  /** The host's leading checkbox gutter — a structural lead-in, so it casts no seam band. */
+  | 'select'
+  /** Resource Name — the tier indent, the radio, the instance name and its endpoint. */
+  | 'name'
+  /** Region — the instance's availability zone. */
+  | 'availabilityZone'
+  /** Anything the cluster answers for, or has no instance-level value: left empty. */
+  | 'blank';
+
 interface RdsInstancePanelProps {
-  /** The cluster the body belongs to — scopes the radio group. */
+  /** The cluster the rows belong to — scopes the radio group. */
   clusterId: string;
-  /** Names the band, so several open at once stay distinguishable. */
-  clusterName: string;
-  /**
-   * Whether the host table opens with a checkbox column. This sets the INDENT only: the body
-   * hangs off the name column's left edge, and the checkbox column is what moves it.
-   */
-  showCheckboxColumn: boolean;
-  /** Columns to span — passed, not derived: the three host tables run 7 / 6 / 6 wide. */
-  colSpan: number;
+  /** The host table's column layout, in order. */
+  columns: readonly RdsInstanceHostColumn[];
   /** Display order (Reader-first) — the caller sorts, the wire order is what the payload echoes. */
   instances: readonly RdsInstanceCandidate[];
   /** The cluster's effective selection; undefined while the cluster is left out of the request. */
@@ -66,55 +80,9 @@ interface RdsInstancePanelProps {
   onSelect?: (instanceResourceId: string) => void;
 }
 
-/**
- * Instance line grid — identity (radio · name · role) | AZ | endpoint.
- *
- * No engine column: every member of a cluster runs the cluster's engine, so repeating it on
- * each line said the same word N times and the cluster row's own Database Type cell already
- * says it once (owner, 2026-08-12).
- *
- * The role chip rides the NAME rather than taking a column of its own (owner: Reader/Writer has to sit as
- * close to the instance as it can). Everything else is a column, because a column is what
- * makes eight of them comparable.
- */
-const LINE_GRID = 'grid grid-cols-[minmax(0,5fr)_minmax(0,3fr)_minmax(0,6fr)] items-center gap-4';
-
-/**
- * Where the body's content starts, measured off the table's own tier geometry (`idcStyles.
- * table.group`): the leading checkbox column is 52px (18 + 16 + 18), the name column's own left
- * edge is +30, and a child hangs one 24px tier below that. 52 + 54 = 106; read-only tables drop
- * the checkbox column, leaving 54. This is the x an Athena database name lands on, and the
- * instance names land on it too — the radio hangs to its left rather than pushing it right
- * (`idcStyles.table.instanceBand.radio`).
- */
-const INDENT_WITH_CHECKBOX = 'pl-[106px]';
-const INDENT_WITHOUT_CHECKBOX = 'pl-[54px]';
-
-/**
- * The band is a TABLE, said in roles rather than in `<table>` markup.
- *
- * Three labelled columns whose whole point is comparing values down them have to be a table to a
- * screen reader too — without the roles the header strip is three loose words followed by bare
- * strings, and nothing ties an AZ to the instance it belongs to. Roles rather than a nested
- * `<table>` because the alignment comes from ONE grid template shared by the header and every
- * line (`LINE_GRID`); real table layout would have to re-derive that with fixed widths and would
- * change what the columns do at narrow widths.
- *
- * The name carries the CLUSTER, because step 1 can hold several open at once and three tables
- * all named "접속 인스턴스 목록" are three tables a screen-reader user cannot tell apart.
- *
- * `locale` is optional and defaults to Korean, so a caller that only needs the accessible
- * name to match — the tests that find this band by role and name — keeps calling it with
- * the cluster alone.
- */
-export const rdsInstanceBandLabel = (clusterName: string, locale: Locale = DEFAULT_LOCALE) =>
-  TS_COPY[locale].shared.instanceBand(clusterName);
-
 export const RdsInstancePanel = ({
   clusterId,
-  clusterName,
-  showCheckboxColumn,
-  colSpan,
+  columns,
   instances,
   chosenResourceId,
   selectable,
@@ -125,135 +93,175 @@ export const RdsInstancePanel = ({
   const t = TS_COPY[locale].shared;
 
   return (
-    <tr>
-      <td colSpan={colSpan} className="px-0 py-0">
-        {/* Bottom padding is deliberately larger than the top one (owner, 2026-08-12): the body
-            belongs to the cluster ABOVE it, so sitting tight under that row and leaving room
-            before the next resource is what says so. 16 → 24, both on the spacing set. The top
-            16 rides the header strip rather than this box, so the rail can be drawn through it —
-            on the container the trunk would start below the padding and leave a gap under the
-            cluster's own segment. */}
-        <div
-          className={cn(
-            'border-b pr-[18px] pb-6',
-            borderColors.default,
-            // gray-100, not gray-50: the open state has to be SEEN, and gray-50 measures ΔE00 1.20
-            // from white — under the ~2.3 at which two colours read as different at all, so the
-            // body and the header would have been bound by a tint nobody can see. `bgColors.panel`
-            // carries a contract with it: nothing on this surface may sit at `tertiary` (4.37:1,
-            // under AA), which is why the labels and the endpoint below read at `secondary`.
-            bgColors.panel,
-            showCheckboxColumn ? INDENT_WITH_CHECKBOX : INDENT_WITHOUT_CHECKBOX,
-          )}
-          role="table"
-          aria-label={rdsInstanceBandLabel(clusterName, locale)}
-        >
-          {/* No title strip. The row above already names the cluster and the count, and the
-              guidance repeated what the checked radio and the Reader-first order say by
-              themselves — the body opens straight into the list (owner, 2026-08-12). */}
-          <div
-            className={cn(
-              'pt-4 pb-2 text-[12px]',
-              LINE_GRID,
-              idcStyles.table.instanceBand.headerStrip,
-              textColors.secondary,
-            )}
-            role="row"
-          >
-            <span role="columnheader">{t.instance}</span>
-            <span role="columnheader">{t.availabilityZone}</span>
-            <span role="columnheader">{t.endpoint}</span>
-          </div>
+    <>
+      {instances.map((instance, index) => {
+        const identifier = rdsInstanceLabel(instance);
+        const chosen = instance.resource_id === chosenResourceId;
+        const last = index === instances.length - 1;
+        const endpoint = typeof instance.host === 'string' && instance.host
+          ? `${instance.host}${instance.port ? `:${instance.port}` : ''}`
+          : null;
 
-          <div role="rowgroup">
-            {instances.map((instance, index) => {
-              const identifier = rdsInstanceLabel(instance);
-              const chosen = instance.resource_id === chosenResourceId;
-              const endpoint = typeof instance.host === 'string' && instance.host
-                ? `${instance.host}${instance.port ? `:${instance.port}` : ''}`
-                : null;
-
-              const body = (
-                <>
-                  <span role="cell" className="relative flex min-w-0 items-center gap-2">
-                    {selectable && (
-                      <input
-                        type="radio"
-                        name={`rds-instance-${clusterId}`}
-                        value={instance.resource_id}
-                        checked={chosen}
-                        onChange={() => onSelect?.(instance.resource_id)}
-                        aria-label={t.selectInstance(identifier)}
-                        className={cn(
-                          idcStyles.table.instanceBand.radio,
-                          statusColors.pending.border,
-                          primaryColors.text,
-                          primaryColors.focusRing,
-                        )}
-                      />
-                    )}
-                    <span className={cn('min-w-0 truncate font-mono text-[14px]', textColors.primary)}>
-                      {identifier}
-                    </span>
-                    <RdsMemberChip role={instance.cluster_member_role} />
-                    {readonly && chosen && <RdsSelectionChip />}
-                  </span>
-                  <span role="cell" className={cn('truncate font-mono text-[12px]', textColors.secondary)}>
-                    {instance.availability_zone ?? '—'}
-                  </span>
-                  {/* The endpoint is the longest value on the line and the reason the column
-                      exists, so truncation must not be where it disappears — the app's own
-                      truncated-value tip carries the whole string, and only when it is clipped. */}
-                  <span role="cell" className={cn('min-w-0 font-mono text-[12px]', textColors.secondary)}>
-                    {endpoint ? (
-                      <Tooltip
-                        content={<IdentifierTip label={t.endpoint} value={endpoint} />}
-                        variant="value"
-                        size="md"
-                        triggerClassName="block min-w-0 max-w-full"
-                        truncatedOnly
-                      >
-                        <span className="block truncate">{endpoint}</span>
-                      </Tooltip>
-                    ) : (
-                      '—'
-                    )}
-                  </span>
-                </>
-              );
-
-              // A line carries NO fill of its own — not for the chosen one, and not on hover. The
-              // radio says which instance is chosen, and where there is no radio (read-only) the
-              // 선택됨 chip does. A fill would also break the role chip: it is a grey pill
-              // (`statusColors.pending.bg`), the SAME grey as this body's surface, so the one
-              // lifted line would be the only one whose chip stopped reading as a chip.
-              //
-              // The rule rides each line rather than `divide-y` on the list: `divide-*` colours
-              // through the children's inherited border-color, which preflight has already set
-              // to the default grey — the token on the container would be silently ignored.
-              const lineClass = cn(
-                LINE_GRID,
-                'border-t py-3 pr-3',
-                borderColors.default,
-                idcStyles.table.instanceBand.line,
-                index === instances.length - 1 && idcStyles.table.instanceBand.lineLast,
-              );
-
-              // No radio → nothing to label, so the line is a plain block rather than a
-              // `<label>` pointing at an input that does not exist.
-              return selectable ? (
-                <label key={instance.resource_id} role="row" className={cn(lineClass, 'cursor-pointer')}>
-                  {body}
-                </label>
+        // The identity stack. Two lines, the grammar the manually added EC2 row already uses:
+        // what the row IS on top, the value that qualifies it underneath.
+        //
+        // No fill on the chosen row — not for the selection, not on hover. The radio says which
+        // instance is chosen, and where there is no radio (read-only) the 선택됨 chip does. A
+        // fill would also break the role chip: it is a grey pill (`statusColors.pending.bg`),
+        // the SAME grey as this surface, so the one lifted row would be the only one whose chip
+        // stopped reading as a chip.
+        const identity = (
+          <span className={cn(ec2Styles.rowStack, 'w-full')}>
+            <span className="flex w-full min-w-0 items-center gap-2">
+              {selectable && (
+                <input
+                  type="radio"
+                  name={`rds-instance-${clusterId}`}
+                  value={instance.resource_id}
+                  checked={chosen}
+                  onChange={() => onSelect?.(instance.resource_id)}
+                  aria-label={t.selectInstance(identifier)}
+                  className={cn(
+                    idcStyles.table.instanceBand.radio,
+                    statusColors.pending.border,
+                    primaryColors.text,
+                    primaryColors.focusRing,
+                  )}
+                />
+              )}
+              {/* The name is what the radio selects by, and the 54px tier plus the role chip
+                  leave it clipping in a 250px Name column (measured 117 of 133px at 1512px:
+                  three members all reading `demo-aurora-my…`). Same recipe as the endpoint
+                  below and as every other truncating identity cell in these tables — the tip
+                  carries the whole string, and only when it is actually cut. */}
+              <Tooltip
+                content={<IdentifierTip label={t.instance} value={identifier} />}
+                variant="value"
+                size="md"
+                // `min-w-0` only, no display utility: the Tooltip's own wrapper is
+                // `relative inline-flex`, and `cn` is a plain join — a second display class
+                // here would be settled by stylesheet order. Same recipe as `NAME_TRIGGER`,
+                // which the host tables' name cells use for exactly this reason.
+                triggerClassName="min-w-0"
+                truncatedOnly
+              >
+                <span className={cn('block truncate font-mono text-[14px]', textColors.primary)}>
+                  {identifier}
+                </span>
+              </Tooltip>
+              <RdsMemberChip role={instance.cluster_member_role} />
+              {readonly && chosen && <RdsSelectionChip />}
+            </span>
+            {/* The endpoint is the longest value on the row and the reason a member is worth
+                naming at all, so truncation must not be where it disappears — the app's own
+                truncated-value tip carries the whole string, and only when it is clipped. */}
+            <span className={cn('block w-full min-w-0 font-mono text-[12px]', textColors.secondary)}>
+              {endpoint ? (
+                <Tooltip
+                  content={<IdentifierTip label={t.endpoint} value={endpoint} />}
+                  variant="value"
+                  size="md"
+                  triggerClassName="block min-w-0 max-w-full"
+                  truncatedOnly
+                >
+                  <span className="block truncate">{endpoint}</span>
+                </Tooltip>
               ) : (
-                <div key={instance.resource_id} role="row" className={lineClass}>
-                  {body}
-                </div>
+                '—'
+              )}
+            </span>
+          </span>
+        );
+
+        return (
+          <tr
+            key={instance.resource_id}
+            className={cn(bgColors.panel, selectable && 'cursor-pointer')}
+            // The WHOLE row picks the instance, as the band's `<label>` line did before these
+            // became rows: the name cell is 250px of a ~1040px row, so a label on it alone
+            // leaves most of an 84px row inert. A `<tr>` cannot be a label, so this is a
+            // click handler — and it may fire alongside the radio's own `onChange` when the
+            // radio itself is pressed, which is harmless: `onSelect` sets the selection to
+            // this id either way.
+            //
+            // A drag that ends inside the row is a text selection, not a press.
+            onClick={
+              selectable
+                ? () => {
+                    if (window.getSelection()?.isCollapsed === false) return;
+                    onSelect?.(instance.resource_id);
+                  }
+                : undefined
+            }
+          >
+            {columns.map((column, columnIndex) => {
+              const key = `${column}-${columnIndex}`;
+
+              if (column === 'select') {
+                // data-static-col: the gutter is the row's lead-in, not a column values are
+                // compared across — no rail, no seam band (`consoleGrid`). The checkbox is the
+                // CLUSTER's verdict, so there is nothing to put here.
+                return <td key={key} data-static-col="" className={idcStyles.table.approvalCell} />;
+              }
+
+              if (column === 'name') {
+                return (
+                  <td
+                    key={key}
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      idcStyles.table.consoleCell,
+                      // The tree rail and the 54px tier — an Athena database's own cell token,
+                      // so an instance name and a database name land on ONE x. The radio
+                      // variant differs by its elbow alone (`instanceBand.nameCell`): a full
+                      // duplicate rather than a modifier, because `cn` is a plain join and two
+                      // `after:w-*` utilities would be settled by stylesheet order.
+                      selectable
+                        ? idcStyles.table.instanceBand.nameCell
+                        : idcStyles.table.group.childCell,
+                      last && idcStyles.table.group.childCellLast,
+                    )}
+                  >
+                    {/* No radio → nothing to label, so the cell holds a plain span rather than
+                        a `<label>` pointing at an input that does not exist. */}
+                    {selectable ? (
+                      <label className="flex cursor-pointer">{identity}</label>
+                    ) : (
+                      identity
+                    )}
+                  </td>
+                );
+              }
+
+              if (column === 'availabilityZone') {
+                return (
+                  <td
+                    key={key}
+                    className={cn(
+                      idcStyles.table.approvalCell,
+                      idcStyles.table.consoleCell,
+                      // The host's own Region-cell dress. The AZ is read DOWN this column
+                      // against the regions above it, so it is typeset as one of them rather
+                      // than as a footnote to the instance name. No `tableRowLift.cellText`
+                      // though: that is a `group-hover:` rule, and an instance row carries no
+                      // `tableRowLift.base` group for it to answer — the old band lines had no
+                      // hover state either.
+                      'whitespace-nowrap font-mono text-[14px]',
+                      textColors.secondary,
+                    )}
+                  >
+                    {instance.availability_zone ?? '—'}
+                  </td>
+                );
+              }
+
+              return (
+                <td key={key} className={cn(idcStyles.table.approvalCell, idcStyles.table.consoleCell)} />
               );
             })}
-          </div>
-        </div>
-      </td>
-    </tr>
+          </tr>
+        );
+      })}
+    </>
   );
 };
