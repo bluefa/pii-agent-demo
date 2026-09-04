@@ -1297,11 +1297,18 @@ export const mockConfirm = {
     }
 
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
-    if (!project) {
-      // Admin Task Queue demo targets (1031/2113) live outside the store
-      // (1027/2013 are store projects — ids must not collide).
+    if (!project || project.resources.length === 0) {
+      // #859 (mock-data.ts:2778) seeds a store Project with resources: [] for every
+      // APPROVAL_QUEUE_TARGETS id that isn't already a store project (1031/2113/1907/1873),
+      // so the store lookup above can HIT with nothing to show. Fall back to the Task
+      // Queue fixture whenever the store project is missing OR empty, rather than only
+      // when it's missing, so those demo targets still reach their real resource data.
+      // The `|| project.resources.length === 0` guard also means a real store project
+      // with real resources (e.g. 1642) is never shadowed by this fixture either way.
       const demo = getTqApprovalLatest(Number(targetSourceId));
       if (demo) return NextResponse.json(demo);
+    }
+    if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
         { status: 404 },
