@@ -3,7 +3,7 @@
 > Confluence: 5.2.3.5.5.10 (운영 계획 — strategy.md의 짝 문서)
 > 상태: Draft
 > 작성일: 2026-04-28
-> 마지막 수정일: 2026-04-28
+> 마지막 수정일: 2026-09-06
 > 대상: `docs/bff-api/` 하위 문서를 작성·갱신하는 개발자, 기획자, QA, 운영 담당자
 > 근거: [strategy.md](./strategy.md)
 
@@ -139,7 +139,7 @@ docs/bff-api/
 
 #### 4.4.3 카탈로그 행의 필수 필드
 
-`catalogs/error-codes.md`의 각 행은 현재 카탈로그와 동일한 컬럼 집합을 가진다.
+`catalogs/error-codes.md`의 기존 운영 UX 표는 아래 컬럼 집합을 가진다. 전달 계약을 먼저 등록하고 화면 매핑을 나중에 적용하는 경우에는 §4.4.6의 계약 사본 형식을 사용한다.
 
 ```text
 | 코드 | HTTP status | 의미 | 발생 조건 | 재시도 가능 여부 | 사용자 액션 | 운영자 확인 포인트 | 관련 API Tag | 관련 API | 폐기 예정 여부 | 추가일 / 변경일 |
@@ -187,6 +187,18 @@ docs/bff-api/
 - `/bff-api-docs sync-error-refs --init {file}`이 해당 가이드의 `## ... 관련 error code` 섹션 아래 (없으면 섹션 자체를 생성한 뒤) 빈 sentinel 블록 한 쌍을 삽입한다.
 - `--init` 없이 sync-error-refs가 실행되면 sentinel이 없는 가이드는 _건드리지 않고_ "no managed block found, run --init first" 로만 보고한다.
 - `--init`도 dry-run이 기본이며 `--apply`가 있어야 실제 삽입한다.
+
+#### 4.4.6 전달 계약 일괄 등록 (Phase 1)
+
+계약 등록과 화면 UX 적용이 분리된 변경에는 §4.4.2~4.4.5의 endpoint별 운영 표·역참조 갱신을 한 번에 요구하지 않는다. 적용 범위는 카탈로그의 별도 “전달 계약” 섹션이며, 기존 운영 표의 규칙은 유지한다.
+
+- code·expected HTTP·의미/발생 조건은 행별로 기록한다. 관련 API 그룹은 해당 섹션의 그룹 표를 참조할 수 있다.
+- 출처·원본 경로·수신일·기준 버전·확인 상태·추가일·폐기 여부는 섹션 공통 메타로 기록할 수 있다. 미제공 값은 미확인으로 표시한다. 폐기 여부도 근거가 없으면 “미확인”을 허용한다.
+- 자체 code의 발생 지점은 선택적으로 기록하되 전체 엔드포인트 목록은 최신 Swagger(`/install/v3/api-docs`)를 참조한다. upstream passthrough code마다 모든 endpoint를 수기로 복제하지 않는다.
+- 사용자 액션·재시도·전용 문구·CTA는 적용 Phase 문서에서 별도 검토한다. 계약 등록만으로 화면 처리가 활성화됐다고 표시하지 않는다.
+- code별 expected HTTP는 전달 계약의 기록이며 실제 응답 status를 덮어쓰는 규칙이 아니다. 다수 code가 같은 HTTP를 사용할 수 있으며 code별 복수 HTTP 계약도 허용된다. 복수 조합이 전달되면 표와 검증 구조를 함께 조정한다.
+- `lib/constants/backend-error-codes.ts`와 계약 사본의 code·HTTP 집합 일치 및 중복을 테스트한다. upstream 최신성은 별도 버전 대조로 확인한다.
+- 한 번의 전달본은 discussion 한 건으로 기록할 수 있다. 기존 Tag 가이드의 레거시 항목은 보존하고, 신규 code의 endpoint별 반영은 실제 계약 및 적용 Phase 확인 후 수행한다.
 
 ### 4.5 BE-first / FE-first / Joint 변경 방향과 공유 코드 (W6)
 
@@ -257,6 +269,8 @@ shared error code 추가나 공통 envelope 변경처럼 한 변경이 여러 Ta
 - 추가 보조 lint: `docs/swagger/*.yaml`(현재 화면/영역 단위로 정렬되어 있음) 안에 동일 (Method, Path) 쌍이 존재하는지 — 존재하지 않는 경로가 있으면 Warn (BE 미배포 또는 FE 가공 path일 수 있음, Fail 처리하지 않음).
 
 ### 5.3 카탈로그 일관성 (Fail)
+
+전달 계약 사본(§4.4.6)은 code 형식·중복·TS와 code/HTTP 집합 일치 및 출처·확인 상태를 검증한다. 아래의 endpoint별 역참조·폐기 표기 규칙은 기존 운영 UX 표에 적용한다. 사본의 API 그룹을 repo Tag 이름으로 간주하거나 미확인 upstream endpoint를 로컬 인라인 YAML 존재 검사로 확정하지 않는다.
 
 - Tag 가이드 본문에서 백틱 안의 대문자 식별자(`` `[A-Z][A-Z0-9_]+` ``)가 _error-code 후보_로 검출되면, 그 식별자는 (a) 카탈로그에 존재하거나 (b) `docs/bff-api/.error-code-allowlist` (한 줄에 하나의 식별자, `#` 주석 허용)에 등록되어 있어야 한다.
 - 카탈로그의 `관련 API Tag` 컬럼 값 → `tag-guides/`의 어느 파일에든 존재해야 함
@@ -336,13 +350,14 @@ Phase 1 (현재)에서는 §5.2의 자기-일관성 검사 + §5.3의 카탈로�
 
 - Tag 가이드에 에러 코드 의미를 직접 풀어쓰는 것 (카탈로그를 우회)
 - discussion 상태와 Tag 가이드 상태가 어긋난 채로 방치 (`Released`인 가이드인데 discussion이 `Draft`)
-- 카탈로그 행에 `관련 Tag`만 적고 `관련 API`를 비워두는 것 (역참조 자동 보조 §4.4.5가 무력화됨)
+- 기존 운영 UX 표의 카탈로그 행에 `관련 Tag`만 적고 `관련 API`를 비워두는 것 (역참조 자동 보조 §4.4.5가 무력화됨). 전달 계약 사본은 §4.4.6에 따라 그룹 단위로 기록한다.
 - `/bff-api-docs validate` Fail 상태로 PR 머지
 
 ## 11. 변경 이력
 
 | 날짜 | 변경 |
 | --- | --- |
+| 2026-09-06 | Phase 1 전달 계약 사본과 기존 운영 UX 표의 검증·역참조 범위 분리. code/HTTP 관계와 원본 응답 보존 원칙 명시 |
 | 2026-04-28 | 최초 작성 (B안 + ErrorCode 워크플로우 W4 포함) |
 | 2026-04-28 | Codex review 1차 반영: README.md 영어화, 상태 enum 종류 분리(§1.2), drift 정책 Phase 1/2 명시, 카탈로그 컬럼 실제 형식과 일치, sentinel 블록 도입(§4.4.5), components 가지치기 검사 추가(§5.2), BE/FE 변경 방향과 shared-code 워크플로우(§4.5) 추가 |
 | 2026-04-28 | Codex review 2차 반영: discussion 템플릿을 별도 TEMPLATE.md로 분리(README.md 영어 전용 규칙 완전 충족), §3을 운영(§3.1)/거버넌스(§3.2) 메타 키로 분리, sync-error-refs `--init` 마이그레이션 모드 추가, §5.6 업스트림 drift 섹션 골격 추가, 폐기 셀 표기 한국어로 일치(`예`/`아니오`) |

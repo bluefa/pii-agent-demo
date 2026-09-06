@@ -60,6 +60,7 @@ A discussion at `Implemented` or later must have a `관련 PR` URL — the skill
 
 | Date | Title | Tags | Status | File |
 | --- | --- | --- | --- | --- |
+| 2026-09-06 | ErrorCode Phase 1 registration and Phase 2 ADR proposal | error-codes | Draft | [2026-09-06-error-codes-phase1-registration.md](./2026-09-06-error-codes-phase1-registration.md) |
 | 2026-05-12 | Target Sources Registration Preview API 추가 | target-sources | Draft | [2026-05-12-target-sources-registration-preview-added.md](./2026-05-12-target-sources-registration-preview-added.md) |
 | 2026-08-12 | FAQ & Notices API 추가 | faq-notices | Draft | [2026-08-12-faq-notices-added.md](./2026-08-12-faq-notices-added.md) |
 
