@@ -16,6 +16,7 @@ describe('RequesterTag', () => {
     const tag = screen.getByTitle('시스템이 자동으로 시작한 실행입니다.');
     expect(tag.textContent).toBe('시스템');
     expect(tag.querySelector('svg')).not.toBeNull();
+    expect(tag.className).toContain('--pl-warn-bg');
   });
 
   it('prints a person as the bare account id, with no cog to confuse it for a system run', () => {
@@ -24,6 +25,7 @@ describe('RequesterTag', () => {
     const tag = screen.getByTitle('admin-1 계정이 시작한 실행입니다.');
     expect(tag.textContent).toBe('admin-1');
     expect(tag.querySelector('svg')).toBeNull();
+    expect(tag.className).not.toContain('--pl-warn-bg');
   });
 
   it('draws nothing when the backend recorded no requester', () => {
