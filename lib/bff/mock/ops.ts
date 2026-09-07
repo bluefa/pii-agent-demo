@@ -220,15 +220,13 @@ export const mockOps = {
     });
   },
 
-  // PUT …/installation-mode (assumed §2).
+  // PUT …/installation-mode (assumed §2) — 업스트림은 void 를 답한다(오너 확인
+  // 2026-09-07). 저장한 값을 되돌려주지 않으므로 목도 본문을 짓지 않는다.
   putInstallationMode: async (targetSourceId: number, grant: boolean) => {
     const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) return notFound();
     getState(targetSourceId, project.processStatus).grantTfExecution = grant;
-    return NextResponse.json({
-      target_source_id: targetSourceId,
-      grant_service_terraform_execution_permission: grant,
-    });
+    return new NextResponse(null, { status: 204 });
   },
 
   // PUT …/aws/{scan-role|terraform-execution-role} — REAL upsert contract:

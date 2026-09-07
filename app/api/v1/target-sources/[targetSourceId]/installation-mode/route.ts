@@ -6,6 +6,7 @@ import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 
 // ASSUMED CONTRACT — docs/api/ops-assumed-contracts.md §2.
 // PUT …/installation-mode { grant_service_terraform_execution_permission: boolean }.
+// 응답은 void 다(오너 확인 2026-09-07) — 성사 여부는 HTTP 상태만이 말한다.
 export const PUT = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
@@ -24,6 +25,7 @@ export const PUT = withV1(async (request, { requestId, params }) => {
     );
   }
 
-  const data = await bff.ops.putInstallationMode(parsed.value, grant);
-  return NextResponse.json(data);
+  await bff.ops.putInstallationMode(parsed.value, grant);
+  // 업스트림이 본문을 주지 않는다 — 방금 보낸 값을 되돌려 지어내지 않는다.
+  return new NextResponse(null, { status: 204 });
 });

@@ -391,10 +391,14 @@ export const httpBff: BffClient = {
   ops: {
     getStatusHistory: (id, page, size) =>
       getSnakeRaw(`/target-sources/${id}/status-history${buildQuery({ page, size })}`),
+    // 본문 없는 쓰기 — 업스트림은 void 를 답한다(오너 확인 2026-09-07). 204 도, 본문
+    // 없는 200 도 성공이다: 어느 쪽이 오는지에 기대지 않으려고 둘 다 받는다.
     putInstallationMode: (id, grant) =>
-      put(`/target-sources/${id}/installation-mode`, {
-        grant_service_terraform_execution_permission: grant,
-      }),
+      put(
+        `/target-sources/${id}/installation-mode`,
+        { grant_service_terraform_execution_permission: grant },
+        { emptyBodyOk: true },
+      ),
     // REAL contract (install-v1 upsert) — full ARN in, camel wire both ways.
     putRole: (id, kind, roleArn) =>
       put(`/target-sources/${id}/aws/${kind === 'scan' ? 'scan-role' : 'terraform-execution-role'}`, {
