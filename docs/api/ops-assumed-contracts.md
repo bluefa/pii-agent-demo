@@ -42,8 +42,15 @@ Read side is covered by `GET /target-sources/{id}` →
 ```
 PUT /install/v1/target-sources/{targetSourceId}/installation-mode
 body     { grant_service_terraform_execution_permission: boolean }
-→ 200   { target_source_id: number, grant_service_terraform_execution_permission: boolean }
+→        no response body                      // owner, 2026-09-07: upstream returns void
 ```
+
+The write is judged by HTTP status alone, never by a body. This section used to declare
+`200 { target_source_id, grant_service_terraform_execution_permission }`; nothing upstream
+ever sent it, and reading it turned a landed write into 「변경에 실패했습니다」. Every layer
+tolerates both bodyless shapes (204, or a 200 with an empty body), so which one upstream
+picks does not matter. The dialog keeps the value it just sent — there is nothing to read
+back, and nothing to re-read.
 
 ## 3. AWS role registration / update — GRADUATED to the real contract
 

@@ -149,7 +149,7 @@ export const mockBff: BffClient = {
   // Ops console — ASSUMED contracts (docs/api/ops-assumed-contracts.md).
   ops: {
     getStatusHistory: async (id, page, size) => unwrap(await mockOps.getStatusHistory(id, page, size)),
-    putInstallationMode: async (id, grant) => unwrap(await mockOps.putInstallationMode(id, grant)),
+    putInstallationMode: async (id, grant) => voidWrite(await mockOps.putInstallationMode(id, grant)),
     putRole: async (id, kind, roleArn) => unwrap(await mockOps.putRole(id, kind, roleArn)),
     getTargetSourceList: async (query, page, size) =>
       unwrap(await mockOps.getTargetSourceList(query, page, size)),

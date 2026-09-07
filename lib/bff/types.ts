@@ -428,7 +428,7 @@ export interface BffClient {
    */
   ops: {
     getStatusHistory: (id: number, page: number, size: number) => Promise<OpsStatusHistoryPageWire>;
-    putInstallationMode: (id: number, grant: boolean) => Promise<OpsInstallationModeWire>;
+    putInstallationMode: (id: number, grant: boolean) => Promise<void>;
     putRole: (
       id: number,
       kind: 'scan' | 'execution',
@@ -549,11 +549,6 @@ export interface OpsStatusHistoryPageWire {
   size: number;
   number: number;
   content: OpsStatusHistoryItemWire[];
-}
-
-export interface OpsInstallationModeWire {
-  target_source_id: number;
-  grant_service_terraform_execution_permission: boolean;
 }
 
 /**

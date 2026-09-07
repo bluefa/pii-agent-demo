@@ -45,14 +45,22 @@ export const getAirflowHost = (
     init,
   );
 
-export const updateInstallationMode = (
+/**
+ * 설치 모드 쓰기 (docs/api/ops-assumed-contracts.md §2).
+ *
+ * 업스트림이 응답 본문을 주지 않는다(오너 확인 2026-09-07) — 성사 여부는 HTTP 상태만이
+ * 말한다. 래퍼가 2xx 아닌 응답에 throw 하므로, 이 약속이 resolve 하면 쓰기가 앉은 것이다.
+ * 읽는 값은 없다: 화면은 방금 고른 값을 그대로 쓴다(실데이터 여부와 같은 자리).
+ */
+export const updateInstallationMode = async (
   targetSourceId: number,
   grant: boolean,
-): Promise<{ target_source_id: number; grant_service_terraform_execution_permission: boolean }> =>
-  fetchInfraJson(`/target-sources/${targetSourceId}/installation-mode`, {
+): Promise<void> => {
+  await fetchInfraJson(`/target-sources/${targetSourceId}/installation-mode`, {
     method: 'PUT',
     body: { grant_service_terraform_execution_permission: grant },
   });
+};
 
 /**
  * 실데이터 여부 쓰기 (docs/api/ops-assumed-contracts.md §9).

@@ -47,8 +47,9 @@ export function InstallModeModal({
     setSaving(true);
     setError(null);
     try {
-      const result = await updateInstallationMode(targetSourceId, selected);
-      onSaved(result.grant_service_terraform_execution_permission);
+      // 응답에 본문이 없다 — 약속이 resolve 하면 방금 보낸 값이 앉은 것이다.
+      await updateInstallationMode(targetSourceId, selected);
+      onSaved(selected);
       onClose();
     } catch {
       setError('변경에 실패했습니다. 잠시 후 다시 시도해 주세요.');
