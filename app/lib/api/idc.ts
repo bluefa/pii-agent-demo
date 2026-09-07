@@ -240,6 +240,20 @@ interface IdcWireFields {
   idc_source_ips?: string[];
 }
 
+/**
+ * The idc_* fields of a `TargetSourceResourceItemDto` row (approved-integration,
+ * approval-requests/latest) live under `metadata` — swagger declares them on
+ * `TargetSourceResourceMetadataDto`, NOT on the item itself. Reading them off the top level
+ * is the `ResourceConfigDto` (confirmed-integration) shape, which is a different DTO: against
+ * the real BFF it always yielded undefined, blanking 접속 주소 and 출발지 on step 3.
+ */
+const toIdcWireFields = (md: ResourceSnapshot['metadata']): IdcWireFields => ({
+  idc_host_format: md?.idc_host_format ?? undefined,
+  idc_ips: md?.idc_ips ?? undefined,
+  idc_host: md?.idc_host ?? undefined,
+  idc_source_ips: md?.idc_source_ips ?? undefined,
+});
+
 /** kind from the idc fields: HOST→DOMAIN, >1 ip→MULTIPLE_IP, else SINGLE. */
 const deriveKindFromIdcFields = (fields: IdcWireFields): IdcKind => {
   if (fields.idc_host_format === 'HOST') return 'DOMAIN';
@@ -307,14 +321,9 @@ export const toIdcResourceViewFromSnapshot = (
   wire: ResourceSnapshot,
   index = 0,
 ): IdcResourceView => {
-  const idcFields: IdcWireFields = {
-    idc_host_format: wire.idc_host_format,
-    idc_ips: wire.idc_ips,
-    idc_host: wire.idc_host,
-    idc_source_ips: wire.idc_source_ips,
-  };
-  const hasIdcFields = !!wire.idc_host_format;
   const md = wire.metadata;
+  const idcFields = toIdcWireFields(md);
+  const hasIdcFields = !!idcFields.idc_host_format;
   const dbWire = toDbTypeWire(md?.database_type ?? undefined);
   const host = md?.host || '';
   return {
@@ -327,7 +336,7 @@ export const toIdcResourceViewFromSnapshot = (
     databaseTypeWire: dbWire,
     oracleSid: md?.oracle_service_id ?? undefined,
     credentialId: wire.credential_id ?? undefined,
-    sourceIps: wire.idc_source_ips ?? [],
+    sourceIps: idcFields.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
     health: null,
@@ -350,13 +359,8 @@ export const toIdcResourceViewFromExcluded = (
   const dbWire = toDbTypeWire(wire.database_type ?? md?.database_type ?? undefined);
   // A 제외 row is the same wire object as a 대상 one, so its endpoint rides along when the
   // backend sends it. Absent (older payloads) → empty hosts, which the table renders as —.
-  const idcFields: IdcWireFields = {
-    idc_host_format: wire.idc_host_format,
-    idc_ips: wire.idc_ips,
-    idc_host: wire.idc_host,
-    idc_source_ips: wire.idc_source_ips,
-  };
-  const hasIdcFields = !!wire.idc_host_format;
+  const idcFields = toIdcWireFields(md);
+  const hasIdcFields = !!idcFields.idc_host_format;
   const host = md?.host ?? '';
   return {
     resourceId: wire.resource_id || `idc-excluded-${index}`,
@@ -368,7 +372,7 @@ export const toIdcResourceViewFromExcluded = (
     databaseTypeWire: dbWire,
     oracleSid: md?.oracle_service_id ?? undefined,
     credentialId: undefined,
-    sourceIps: wire.idc_source_ips ?? [],
+    sourceIps: idcFields.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
     health: null,
@@ -454,9 +458,10 @@ export const getIdcPreviousRequest = async (
 // These funcs are thin adapters; the row data is seeded into project.resources
 // (lib/mock-data.ts) so the shared confirmed/approved/approval mocks return it.
 //
-// NOTE (source IP): the shared approved/confirmed normalizers currently drop the
-// idc_* fields (idc_source_ips/idc_host_format/...), so `sourceIps` is empty for
-// Step 3–7 until that passthrough is added at the shared layer.
+// NOTE (source IP): the approved-integration rows carry the idc_* fields under
+// `metadata` (TargetSourceResourceMetadataDto); confirmed-integration rows carry them
+// top-level (ResourceConfigDto). Two DTOs, two levels — `toIdcWireFields` reads the
+// former, `toIdcResourceViewFromConfirmed` the latter.
 
 /** Step 2 (승인 대기) + Step 3 (반영중) both source the approved integration, which
  *  carries the requested set: `resource_infos` (targets) + `excluded_resource_infos`

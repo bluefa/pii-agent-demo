@@ -455,6 +455,13 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
       host: r.vmDatabaseConfig?.host ?? r.host ?? null,
       port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
       oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
+      // Emit IDC fields only when present (IDC resources only). They belong HERE, not at the
+      // top level — same place toApprovalResourceItems puts them, because both responses are
+      // TargetSourceResourceItemDto.
+      ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+      ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+      ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+      ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
       // RDS 클러스터 멤버 목록 + 승인 요청이 고른 접속 인스턴스 (3단계가 되읽는다).
       ...(r.rdsInstanceCandidates ? { rds_instance_candidates: r.rdsInstanceCandidates } : {}),
       ...(r.isSelected && r.selectedRdsInstanceResourceId
@@ -465,11 +472,6 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_name: demoResourceName(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
-    // Emit IDC fields only when present (IDC resources only).
-    ...(idc ? { idc_host_format: idc.inputFormat } : {}),
-    ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
-    ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
-    ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
   };
 }
 
@@ -1115,11 +1117,18 @@ export const mockConfirm = {
           // fields — the exclusion payload only adds the reason on top. Emitting the reduced
           // shape alone dropped metadata/idc_* and left steps 2·3 rendering an em-dash for the
           // host and port the user had actually submitted.
-          ...excludedResources.map((r) => ({
-            ...toResourceSnapshot(r, project),
-            ...toExcludedResourceInfo(r, project),
-            selected: false,
-          })),
+          ...excludedResources.map((r) => {
+            const snapshot = toResourceSnapshot(r, project);
+            const excluded = toExcludedResourceInfo(r, project);
+            // Merge the two metadata objects instead of letting the second replace the first:
+            // a plain spread dropped host/port/oracle_service_id/idc_* from every 제외 row.
+            return {
+              ...snapshot,
+              ...excluded,
+              metadata: { ...snapshot.metadata, ...excluded.metadata },
+              selected: false,
+            };
+          }),
         ],
       });
     }

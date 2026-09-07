@@ -1111,7 +1111,8 @@ export interface ResourceSnapshot {
   resource_type: string;
   credential_id: string | null;
   // Contract metadata (TargetSourceResourceMetadataDto). The connection facts live HERE and
-  // nowhere else — host / port / database_type / oracle_service_id are declared on that DTO.
+  // nowhere else — host / port / database_type / oracle_service_id are declared on that DTO,
+  // and so are the four idc_* fields below.
   metadata?: {
     provider?: string | null;
     region?: string | null;
@@ -1119,17 +1120,20 @@ export interface ResourceSnapshot {
     host?: string | null;
     port?: number | null;
     oracle_service_id?: string | null;
+    // IDC-specific fields — absent for cloud. They sit HERE, not at the top level: the
+    // top-level shape is `ResourceConfigDto` (confirmed-integration), a different DTO.
+    // Declaring them top-level here made every approved-integration read return undefined,
+    // which blanked 접속 주소 and 출발지 on step 3.
+    idc_host_format?: 'IP' | 'HOST' | null;
+    idc_ips?: string[] | null;
+    idc_host?: string | null;
+    idc_source_ips?: string[] | null;
   } | null;
   // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;
   resource_name?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
-  // IDC-specific swagger fields (ResourceConfigDto.idc_*) — absent for cloud.
-  idc_host_format?: 'IP' | 'HOST';
-  idc_ips?: string[];
-  idc_host?: string;
-  idc_source_ips?: string[];
 }
 
 /** Excluded resource snapshot (Swagger ExcludedResourceInfo). */

@@ -560,11 +560,8 @@ export type ApprovedIntegrationExcludedResourceItem = {
    */
   integration_category?: string | null;
   recommend_fail_reason?: RecommendFailReason | null;
+  /** The idc_* fields ride inside here — see ResourceSnapshot['metadata']. */
   metadata?: ResourceSnapshot['metadata'];
-  idc_host_format?: 'IP' | 'HOST';
-  idc_ips?: string[];
-  idc_host?: string;
-  idc_source_ips?: string[];
 };
 
 export interface ApprovedIntegrationResponse {
