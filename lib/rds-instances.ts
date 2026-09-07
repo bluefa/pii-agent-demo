@@ -49,8 +49,9 @@ export const RDS_CLUSTER_TYPES: readonly string[] = [
   'RDS_CLUSTER',
 ];
 
-export const isRdsCluster = (type: string): boolean =>
-  RDS_CLUSTER_TYPES.includes(type.trim().toUpperCase());
+/** The type arrives verbatim from the wire and may be null — a non-string is not a cluster. */
+export const isRdsCluster = (type: unknown): boolean =>
+  typeof type === 'string' && RDS_CLUSTER_TYPES.includes(type.trim().toUpperCase());
 
 /**
  * Reads `cluster_member_role`. Canonically uppercase, but casing is not guaranteed — and the
