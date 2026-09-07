@@ -38,6 +38,14 @@ describe('isRdsCluster', () => {
     expect(isRdsCluster('AWS_DB_INSTANCE')).toBe(false);
     expect(isRdsCluster('RDS')).toBe(false);
     expect(isRdsCluster('AWS_REDSHIFT_CLUSTER')).toBe(false);
+    expect(isRdsCluster('RDS_INSTANCE')).toBe(false);
+  });
+
+  // `ResourceConfigDto` declares no `required` list, so a confirmed row may carry
+  // `resource_type: null`. Callers hand it over verbatim; throwing here white-screens the tab.
+  it('rejects a missing type instead of throwing', () => {
+    expect(isRdsCluster(null)).toBe(false);
+    expect(isRdsCluster(undefined)).toBe(false);
   });
 });
 
