@@ -7,9 +7,11 @@
  * prop 이 optional 이라 중간에서 넘겨주는 것을 잊어도 타입은 통과하고, 그때 화면에서
  * 사라지는 것은 경고 전부다 — 값은 마지막 홉까지 살아야 전달된 것이다.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
+import { listPipelinesByTarget } from '@/app/lib/api/pipeline';
+import type { PipelineSummary, SpringPage } from '@/lib/pipeline/types';
 import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 
 vi.mock('next/navigation', () => ({
@@ -70,5 +72,50 @@ describe('TargetPipelineSections — serviceWork 는 카드까지 간다', () =>
 
     await waitFor(() => expect(screen.getByRole('button', { name: /작업 시작/ })).toBeTruthy());
     expect(screen.queryByText(/서비스 측 대응/)).toBeNull();
+  });
+});
+
+// 두 번째 홉 — `requested_by` 는 요약 행에도 실려 오고, 이력 표의 메타 줄까지 살아야 한다.
+// 필드가 optional 이라 `toSummary` 나 이 행에서 빠져도 타입은 통과하고, 그때 화면에서
+// 사라지는 것은 「누가 걸었나」 전부다.
+const HISTORY_ROW = (pipelineId: number, requestedBy?: string): PipelineSummary => ({
+  pipeline_id: pipelineId,
+  type: 'INSTALL',
+  target_source_id: '1006',
+  service_code: 'demo',
+  service_name: '데모 서비스',
+  cloud_provider: 'AWS',
+  recipe_definition: 'AWS_INSTALL',
+  status: 'DONE',
+  done_task_count: 7,
+  total_task_count: 7,
+  created_at: '2026-08-31T01:00:00Z',
+  last_activity_at: '2026-08-31T02:00:00Z',
+  ...(requestedBy === undefined ? {} : { requested_by: requestedBy }),
+});
+
+describe('TargetPipelineSections — 작업 이력 행은 요청자를 그린다', () => {
+  it('requested_by 가 실린 행만 담당자 태그를 가진다', async () => {
+    vi.mocked(listPipelinesByTarget).mockResolvedValue({
+      content: [HISTORY_ROW(91, 'admin-1'), HISTORY_ROW(90)],
+      totalElements: 2,
+      totalPages: 1,
+    } as unknown as SpringPage<PipelineSummary>);
+
+    render(
+      <TargetPipelineSections
+        targetSourceId="1006"
+        provider="AWS"
+        onStart={vi.fn()}
+        onSelectTab={vi.fn()}
+      />,
+    );
+
+    const withRequester = await screen.findByRole('button', { name: '작업 #91 상세 열기' });
+    expect(within(withRequester).getByText('admin-1')).toBeTruthy();
+
+    const withoutRequester = screen.getByRole('button', { name: '작업 #90 상세 열기' });
+    expect(within(withoutRequester).queryByText('admin-1')).toBeNull();
+    expect(within(withoutRequester).queryByText('시스템')).toBeNull();
   });
 });

@@ -105,6 +105,10 @@ export interface PipelineSummary {
   total_task_count: number;
   created_at: string;
   last_activity_at: string;
+  /** Who asked for this run: the signed-in user's id, or `SYSTEM_REQUESTER` when
+   *  the orchestrator started the run itself. Optional: rows from before the
+   *  field existed carry no value. */
+  requested_by?: string | null;
   /** Restart provenance — the pipeline this run restarted; null when not a restart.
    *  Optional: absent on a backend without the restart feature. */
   origin_pipeline_id?: number | null;
@@ -166,8 +170,7 @@ export interface PipelineDetail {
   tasks: TaskSummary[];
   /** Who asked for this run: the signed-in user's id (`/user/me` `id`, stamped by
    *  the proxy route — never typed by the client), or `SYSTEM_REQUESTER` when the
-   *  orchestrator started the run itself. Detail only — the
-   *  upstream keeps it out of `PipelineSummary`. Optional: absent on a backend
+   *  orchestrator started the run itself. Optional: absent on a backend
    *  without request context (pipeline-orchestrator PR #53). */
   requested_by?: string | null;
   /** Free-text note the requester left for the approver (≤512). Same optionality. */

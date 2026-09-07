@@ -27,6 +27,7 @@ import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { RestartBadge, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
+import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import {
   CurrentPipelineCard,
   EmptyPipelineCard,
@@ -376,6 +377,7 @@ export function TargetPipelineSections({
                             </span>
                             <span aria-hidden>·</span>
                             <span className="tabular-nums">{fmtDateTime(p.created_at)}</span>
+                            <RequesterTag requestedBy={p.requested_by} />
                             {/* §8.3 — answers only "is this row a restart" (origin rows carry no chip). */}
                             {p.origin_pipeline_id != null && (
                               <span onClick={(e) => e.stopPropagation()}>

@@ -15,7 +15,13 @@ import { requesterLabel } from '@/lib/pipeline/format';
 import { SYSTEM_REQUESTER } from '@/lib/pipeline/types';
 
 const TAG_BASE =
-  'inline-flex items-center gap-1 rounded-[5px] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold text-[var(--pl-text-medium)] whitespace-nowrap';
+  'inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap';
+
+/** 시스템 실행만 노란 톤을 입는다(오너 2026-09-07) — 톱니 아이콘 하나로는 12px 줄에서
+ *  눈에 늦게 걸린다. 사람 실행은 중립 회색 그대로다: 둘 다 색을 가지면 어느 쪽이
+ *  예외인지 말하지 못한다. */
+const TAG_SYSTEM = 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]';
+const TAG_PERSON = 'bg-[var(--pl-gray-100)] text-[var(--pl-text-medium)]';
 
 export interface RequesterTagProps {
   requestedBy: string | null | undefined;
@@ -28,7 +34,7 @@ export function RequesterTag({ requestedBy, className }: RequesterTagProps): Rea
   const isSystem = requestedBy === SYSTEM_REQUESTER;
   return (
     <span
-      className={cn(TAG_BASE, className)}
+      className={cn(TAG_BASE, isSystem ? TAG_SYSTEM : TAG_PERSON, className)}
       title={isSystem ? '시스템이 자동으로 시작한 실행입니다.' : `${label} 계정이 시작한 실행입니다.`}
     >
       {isSystem && <Icon name="cog" size="sm" />}

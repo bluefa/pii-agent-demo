@@ -962,6 +962,7 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   total_task_count: p.tasks.length,
   created_at: p.created_at,
   last_activity_at: p.last_activity_at,
+  requested_by: p.requested_by ?? null,
   origin_pipeline_id: p.origin_pipeline_id ?? null,
 });
 
