@@ -28,7 +28,7 @@ install-v1: snake_case wire, Spring `Page` for the paged reads, `ErrorMessage` p
 
 | | 우리가 적어 뒀던 것 | 실제 | 증상 |
 |---|---|---|---|
-| `/history` 의 `type` | `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED`·`ADMIN_*` | `REQUEST_APPROVED`·`REQUEST_REJECTED`·`OWNER_GRANTED`·`OWNER_REVOKED`·`ADMIN_*` | 배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다 (**D4 닫힘**) |
+| `/history` 의 `type` | `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED`·`ADMIN_*` | `REQUEST_CREATED`·`REQUEST_APPROVED`·`REQUEST_REJECTED`·`OWNER_GRANTED`·`OWNER_REVOKED`·`ADMIN_*` | 배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다 (**D4 닫힘**, 다만 `REQUEST_CREATED` 는 09-09 에야 드러났다) |
 | `/user/permission-access` 의 행 | `PermissionRequestDetail` (관리자 상세와 같은 shape) | `request_id`·`service_code`·`service_name`·`status`·`reason`·`requested_at` **여섯 개뿐** | `requester.knox_id` 에서 터진다 — 화면이 아예 안 뜬다 |
 | 서비스 목록 필터 | 없음 (화면이 거른다) | 없음 — 확인됨 | 서비스 2,059 개인 계정에서 목록 하나가 `page=0..10` 열한 번의 왕복이 됐다 |
 
@@ -201,8 +201,8 @@ GET /admin/access/history?service_code={CODE}&type={TYPE}&page={0}&size={20}
 
 AccessHistoryRow {
   history_id:   number
-  type:         "REQUEST_APPROVED" | "REQUEST_REJECTED" | "OWNER_GRANTED" | "OWNER_REVOKED"
-              | "ADMIN_GRANTED" | "ADMIN_REVOKED"
+  type:         "REQUEST_CREATED" | "REQUEST_APPROVED" | "REQUEST_REJECTED"
+              | "OWNER_GRANTED" | "OWNER_REVOKED" | "ADMIN_GRANTED" | "ADMIN_REVOKED"
   service_code: string | null       // null = 관리자 권한 부여/회수 (서비스와 무관)
   service_name: string | null
   target_user:  UserSummary
@@ -213,9 +213,11 @@ AccessHistoryRow {
 ```
 
 `service_code` 가 요구사항의 "service code 단위 이력 조회" 축이다. 생략하면 전역 로그.
-`type` 여섯은 **확인된 값이다**(D4 닫힘, 08-14) — 배지 어휘가 여기서 나온다. 앞의 네 개는
+`type` 일곱은 **확인된 값이다**(D4 닫힘, 08-14) — 배지 어휘가 여기서 나온다. 앞의 네 개는
 한동안 `APPROVED`·`REJECTED`·`GRANTED`·`REVOKED` 로 적혀 있었는데, 그 이름으로 코딩하면
 배지 넷이 라벨을 못 찾아 enum 원문이 회색으로 찍힌다.
+2026-09-09 실서버에서 일곱째 값 `REQUEST_CREATED`(요청이 열린 순간)가 드러났다 — 같은
+증상이 한 번 더 났고, `REQUEST_*` 는 처리 결과 둘이 아니라 접수까지 셋이다.
 
 ### 사용자 검색
 
@@ -319,6 +321,7 @@ GET /user/services/page?query=&page={0}&size={20}
 
 **닫힌 것** — B4(본인 신청 내역 `/user/permission-access` — 다만 반려 사유는 안 와서
 B5 로 다시 열었다), C-1(`description` 요청은 철회, `owners` 가 대신한다),
-**D4(`/history` 의 `type` 은 `OWNER_GRANTED`·`OWNER_REVOKED`·`REQUEST_APPROVED`·
-`REQUEST_REJECTED`·`ADMIN_GRANTED`·`ADMIN_REVOKED` 여섯)**,
+**D4(`/history` 의 `type` 은 `OWNER_GRANTED`·`OWNER_REVOKED`·`REQUEST_CREATED`·
+`REQUEST_APPROVED`·`REQUEST_REJECTED`·`ADMIN_GRANTED`·`ADMIN_REVOKED` 일곱 — 마지막
+값은 09-09 에 추가됐다)**,
 **D6(관리자 API base 는 `/install/v1/admin/access/**`)**.

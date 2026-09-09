@@ -697,15 +697,19 @@ export interface MyAccessRequestWire {
 export type MyAccessRequestPageWire = AccessPageWire<MyAccessRequestWire>;
 
 /**
- * 이력 이벤트 여섯 종 — 2026-08-14 백엔드 실구현 값이다.
+ * 이력 이벤트 일곱 종 — 2026-08-14 백엔드 실구현 값이다.
  *
  * 앞 넷은 우리가 `GRANTED`·`REVOKED`·`APPROVED`·`REJECTED` 로 짧게 적어 두었던 것이고,
  * 실제 이름은 **무엇을 통해 움직였는지**를 앞에 달고 있다 — 서비스 담당자 자리를 직접
  * 넣고 뺀 것(`OWNER_*`)인지, 요청을 처리한 결과(`REQUEST_*`)인지.
+ *
+ * 일곱째는 요청이 **열린** 것(`REQUEST_CREATED`)이다 — 2026-09-09 실서버가 내려보내는 걸
+ * 확인했다. 처리 결과 둘뿐이던 `REQUEST_*` 가 이걸로 셋이 된다.
  */
 export type AccessHistoryTypeWire =
   | 'OWNER_GRANTED'
   | 'OWNER_REVOKED'
+  | 'REQUEST_CREATED'
   | 'REQUEST_APPROVED'
   | 'REQUEST_REJECTED'
   | 'ADMIN_GRANTED'
