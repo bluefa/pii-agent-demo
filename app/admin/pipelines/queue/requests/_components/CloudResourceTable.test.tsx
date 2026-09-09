@@ -222,4 +222,159 @@ describe('CloudResourceTable', () => {
       expect(screen.queryByText('선택됨')).toBeNull();
     });
   });
+
+  /**
+   * Athena is a family, not a run of rows — the same tree steps 2·3 draw over these same
+   * pre-approval, DB-level rows. The parent stands for (Athena × region); its databases hang
+   * under it.
+   */
+  describe('Athena group tree', () => {
+    const athenaRow = (
+      region: string,
+      database: string,
+      overrides: Partial<RequestResourceRow> = {},
+    ): RequestResourceRow =>
+      row({
+        resourceId: `athena:acct:${region}:AwsDataCatalog/${database}`,
+        resourceName: database,
+        resourceType: 'AWS_ATHENA_DATABASE',
+        databaseType: 'athena',
+        region,
+        ...overrides,
+      });
+
+    /** The tbody the region's chevron controls — found by either label, open or shut. */
+    const childBody = (region: string): HTMLElement =>
+      required(
+        document.getElementById(
+          required(
+            screen
+              .getByRole('button', { name: new RegExp(`^Athena ${region} 그룹 `) })
+              .getAttribute('aria-controls'),
+            'the parent chevron aria-controls',
+          ),
+        ),
+        `the ${region} group body`,
+      );
+
+    const childRows = (region: string): HTMLTableRowElement[] => [
+      ...childBody(region).querySelectorAll('tr'),
+    ];
+
+    it('draws one parent per region and hides its databases until it is opened', () => {
+      render(
+        <CloudResourceTable
+          rows={[
+            athenaRow('us-east-1', 'default'),
+            athenaRow('ap-northeast-1', 'sampledb'),
+            athenaRow('ap-northeast-1', 'integration'),
+          ]}
+        />,
+      );
+
+      // Two parents, in the order the regions first appear.
+      expect(screen.getAllByText('Athena')).toHaveLength(2);
+      expect(
+        screen.getAllByRole('button', { name: /그룹 (펼치기|접기)$/ }).map((b) => b.getAttribute('aria-label')),
+      ).toEqual(['Athena us-east-1 그룹 펼치기', 'Athena ap-northeast-1 그룹 펼치기']);
+
+      // Closed: the children are mounted (so aria-controls resolves) but hidden as a unit.
+      expect(childBody('ap-northeast-1').hasAttribute('hidden')).toBe(true);
+      expect(childRows('ap-northeast-1')).toHaveLength(2);
+    });
+
+    // Two parallel counts would say 대상 twice — the 요청 대상 여부 column already answers it
+    // per child. The total with the exclusion taken off it is the group's own fact.
+    it('states the group total with its exclusions taken off, counted over its own rows', () => {
+      render(
+        <CloudResourceTable
+          rows={[
+            athenaRow('ap-northeast-1', 'sampledb'),
+            athenaRow('ap-northeast-1', 'integration'),
+            athenaRow('ap-northeast-1', 'legacy', { selected: false, exclusionReason: '미사용' }),
+          ]}
+        />,
+      );
+      const parent = required(screen.getByText('Athena').closest('tr'), 'the group parent row');
+      expect(parent.textContent).toContain('Database 총 3개 중 1개 제외');
+    });
+
+    // The identity spans every column: Database Type and Region are what the group is KEYED on,
+    // so filling those columns would print each of them twice on the one row that has them.
+    it('spans the parent identity across every column of this table', () => {
+      render(<CloudResourceTable rows={[athenaRow('us-east-1', 'default')]} />);
+      const parent = required(screen.getByText('Athena').closest('tr'), 'the group parent row');
+      const cells = [...parent.querySelectorAll('td')];
+      expect(cells).toHaveLength(1);
+      expect(cells[0]?.getAttribute('colspan')).toBe(String(columnKeys().length));
+    });
+
+    // Read DOWN the columns a child says Athena → Database, and repeats the parent's region: a
+    // column is read downward, and a blank region under every database reads as "no region".
+    // The id is the parent's own path with the child's name on the end, so it is dropped.
+    it('says what each child IS in the Database Type column, keeps the region, drops the id', () => {
+      render(
+        <CloudResourceTable
+          rows={[athenaRow('ap-northeast-1', 'sampledb'), athenaRow('ap-northeast-1', 'integration')]}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Athena ap-northeast-1 그룹 펼치기' }));
+
+      const keys = columnKeys();
+      const children = childRows('ap-northeast-1');
+      expect(children).toHaveLength(2);
+      for (const child of children) {
+        const cells = [...child.querySelectorAll('td')];
+        expect(cells).toHaveLength(keys.length);
+        expect(cells[keys.indexOf('dbType')]?.textContent).toBe('Database');
+        expect(cells[keys.indexOf('region')]?.textContent).toBe('ap-northeast-1');
+        expect(cells[keys.indexOf('id')]?.textContent).toBe('');
+      }
+      expect(children.map((child) => child.querySelectorAll('td')[keys.indexOf('name')]?.textContent))
+        .toEqual(['sampledb', 'integration']);
+    });
+
+    it('opens and closes from the parent chevron', () => {
+      render(<CloudResourceTable rows={[athenaRow('us-east-1', 'default')]} />);
+      expect(childBody('us-east-1').hasAttribute('hidden')).toBe(true);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Athena us-east-1 그룹 펼치기' }));
+      expect(childBody('us-east-1').hasAttribute('hidden')).toBe(false);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Athena us-east-1 그룹 접기' }));
+      expect(childBody('us-east-1').hasAttribute('hidden')).toBe(true);
+    });
+
+    // The filter owns the open state while it narrows the list: a search matching only a
+    // database inside a shut group would otherwise show a region that does not visibly contain
+    // what was typed. The chevron goes quiet with it rather than recording a backwards press.
+    it('opens every group and retires the chevron while a filter owns the open state', () => {
+      render(<CloudResourceTable rows={[athenaRow('us-east-1', 'default')]} expandGroups />);
+      expect(screen.getByText('default')).toBeTruthy();
+      expect(document.querySelector('tbody[hidden]')).toBeNull();
+      expect(screen.queryByRole('button', { name: /그룹 (펼치기|접기)$/ })).toBeNull();
+    });
+
+    // Grouping is Athena-keyed. Everything else is 1 row = 1 resource, and the rows around a
+    // group keep the order they arrived in.
+    it('leaves non-Athena rows flat and unreordered around the group', () => {
+      render(
+        <CloudResourceTable
+          rows={[row({ resourceName: 'mysql-prod-01' }), athenaRow('us-east-1', 'default'), clusterRow()]}
+        />,
+      );
+      expect(screen.getAllByText('Athena')).toHaveLength(1);
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+      expect(screen.getByText('RDS Cluster')).toBeTruthy();
+      // The cluster's own fold is untouched by grouping.
+      expect(screen.getByRole('button', { name: 'demo-cluster 인스턴스 목록 펼치기' })).toBeTruthy();
+      // `default` is inside the shut group body; the two flat rows are in a plain one.
+      expect(required(screen.getByText('default').closest('tbody'), "the group's body").hasAttribute('hidden')).toBe(true);
+      for (const name of ['mysql-prod-01', 'demo-cluster']) {
+        expect(
+          required(screen.getByText(name).closest('tbody'), `${name}'s body`).hasAttribute('hidden'),
+        ).toBe(false);
+      }
+    });
+  });
 });

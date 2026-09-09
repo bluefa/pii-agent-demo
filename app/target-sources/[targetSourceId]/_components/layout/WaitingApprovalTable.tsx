@@ -246,6 +246,22 @@ interface WaitingApprovalTableProps {
    * cannot answer for the list (see that helper). Omitted = no kind column.
    */
   kindColumn?: boolean;
+  /**
+   * Build the Athena GROUP TREE — one parent row per region, its databases as children.
+   *
+   * Defaults to the `approval` variant, the shape that has always had it. A caller opts in
+   * EXPLICITLY: admin ops 확정 정보 wears the `plain` head but carries the same DB-level rows
+   * steps 2·3 group, so it asks for the same tree on its own column count.
+   *
+   * ⛔ Never widen the default into a negative predicate (`variant !== 'confirmed'`): that
+   * exact phrasing opted the install variant in the moment it was added and drew a second
+   * Region cell on step 4. Allow-list, or this explicit prop — nothing else.
+   *
+   * Comes with a pagination obligation: a group is ONE pageable unit
+   * (`useApprovalTableState`'s `groupRows` → `toPaginationUnits`), and a page sliced flat cuts
+   * a group across the boundary and renders its parent twice.
+   */
+  grouped?: boolean;
 }
 
 // v16 `.approval-table-wrap` (CSS ~2846): border:0; overflow:hidden; background:#fff — joins flush
@@ -770,6 +786,7 @@ export const WaitingApprovalTable = memo(
     identityColumns,
     columns,
     kindColumn = false,
+    grouped: groupedProp,
   }: WaitingApprovalTableProps) => {
     const { locale } = useLocale();
     const copy = LAYOUT_COPY[locale];
@@ -778,13 +795,16 @@ export const WaitingApprovalTable = memo(
     // parent it belongs to (LIN-85). Groups start CLOSED (owner, 2026-08-23) — the rationale and
     // the one thing that overrides it are at the `collapsed` binding further down.
     //
-    // ONLY the `approval` variant builds a TREE. From step 4 on the region IS the resource —
-    // step 4 (`install`) already receives one Athena row per region keyed on
+    // The `approval` variant builds a TREE by default. From step 4 on the region IS the
+    // resource — step 4 (`install`) already receives one Athena row per region keyed on
     // `athena_region_resource_id`, and steps 5·6·7 fold onto that same key, which is a row that
     // STANDS FOR the region rather than a parent above its children (see `foldedMembers`).
     // Written as an allow-list, not `!== 'confirmed'`: that phrasing opted the install variant
     // in the moment it was added, and drew a second Region cell on step 4.
-    const grouped = variant === 'approval';
+    //
+    // Any other surface asks for the tree BY NAME (`grouped`) — admin ops 확정 정보 does, because
+    // its rows are the DB-level ones even though its head is `plain`.
+    const grouped = groupedProp ?? variant === 'approval';
     const sections = useMemo(
       () =>
         grouped
@@ -1378,6 +1398,17 @@ export const WaitingApprovalTable = memo(
       );
     };
 
+    // The column spec, computed once: the shell renders from it AND the group row spans it.
+    // A hand-written colSpan was right for the one variant that grouped and wrong for the
+    // second the day it arrived — `plain` has four columns, not six.
+    const columnSpec = confirmedVariant
+      ? confirmedColumns(t, regionLabel, confirmedKindColumn)
+      : installVariant
+        ? installColumns(t, identityColumns)
+        : plainVariant
+          ? plainColumns(regionLabel)
+          : approvalColumns(t, regionLabel);
+
     // The row blocks, shared by both shells below: one tbody per block, because a group
     // renders parent and children as separate bodies (`tbodySeam` keeps the rhythm).
     const bodies = sections.map((section) => {
@@ -1436,10 +1467,11 @@ export const WaitingApprovalTable = memo(
                   excludedCount={group.excludedCount}
                 />
               }
-              // Resource Name · Resource ID · Database Type · Region · 요청 대상 여부 ·
-              // 제외 사유 — the parent had a value for none of them once the identity
-              // took its type, region and counts (owner, 2026-08-12).
-              colSpan={6}
+              // Every column of whichever head this variant drew — steps 2·3's six (Resource
+              // Name · Resource ID · Database Type · Region · 요청 대상 여부 · 제외 사유), or
+              // the `plain` head's four. The parent has a value for none of them once the
+              // identity took its type, region and counts (owner, 2026-08-12).
+              colSpan={columnSpec.length}
             />
           </tbody>
           {/* Kept mounted while collapsed so `aria-controls` always resolves. */}
@@ -1460,15 +1492,7 @@ export const WaitingApprovalTable = memo(
             LIN-97 retired the auto-layout shell that used to sit in the else branch here:
             every variant now hands the shell its spec. */}
         <ConsoleTable
-          columns={
-            confirmedVariant
-              ? confirmedColumns(t, regionLabel, confirmedKindColumn)
-              : installVariant
-                ? installColumns(t, identityColumns)
-                : plainVariant
-                  ? plainColumns(regionLabel)
-                  : approvalColumns(t, regionLabel)
-          }
+          columns={columnSpec}
           // 두 단 머리는 confirmed variant 만 쓴다 — 두 카운트 열이 서는 유일한 shape 다.
           groups={confirmedVariant ? confirmedGroups(copy.common.logicalDbGroup) : undefined}
           resize={columns}

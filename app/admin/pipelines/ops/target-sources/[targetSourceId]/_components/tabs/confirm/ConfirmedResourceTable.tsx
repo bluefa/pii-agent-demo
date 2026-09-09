@@ -8,14 +8,19 @@
  * 확정 리소스를 보는 자리는 서비스 화면이든 운영 화면이든, 조회든 삭제 확인이든 **같은
  * 표여야 한다** — 자리마다 표를 새로 짜면 같은 사실이 자리마다 다른 문법으로 읽힌다.
  *
- * Step 6·7 과 다른 점은 둘뿐이다.
+ * Step 6·7 과 다른 점은 둘이다.
  *
  * 1. 연동 논리 DB · 연동 제외 열이 없다 — **이 화면들이 관리하는 값이 아니다**(Step 5 주제).
  *    `plain` variant 가 그 열 쌍을 통째로 뺀다. 열을 떼면 그것을 채우던 test-connection
  *    요약 조회도 같이 필요 없어진다.
- * 2. Athena 를 리전으로 접지 않는다 — 접기는 Step 4 부터 리전이 곧 리소스이기 때문인데,
- *    여기가 보여 주는 것은 확정 응답 그 자체다. 접으면 행 수가 "리소스 N건" 과 어긋나고,
- *    같은 응답을 읽는 비교·Raw 렌즈와도 갈라진다.
+ * 2. Athena 가 **그룹 트리**다 — 리전 부모 하나 밑에 데이터베이스 자식들(`grouped`). Step 6·7
+ *    은 리전 하나를 **한 행으로 접어서** 넘기지만(`foldedMembers`), 여기 오는 것은 확정 응답
+ *    행 그대로라 Step 2·3 과 같은 DB 단위다 — 같은 행에는 같은 문법을 쓴다. 페이지도 그래서
+ *    그룹 단위다(`useApprovalTableState` 의 `groupRows`): 평평하게 자르면 한 그룹이 페이지
+ *    경계에서 갈린다.
+ *
+ * ⛔ 머리의 「리소스 N건」은 그룹 수가 아니라 **응답의 행 수**를 계속 읽는다(`panes.tsx` 의
+ *    `resource_infos.length`) — 트리는 읽는 방식이고, 건수는 응답이 말한 사실이다.
  */
 import { useMemo, type ReactElement } from 'react';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -56,8 +61,13 @@ export function ConfirmedResourceTable({
       })),
     [resources],
   );
-  // 접기가 없으므로 행 하나가 곧 페이지 단위다 — Step 6·7 과 같은 이유로 그룹핑을 끈다.
-  const table = useApprovalTableState(approvalRows, undefined, false);
+  // 그룹 하나가 곧 페이지 단위다 — Athena 리전 하나가 데이터베이스 전부를 데리고 한 칸을
+  // 차지한다(`toPaginationUnits`). 그룹핑 키는 위에서 넣은 `resourceType`, 즉 엔진 이름
+  // `athena` 다: `isGroupedResourceType` 가 `normalizeResourceType` 로 대문자화한 뒤 보므로
+  // `ATHENA` 로 맞아떨어진다(최상위 종류를 나르는 `declaredResourceType` 의 `AWS_ATHENA_DATABASE`
+  // 도 같은 집합에 있어 어느 쪽으로 재도 답은 같다). 두 필드 다 계약이 주는 값이고, 여기서
+  // 새로 지어낸 것은 없다.
+  const table = useApprovalTableState(approvalRows);
   // 콘솔 표의 리사이즈 인스턴스 — storage key 는 화면 이름(LIN-97). Step 6·7 의
   // confirmed-resources 와 열 하한은 같지만 화면이 다르므로 키를 나눠 갖는다.
   const resize = useColumnResize({
@@ -82,7 +92,12 @@ export function ConfirmedResourceTable({
       <WaitingApprovalTable
         resources={table.visibleResources}
         variant="plain"
+        // 이름으로 켠다 — `plain` 자체는 트리를 그리지 않는다(WaitingApprovalTable 의 `grouped`).
+        grouped
         connected
+        // 검색·필터가 목록을 좁히는 동안에는 열림 상태를 그쪽이 갖는다: 닫힌 그룹 안의
+        // 데이터베이스에만 걸린 검색어는, 접힌 채로 두면 화면 어디에도 나타나지 않는다.
+        expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
         columns={resize}
       />
