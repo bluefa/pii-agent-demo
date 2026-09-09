@@ -3,7 +3,7 @@
 import { type ReactElement } from 'react';
 import Link from 'next/link';
 import { LocaleProvider } from '@/app/components/LocaleProvider';
-import { bgColors, borderColors, cn, primaryColors, statusColors, tagStyles, textColors, textStyles } from '@/lib/theme';
+import { bgColors, borderColors, cn, statusColors, tagStyles, textColors, textStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useModal } from '@/app/hooks/useModal';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -92,7 +92,7 @@ export function InstallPendingNotice({ data, className, loading = false }: Insta
           <>
             {tasks.map(task => (
               <div key={task.id} className={cn('grid grid-cols-[112px_minmax(0,1fr)_auto] items-start gap-4 border-b px-4 py-4', borderColors.light)}>
-                <span className={cn(textStyles.captionStrong, task.state === 'needed' ? primaryColors.text : textColors.secondary)}>
+                <span className={cn(textStyles.captionStrong, textColors.secondary)}>
                   {task.owner === 'service' ? '서비스 담당자' : 'BDC 담당자'}
                 </span>
                 <div>
