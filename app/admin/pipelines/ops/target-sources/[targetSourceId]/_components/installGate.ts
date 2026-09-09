@@ -25,6 +25,7 @@ import {
   isSettledInstallStatus,
   type InstallDetailResource,
   type InstallLastCheck,
+  type InstallStepCell,
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
@@ -239,6 +240,8 @@ export interface InstallPendingInput {
     lastCheck: InstallLastCheck | null;
     unavailable: boolean;
     resources: readonly InstallDetailResource[];
+    /** Account-level prerequisite, used only for AWS auto installation. */
+    roleVerify?: InstallStepCell;
   } | null;
 }
 

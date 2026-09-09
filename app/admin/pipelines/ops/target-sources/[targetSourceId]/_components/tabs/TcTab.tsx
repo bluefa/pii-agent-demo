@@ -174,8 +174,7 @@ export function TcTab({
   // so the settle edge reloads both — the poll tick that observed SUCCESS can race
   // the results write. The ref starts false, so mounting on an already-settled run
   // does not double-fetch.
-  // 설치는 이 탭 밖에서 진행되므로, 실행이 정착하는 그 순간이 이 화면이 설치 상태를 다시
-  // 물을 유일한 계기다(폴링은 없다 — 이 탭은 설치를 지켜보는 화면이 아니다).
+  // A settled run also refreshes the installation snapshot read on entry.
   const installPendingState = useInstallPending(targetSourceId, provider, manualInstall);
   const installReload = installPendingState.reload;
 
@@ -195,8 +194,11 @@ export function TcTab({
     () =>
       installPending === null
         ? null
-        : { result: installPending, lastCheck: installPendingState.lastCheck },
-    [installPending, installPendingState.lastCheck],
+        : {
+            result: installPending, lastCheck: installPendingState.lastCheck,
+            tasks: installPendingState.tasks, targetSourceId, provider, manualInstall,
+          },
+    [installPending, installPendingState.lastCheck, installPendingState.tasks, targetSourceId, provider, manualInstall],
   );
 
   // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,

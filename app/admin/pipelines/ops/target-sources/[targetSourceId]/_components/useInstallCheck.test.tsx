@@ -7,11 +7,11 @@
  * 무너진다. 그래서 이 파일은 두 가지를 같이 붙든다 — 대상이 바뀌면 비운다, 다시
  * 읽는 동안에는 비우지 않는다.
  */
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReactElement } from 'react';
 
-import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import { useInstallCheck, useInstallPending } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
 
 const CHECKED_AT = '2026-08-31T01:00:00Z';
 
@@ -57,6 +57,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe('useInstallCheck — 대상 전환', () => {
   it('id 가 바뀌면 앞 대상의 스냅샷을 버리고 다시 모른다고 말한다', async () => {
     const { rerender } = render(<Probe targetSourceId={1} />);
@@ -65,5 +67,25 @@ describe('useInstallCheck — 대상 전환', () => {
     rerender(<Probe targetSourceId={2} />);
 
     await waitFor(() => expect(read()).toBe('loading|none'));
+  });
+});
+
+describe('useInstallPending refresh behavior', () => {
+  it('keeps the entry snapshot without adding installation polling', async () => {
+    vi.useFakeTimers();
+    const { result, unmount } = renderHook(() => useInstallPending(1, 'aws', true));
+    await act(async () => {});
+    expect(result.current.lastCheck?.checkedAt).toBe(CHECKED_AT);
+    expect(getAwsInstallationStatus).toHaveBeenCalledTimes(1);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 60 * 60 * 1000); });
+    expect(getAwsInstallationStatus).toHaveBeenCalledTimes(1);
+
+    await act(async () => { result.current.reload(); });
+    expect(getAwsInstallationStatus).toHaveBeenCalledTimes(2);
+    unmount();
+    renderHook(() => useInstallPending(1, 'aws', true));
+    await act(async () => {});
+    expect(getAwsInstallationStatus).toHaveBeenCalledTimes(3);
   });
 });

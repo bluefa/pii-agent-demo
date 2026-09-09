@@ -39,7 +39,9 @@ import { buildIdcInstallDetail } from '@/app/components/features/process-status/
 import type {
   InstallDetailResource,
   InstallLastCheck,
+  InstallStepCell,
 } from '@/app/components/features/process-status/install-status-detail/model';
+import { buildInstallTasks, type InstallTask } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installTasks';
 import {
   installPendingGate,
   serviceWorkGate,
@@ -53,6 +55,7 @@ export interface InstallCheckDetail {
   lastCheck: InstallLastCheck | null;
   unavailable: boolean;
   resources: readonly InstallDetailResource[];
+  roleVerify?: InstallStepCell;
 }
 
 const awsDetail = async (targetSourceId: number): Promise<InstallCheckDetail> => {
@@ -60,6 +63,7 @@ const awsDetail = async (targetSourceId: number): Promise<InstallCheckDetail> =>
   return {
     lastCheck: status.lastCheck,
     unavailable: status.lastCheck.unavailable === true,
+    ...(status.roleVerify && { roleVerify: { status: status.roleVerify.status, guide: null } }),
     // 키는 AwsInstallStatusDetail 의 것 그대로 — 같은 단계가 두 화면에서 다른 이름을
     // 가지면 게이트의 단계 id 가 한쪽에서만 맞는다.
     resources: status.resources.map((resource) => ({
@@ -246,6 +250,7 @@ export interface InstallPendingState {
    * 아무것도 그리지 않는다 — 판정이 없는 것과 「끝났다」는 다른 문장이다.
    */
   pending: InstallPendingResult | null;
+  tasks: InstallTask[];
   lastCheck: InstallLastCheck | null;
   loading: boolean;
   /** The lookup itself failed (network / 4xx / 5xx) — distinct from a FAILED last_check. */
@@ -260,8 +265,8 @@ export interface InstallPendingState {
  * 다른 것은 **무엇을 세는가**뿐이다: 저쪽은 서비스가 손댈 한 단계, 이쪽은 모든 단계.
  * 그래서 프로바이더도 넷 전부다.
  *
- * 폴링은 없다. 이 탭은 설치를 지켜보는 화면이 아니라 실행 전에 한 번 확인하는 화면이라,
- * 다시 읽는 것은 마운트와 실행이 정착하는 순간(TcTab 의 settle edge)뿐이다.
+ * Read on entry and after a TC run settles, without installation polling.
+ * These GETs read the latest stored check; they do not trigger an installation check.
  */
 export function useInstallPending(
   targetSourceId: number,
@@ -272,6 +277,11 @@ export function useInstallPending(
 ): InstallPendingState {
   const fetcher = ALL_FETCHERS[provider];
   const { detail, loading, failed, reload } = useInstallDetail(targetSourceId, fetcher);
+
+  const tasks = useMemo(
+    () => buildInstallTasks({ provider, manualInstall, detail: failed ? null : detail }),
+    [provider, manualInstall, detail, failed],
+  );
 
   // 판정은 스냅샷이 바뀔 때만 새로 난다 — `installPendingGate` 은 매번 새 객체를 내므로,
   // 메모 없이는 이 값을 내려받는 카드가 렌더마다 새 prop 을 받는다.
@@ -291,6 +301,7 @@ export function useInstallPending(
 
   return {
     pending,
+    tasks,
     // 실패했으면 시각도 사유도 내놓지 않는다 — 직전 성공의 시각을 이번 조회의 시각으로
     // 찍지 않는다(`useInstallCheck` 과 같은 규칙).
     lastCheck: failed ? null : (detail?.lastCheck ?? null),

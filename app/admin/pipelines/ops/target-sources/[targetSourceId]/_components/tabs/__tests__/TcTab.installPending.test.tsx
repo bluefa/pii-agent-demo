@@ -112,7 +112,7 @@ describe('TcTab — 설치 미완료 확인', () => {
 
   it('안 끝난 설치가 있으면 확인 모달이 먼저 서고, 실행은 나가지 않는다', async () => {
     renderTab();
-    await screen.findByText('설치가 끝나지 않아 연결 테스트가 실패합니다');
+    await screen.findByText('연결 테스트 전 준비 사항');
 
     fireEvent.click(runButton());
 
@@ -122,7 +122,7 @@ describe('TcTab — 설치 미완료 확인', () => {
 
   it('확인하면 그때 한 번 실행된다', async () => {
     renderTab();
-    await screen.findByText('설치가 끝나지 않아 연결 테스트가 실패합니다');
+    await screen.findByText('연결 테스트 전 준비 사항');
 
     fireEvent.click(runButton());
     fireEvent.click(screen.getByRole('button', { name: '실패를 감수하고 실행' }));
@@ -133,7 +133,7 @@ describe('TcTab — 설치 미완료 확인', () => {
 
   it('취소하면 모달만 닫히고 아무것도 나가지 않는다', async () => {
     renderTab();
-    await screen.findByText('설치가 끝나지 않아 연결 테스트가 실패합니다');
+    await screen.findByText('연결 테스트 전 준비 사항');
 
     fireEvent.click(runButton());
     fireEvent.click(screen.getByRole('button', { name: '취소' }));
@@ -162,7 +162,7 @@ describe('TcTab — 설치 미완료 확인', () => {
 
     await waitFor(() => expect(triggerTestConnection).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('설치가 끝나지 않았습니다')).toBeNull();
-    expect(screen.queryByText('설치가 끝나지 않아 연결 테스트가 실패합니다')).toBeNull();
+    expect(screen.queryByText('연결 테스트 전 준비 사항')).toBeNull();
   });
 
   it('Credential 미설정이 앞선다 — 단추가 잠겨 확인 모달까지 오지 않는다', async () => {

@@ -1,126 +1,96 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { InstallPendingNotice } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingNotice';
-import {
-  installPendingGate,
-  type InstallPendingResult,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
-import type {
-  InstallDetailResource,
-  InstallStepValue,
-} from '@/app/components/features/process-status/install-status-detail/model';
+import { InstallPendingNotice, INSTALL_CHECK_TOOLTIP, type InstallPendingNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingNotice';
+import { installPendingGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
+import { buildInstallTasks } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installTasks';
+import type { InstallDetailResource, InstallStepValue } from '@/app/components/features/process-status/install-status-detail/model';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/admin/pipelines/ops/target-sources/1010' }));
 
-const resource = (
-  resourceId: string,
-  cells: Record<string, InstallStepValue>,
-  guide: string | null = null,
-): InstallDetailResource => ({
-  resourceId,
-  resourceName: `${resourceId}-name`,
-  rollup: { status: 'IN_PROGRESS', guide: null },
-  cells: Object.fromEntries(
-    Object.entries(cells).map(([key, status]) => [key, { status, guide }]),
-  ),
+const resource = (resourceId: string, cells: Record<string, InstallStepValue>): InstallDetailResource => ({
+  resourceId, resourceName: resourceId + '-name', rollup: { status: 'IN_PROGRESS', guide: null },
+  cells: Object.fromEntries(Object.entries(cells).map(([key, status]) => [key, { status, guide: '상세 설치 안내' }])),
 });
 
-const gateOf = (
-  resources: readonly InstallDetailResource[],
-  detail: { unavailable?: boolean } = {},
-): InstallPendingResult =>
-  installPendingGate({
-    provider: 'aws',
-    manualInstall: true,
-    detail: {
-      lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
-      unavailable: detail.unavailable ?? false,
-      resources,
-    },
-  });
-
-const renderNotice = (result: InstallPendingResult): void => {
-  render(
-    <InstallPendingNotice
-      data={{ result, lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' } }}
-    />,
-  );
+const noticeData = (resources: InstallDetailResource[], provider = 'aws', manualInstall = true): InstallPendingNoticeData => {
+  const lastCheck = { status: 'SUCCESS' as const, checkedAt: '2026-08-31T01:00:00Z' };
+  const input = { provider, manualInstall, detail: { lastCheck, unavailable: false, resources } };
+  return {
+    result: installPendingGate(input), tasks: buildInstallTasks(input),
+    lastCheck, targetSourceId: 1010, provider, manualInstall,
+  };
 };
 
-const TITLE = '설치가 끝나지 않아 연결 테스트가 실패합니다';
-
 describe('InstallPendingNotice', () => {
-  it('needed 일 때만 그린다 — done·unknown·없음은 아무것도 말하지 않는다', () => {
-    const { unmount } = render(<InstallPendingNotice data={null} />);
-    expect(screen.queryByText(TITLE)).toBeNull();
-    unmount();
-
-    const done = render(
-      <InstallPendingNotice
-        data={{ result: gateOf([resource('rds-1', { service: 'COMPLETED' })]), lastCheck: null }}
-      />,
-    );
-    expect(screen.queryByText(TITLE)).toBeNull();
-    done.unmount();
-
-    // unavailable = 「못 읽었다」. 읽지 못한 것을 근거로 실패를 예고하지 않는다.
-    render(
-      <InstallPendingNotice
-        data={{
-          result: gateOf([resource('rds-1', { service: 'IN_PROGRESS' })], { unavailable: true }),
-          lastCheck: null,
-        }}
-      />,
-    );
-    expect(screen.queryByText(TITLE)).toBeNull();
+  it('does not claim readiness when installation status is absent or unknown', () => {
+    const { rerender } = render(<InstallPendingNotice data={null} />);
+    expect(screen.queryByRole('region', { name: '설치 현황' })).toBeNull();
+    rerender(<InstallPendingNotice data={noticeData([])} />);
+    expect(screen.queryByRole('region', { name: '설치 현황' })).toBeNull();
   });
 
-  it('세는 것은 리소스다 — 한 리소스의 안 끝난 셀이 둘이어도 1건이다', () => {
-    renderNotice(
-      gateOf([
-        resource('rds-1', { service: 'IN_PROGRESS', bdcService: 'UNKNOWN' }),
-        resource('rds-2', { service: 'COMPLETED', bdcService: 'COMPLETED' }),
-      ]),
-    );
-
-    expect(screen.getByText(TITLE)).toBeTruthy();
-    expect(screen.getByText('1건')).toBeTruthy();
-    expect(screen.getByText(/지금 실행하면 해당 리소스는 연결에 실패합니다/)).toBeTruthy();
+  it.each(['aws', 'azure', 'gcp', 'idc'])('keeps the completion message and check timestamp for %s', provider => {
+    render(<InstallPendingNotice data={noticeData([resource('db', { service: 'COMPLETED' })], provider)} />);
+    expect(screen.getByRole('region', { name: '설치 현황' })).toBeTruthy();
+    expect(screen.getByText('설치가 완료되었습니다.')).toBeTruthy();
+    expect(screen.getByText('26. 08. 31. 10:00')).toBeTruthy();
+    expect(screen.queryByText(/미완료 대상/)).toBeNull();
+    expect(screen.queryByText('서비스 담당자')).toBeNull();
   });
 
-  it('링크가 모달을 열고, 표는 셀 하나에 행 하나를 세운다', () => {
-    renderNotice(
-      gateOf([
-        resource('rds-1', { service: 'IN_PROGRESS', bdcCommon: 'FAIL' }, '적용에 실패했습니다.'),
-        resource('rds-2', { service: 'COMPLETED' }),
-      ]),
-    );
+  it('identifies the executor and waiting party without predicting an error in the title', () => {
+    render(<InstallPendingNotice data={noticeData([
+      resource('rds-1', { service: 'IN_PROGRESS', bdcCommon: 'BDC_INSTALL_REQUIRED' }),
+      resource('rds-2', { service: 'COMPLETED', bdcCommon: 'COMPLETED' }),
+    ])} />);
+    expect(screen.getByText('연결 테스트 전 준비 사항')).toBeTruthy();
+    expect(screen.getByText('AWS · 수동 설치')).toBeTruthy();
+    expect(screen.getByText('서비스 담당자')).toBeTruthy();
+    expect(screen.getByText('BDC 담당자')).toBeTruthy();
+    expect(screen.getByText('서비스 작업 대기')).toBeTruthy();
+    expect(screen.queryByText('설치가 끝나지 않아 연결 테스트가 실패합니다')).toBeNull();
+    expect(screen.getByText('마지막 확인')).toBeTruthy();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /미완료 리소스 보기/ }));
-
+  it('opens the selected task resources and closes the modal', () => {
+    render(<InstallPendingNotice data={noticeData([
+      resource('rds-1', { service: 'COMPLETED', bdcCommon: 'IN_PROGRESS', bdcService: 'FAIL' }),
+      resource('rds-2', { service: 'COMPLETED', bdcCommon: 'COMPLETED', bdcService: 'COMPLETED' }),
+    ])} />);
+    fireEvent.click(screen.getByRole('button', { name: /대상 리소스 및 작업 보기 · 1건/ }));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('설치가 끝나지 않은 리소스')).toBeTruthy();
-    // 같은 리소스가 두 단계에서 걸렸으므로 이름이 두 행에 선다.
+    expect(within(dialog).getByText('BDC 측 후속 설치')).toBeTruthy();
     expect(within(dialog).getAllByText('rds-1-name')).toHaveLength(2);
-    // 끝난 리소스는 이 목록의 것이 아니다.
     expect(within(dialog).queryByText('rds-2-name')).toBeNull();
-    // 단계 열이 선다 — 이 표가 답하는 것은 「어느 리소스의 어느 단계인가」다.
-    expect(within(dialog).getByText('설치 단계')).toBeTruthy();
-    expect(within(dialog).getByText('서비스 측 Terraform 적용')).toBeTruthy();
     expect(within(dialog).getByText('BDC 공통 영역')).toBeTruthy();
-    // 상태 낱말은 이 콘솔의 것이다.
-    expect(within(dialog).getByText('작업필요')).toBeTruthy();
-    expect(within(dialog).getByText('조회실패')).toBeTruthy();
     expect(within(dialog).getByText('마지막 확인시간 26.08.31 10:00')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('닫기가 모달을 닫는다', () => {
-    renderNotice(gateOf([resource('rds-1', { service: 'IN_PROGRESS' })]));
+  it('links ready BDC work to the infrastructure tab', () => {
+    render(<InstallPendingNotice data={noticeData([resource('db', { service: 'IN_PROGRESS' })], 'aws', false)} />);
+    expect(screen.getByRole('link', { name: /인프라 작업 보기/ }).getAttribute('href')).toContain('/1010?tab=infra');
+    expect(screen.getByText('AWS · 자동 설치')).toBeTruthy();
+    expect(screen.queryByText('서비스 담당자')).toBeNull();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /미완료 리소스 보기/ }));
-    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  it('explains snapshot freshness on keyboard focus without claiming hourly polling', async () => {
+    render(<InstallPendingNotice data={noticeData([resource('db', { service: 'COMPLETED' })])} />);
+    expect(screen.queryByText(INSTALL_CHECK_TOOLTIP)).toBeNull();
+    await act(async () => {
+      fireEvent.focus(screen.getByRole('button', { name: '마지막 설치 상태 확인 시간 및 조회 주기' }));
+    });
+    expect(screen.getByText(INSTALL_CHECK_TOOLTIP)).toBeTruthy();
+    expect(INSTALL_CHECK_TOOLTIP).toContain('실시간으로 조회하지 않습니다');
+    expect(INSTALL_CHECK_TOOLTIP).not.toContain('1시간마다');
+  });
 
-    expect(screen.queryByRole('dialog')).toBeNull();
+  it('does not fabricate a timestamp when the server did not supply one', () => {
+    const data = noticeData([resource('db', { service: 'COMPLETED' })]);
+    render(<InstallPendingNotice data={{ ...data, lastCheck: null }} />);
+    expect(screen.getByText('확인 기록 없음')).toBeTruthy();
+    expect(screen.queryByText('26. 08. 31. 10:00')).toBeNull();
   });
 });

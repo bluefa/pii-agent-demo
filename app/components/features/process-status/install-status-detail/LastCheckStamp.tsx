@@ -95,10 +95,13 @@ const Stamp = ({
 export const LastCheckStamp = ({
   lastCheck,
   className,
+  tooltip,
 }: {
   lastCheck: InstallLastCheck;
   /** 줄 자체에 얹는 추가 클래스 — 기본 배치는 카드 헤더의 우측 슬롯이 정한다. */
   className?: string;
+  /** The admin console has a different refresh cadence from Step 4. */
+  tooltip?: string;
 }) => {
   const { locale } = useLocale();
   const t = INSTALL_COPY[locale].stamp;
@@ -119,20 +122,27 @@ export const LastCheckStamp = ({
   // 줄이 말할 수 있는 것은 "언제 읽은 값인가"까지다. 그 값이 지금과 다를 수 있다는
   // 사실은 줄을 늘리는 대신 툴팁으로 내린다. 이 줄은 카드 머리의 우상단이라 위로 열면
   // 카드를 벗어나므로 아래로 연다.
+  const content = (
+    <Stamp
+      stamp={stamp}
+      format={t.checkedAgo}
+      className={className}
+      suffix={
+        failed ? (
+          <span className={cn('ml-1', statusColors.error.textDark)}>
+            · {t.statusCheckFailed}
+          </span>
+        ) : null
+      }
+    />
+  );
   return (
-    <Tooltip position="bottom" content={t.tooltip}>
-      <Stamp
-        stamp={stamp}
-        format={t.checkedAgo}
-        className={className}
-        suffix={
-          failed ? (
-            <span className={cn('ml-1', statusColors.error.textDark)}>
-              · {t.statusCheckFailed}
-            </span>
-          ) : null
-        }
-      />
+    <Tooltip position="bottom" content={tooltip ?? t.tooltip}>
+      {tooltip ? (
+        <button type="button" aria-label="마지막 설치 상태 확인 시간 및 조회 주기" className="text-left">
+          {content}
+        </button>
+      ) : content}
     </Tooltip>
   );
 };
