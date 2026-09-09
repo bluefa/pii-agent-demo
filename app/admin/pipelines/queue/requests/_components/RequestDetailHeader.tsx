@@ -21,14 +21,17 @@
  * CTA renders disabled (여기의 disabled 는 '아직'이 사실이다 — 결정이 끝나 CTA 가
  * 아예 사라지는 것과 다른 상태).
  */
+import Link from 'next/link';
 import type { ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import { passRoutes } from '@/lib/routes';
 import { displayProvider, fmtDateTime, providerLabel } from '@/lib/pipeline/format';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
 
 const { text } = pipelineStyles;
-const { tag } = tqStyles;
+const { tag, outLink } = tqStyles;
 
 interface MetaItem {
   key: string;
@@ -174,7 +177,22 @@ export function RequestDetailHeader({
             them — 반려/승인 on the right already says the request is undecided. */}
         <MetaRun items={meta} />
       </div>
-      <CtaPair pending={pending} onApprove={onApprove} onReject={onReject} />
+      {/* 오른쪽 끝은 이 헤더에서 누를 수 있는 것 전부의 자리다 — 나가는 줄이 앞에 서고
+          결정 두 개가 뒤에 선다. 링크는 CtaPair **바깥**에 산다: 결정이 끝나 CTA 가
+          통째로 사라져도 운영 상세로 가는 길은 남아야 한다 — 이동은 판정에 걸리는
+          동작이 아니다. items-center 라 32px 짜리 버튼 줄이 높이를 정하고, h1 줄과
+          아래 경계선은 그대로 있다. */}
+      <div className="flex items-center gap-3 flex-none">
+        <Link
+          href={passRoutes.pipelines.ops.targetSource(targetSourceId)}
+          className={outLink}
+          title="TargetSource 관리 — 이 대상의 운영 상세 화면"
+        >
+          {/* ↗ 는 이 앱에서 「이 화면을 떠난다」는 표식이다(OpsHeader 관련 페이지와 같은 규칙). */}
+          TargetSource 관리 <Icon name="arrow-ur" size="sm" />
+        </Link>
+        <CtaPair pending={pending} onApprove={onApprove} onReject={onReject} />
+      </div>
     </div>
   );
 }

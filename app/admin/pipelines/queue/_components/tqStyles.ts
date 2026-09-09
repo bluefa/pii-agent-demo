@@ -197,6 +197,15 @@ export const tqStyles = {
     th: 'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
   },
 
+  /** Outgoing link (`나가는 줄`) — the ops masthead's `opsStyles.aboutLink`
+   *  grammar reused on P3: black 14/500 with the `arrow-ur` glyph, and the only
+   *  "you can press this" signal is the hover underline in `--pl-primary`. Black
+   *  and not brand-blue on purpose (owner, 2026-08-27, on the ops panel): colour
+   *  AND weight together made the least-used control on the screen read the
+   *  loudest. No hand-drawn focus ring — the global outline owns that. */
+  outLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-strong)] hover:underline hover:decoration-[var(--pl-primary)]',
+
   /** Stat tile (`.stat`) — gray-100 centered read-only summary; label over value.
    *  Value tone: warn (대기), err (반려>0), strong (default). */
   stat: {
