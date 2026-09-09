@@ -82,3 +82,45 @@ export function gateStage(
           };
   }
 }
+
+// ---------------------------------------------------------------------------
+// 작업 유형 행 게이트 — 어떤 유형을 이 대상에서 지금 고를 수 있는가
+// ---------------------------------------------------------------------------
+
+/**
+ * `gateStage` 위쪽은 **작업 시작 자체**가 닫힌 이유를 말한다. 여기는 그 다음 질문이다:
+ * 모달이 열렸을 때 **어느 유형 행**이 살아 있는가.
+ *
+ * 한 상태에서만 답이 달라진다 — 3단계(`CONFIRMING`)에 확정된 인프라가 이미 있는 대상.
+ * 확정 정보가 다시 들어와야 하는데 그 자리에 지난 확정이 서 있으므로, 설치를 다시 돌려도
+ * 그 확정을 바꾸지 못한다(ADR-023). 그래서 그 대상에서 열리는 것은 재확정이고, 설치는
+ * 눌러도 될 것 같은 얼굴로 남겨 두지 않는다.
+ *
+ * 재확정은 그 밖의 상태에서 **아예 그리지 않는다**. 비활성 행으로 남기면 「지금은 못
+ * 한다」로 읽히지만 실제로는 이 대상에서 할 일이 아니고, 서버도 그 조합의 레시피를 갖고
+ * 있지 않다.
+ *
+ * ⛔ `hasConfirmedInfra === null` 은 「없다」가 아니다 — terraform-status 를 아직 못
+ * 읽었다는 뜻이다. 못 읽은 것을 근거로 행을 지우거나 막지 않는다(`startGate` 와 같은 규칙).
+ */
+export interface PipelineTypeGate {
+  /** RECONFIRM 행을 그리는가. false 면 렌더 자체를 하지 않는다. */
+  reconfirm: boolean;
+  /** null 이 아니면 INSTALL 행이 막히고, 이 문장이 그 이유다. */
+  installBlocked: string | null;
+}
+
+/** 3단계에 선 확정 인프라 위로 설치를 다시 돌려도 확정 정보는 바뀌지 않는다. */
+const INSTALL_BLOCKED_BY_RECONFIRM =
+  '확정 정보를 다시 입력해야 합니다. 재확정을 먼저 실행하세요.';
+
+export function pipelineTypeGate(
+  processStatus: ProcessStatus | null,
+  /** `TerraformStatusResponse.has_confirmed_infra`; null = 아직 못 읽었다. */
+  hasConfirmedInfra: boolean | null,
+): PipelineTypeGate {
+  if (processStatus === 'CONFIRMING' && hasConfirmedInfra === true) {
+    return { reconfirm: true, installBlocked: INSTALL_BLOCKED_BY_RECONFIRM };
+  }
+  return { reconfirm: false, installBlocked: null };
+}

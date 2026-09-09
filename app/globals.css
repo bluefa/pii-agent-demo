@@ -182,6 +182,11 @@
   --pl-type-install: #027A48;
   --pl-type-delete: #B42318;
   --pl-type-custom: #6941C6;
+  /* RECONFIRM (ADR-023) — Untitled cyan-700, the one family left outside the
+     three that already speak here: install green, delete red, custom purple.
+     재확정은 설치도 삭제도 아니고 그 둘을 한 번에 하는 업무라 어느 쪽 색도 빌릴 수
+     없다. 흰 행에서 5.42:1 이라 20px 글리프 기준(3:1)을 여유 있게 넘는다. */
+  --pl-type-reconfirm: #0E7090;
   /* R18 solid danger CTA (상세 페이지 [중단]) — Untitled red-600/700. */
   --pl-err-solid: #D92D20;
   --pl-err-solid-hover: #B42318;

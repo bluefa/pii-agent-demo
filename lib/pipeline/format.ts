@@ -386,6 +386,8 @@ export const KIND_POLICY: Record<TaskKind, string> = {
     '디스패치한 모든 job을 polling 간격으로 폴링 — 전부 COMPLETED면 성공, 하나라도 FAILED면 JOB_FAILED, 타임아웃 도달 시 EXECUTION_TIMEOUT. 실패·호출 오류는 fail_count로 누적되고 max까지 멱등 재디스패치로 재시도한다.',
   CONDITION_CHECK:
     '디스패치 없이 조건 확인 API를 polling 간격으로 호출 — 충족이 관측되면 성공. 미충족·호출 오류는 fail_count로 누적돼 max에 도달하면 실패한다(타임아웃 대신 재시도 예산으로 경계).',
+  HTTP_REQUEST:
+    '설치 API를 직접 호출 — 계약이 정한 status(삭제 200 · 추천 조회 200 · 등록 201)를 받으면 성공. 401·403과 계약 위반 응답은 그 자리에서 실패하고, 429·5xx·타임아웃만 재시도 예산 안에서 다시 호출한다.',
 };
 
 // ---------------------------------------------------------------------------
@@ -585,6 +587,9 @@ export function taskRunLine(
 const TYPE_KO: Record<PipelineType, string> = {
   INSTALL: '설치',
   DELETE: '삭제',
+  // 재확정 — 확정정보를 지우고 추천값으로 다시 등록하는 업무. '재확인'이 아니다:
+  // 이 작업은 확인하는 것이 아니라 확정을 다시 **쓴다**.
+  RECONFIRM: '재확정',
   CUSTOM: '커스텀',
 };
 

@@ -34,7 +34,10 @@ import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipe
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { providerKey } from '@/lib/pipeline/format';
 import { isSduTarget } from '@/lib/types';
-import { gateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import {
+  gateStage,
+  pipelineTypeGate,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import { getTerraformStatus, type TerraformStatusResponse } from '@/app/lib/api';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import type { OpsTargetTabLabel } from '@/lib/routes';
@@ -139,6 +142,14 @@ export function PipelineTab({
     [status, processStatus, targetSourceId, isSdu],
   );
 
+  // 어느 작업 유형 행이 모달에서 살아 있는가. `startGate` 와 같은 두 사실을 읽지만 답하는
+  // 질문이 다르다 — 저쪽은 「작업 시작이 왜 닫혔는가」, 이쪽은 「열렸을 때 무엇을 고를 수
+  // 있는가」다. 여기서도 못 읽은 상태(null)는 「없다」가 아니다.
+  const typeGate = useMemo(
+    () => pipelineTypeGate(processStatus, status?.has_confirmed_infra ?? null),
+    [processStatus, status],
+  );
+
   const provider = pipelineProviderKey(detail);
   const orchProvider = wireProvider(provider);
   // 서비스 측 작업은 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
@@ -188,6 +199,7 @@ export function PipelineTab({
         onClose={previewModal.close}
         targetSourceId={String(targetSourceId)}
         provider={orchProvider}
+        typeGate={typeGate}
         showToast={toast.show}
         onStarted={() => setStartedKey((k) => k + 1)}
       />

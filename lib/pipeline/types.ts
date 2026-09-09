@@ -18,7 +18,15 @@
 
 export type PipelineStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED';
 
-export type PipelineType = 'INSTALL' | 'DELETE' | 'CUSTOM';
+/**
+ * `RECONFIRM` is the ADR-023 business type (pipeline-orchestrator PR #56/#57):
+ * drop the confirmed resources, read the approved recommendation, register it
+ * again. It is NOT declared in docs/swagger/orchestrator-v1.yaml yet — that
+ * document still enumerates INSTALL|DELETE|CUSTOM — so this hand-written union
+ * runs ahead of the published contract on purpose, because the backend already
+ * merged it. Fold the swagger enum in when the next BE drop lands.
+ */
+export type PipelineType = 'INSTALL' | 'DELETE' | 'RECONFIRM' | 'CUSTOM';
 
 export type TaskStatus =
   | 'BLOCKED'
@@ -38,8 +46,15 @@ export type ErrorCode =
   | 'CALL_TIMEOUT'
   | 'UNKNOWN_TASK';
 
-/** Task execution mechanism = task type name (`kind`). */
-export type TaskKind = 'TERRAFORM_JOB' | 'CONDITION_CHECK';
+/**
+ * Task execution mechanism = task type name (`kind`).
+ *
+ * `HTTP_REQUEST` is ADR-023's third mechanism — the task calls the installation
+ * API directly (확정정보 삭제 · 추천 조회 후 등록) instead of dispatching a
+ * terraform job or polling a condition. Same swagger caveat as `PipelineType`:
+ * the published enum still lists only the first two.
+ */
+export type TaskKind = 'TERRAFORM_JOB' | 'CONDITION_CHECK' | 'HTTP_REQUEST';
 
 /** Statistics window token (wire value of StatisticsPeriod via @JsonValue). */
 export type StatisticsPeriodToken = '1h' | '1d' | '7d';
