@@ -25,6 +25,7 @@ import {
   resourceCounts,
   type ResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
+import { groupResourceRows, toPaginationUnits } from '@/lib/resource-grouping';
 import {
   groupSuspectRows,
   suspectMarksByRow,
@@ -81,7 +82,24 @@ export function ResourceSection({
   // 짝의 주소를 행 안에 적어도 두 값을 나란히 놓고 보는 일은 대신하지 못한다.
   const base = query.filter === 'suspect' ? flagged : groupSuspectRows(resources, suspectGroups);
   const filtered = queryResources(base, query, isIdc, new Set(flagged));
-  const paged = pageResources(filtered, list.page, list.pageSize);
+  // 페이지는 행이 아니라 **단위**로 센다 — Athena 리전 하나가 데이터베이스 전부를 데리고 한
+  // 칸을 차지한다(`toPaginationUnits`). 표가 그 리전을 부모 한 행으로 그리므로, 평평하게
+  // 자르면 한 그룹이 페이지 경계에서 갈리고 부모 행이 두 페이지에 걸쳐 두 번 그려진다.
+  // Athena 가 없는 목록(IDC 포함)에서는 한 행이 곧 한 단위라 지금까지와 똑같이 움직인다.
+  const units = toPaginationUnits(
+    groupResourceRows(filtered, (row) => ({
+      type: row.resourceType ?? row.databaseType,
+      region: row.region,
+      selected: row.selected,
+    })),
+  );
+  const paged = pageResources(units, list.page, list.pageSize);
+  const pageRows = paged.rows.flat();
+  // 검색·필터가 좁히는 동안에는 그룹의 열림 상태를 그쪽이 갖는다 — 닫힌 그룹 안의
+  // 데이터베이스에만 걸린 검색어는, 접힌 채로 두면 화면 어디에도 나타나지 않는다.
+  // 판정 탭(전체/대상/제외/확인 필요)은 무엇을 감추지 않으므로 여기 없다.
+  const expandGroups =
+    query.search.trim() !== '' || query.databaseType !== '' || query.axis !== '';
 
   return (
     <>
@@ -147,7 +165,7 @@ export function ResourceSection({
           <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
         ) : isIdc ? (
           <IdcResourceTable
-            rows={paged.rows}
+            rows={pageRows}
             disabled={nlbLocked}
             onAssignNlb={onAssignNlb}
             onShowServices={onShowServices}
@@ -156,7 +174,7 @@ export function ResourceSection({
             servicesDisabledReason={servicesDisabledReason}
           />
         ) : (
-          <CloudResourceTable rows={paged.rows} />
+          <CloudResourceTable rows={pageRows} expandGroups={expandGroups} />
         )}
       </div>
 
@@ -167,7 +185,7 @@ export function ResourceSection({
           size="md"
           page={paged.page}
           pageSize={list.pageSize}
-          totalCount={filtered.length}
+          totalCount={units.length}
           onPageChange={list.setPage}
           onPageSizeChange={list.setPageSize}
         />
