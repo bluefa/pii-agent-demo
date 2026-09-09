@@ -117,12 +117,17 @@ const DOT_FILL: Record<VerdictDot, string> = {
   warn: 'bg-[var(--pl-warn)]',
 };
 
-/** 요청 축의 결말 태그 — 반려만 빨강, 대기는 콘솔 관례대로 warn, 요청 없음은 무채색. */
-const TAG_TONE = {
-  ok: 'bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
-  err: 'bg-[var(--pl-err-bg)] text-[var(--pl-err-text)]',
-  warn: 'bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
-  off: 'bg-[var(--pl-off-bg)] text-[var(--pl-off-text)]',
+/**
+ * 요청 축의 결말 색 — 반려만 빨강, 대기는 콘솔 관례대로 warn, 요청 없음은 무채색.
+ *
+ * 채운 배지가 아니라 **글자**다: 이 결말은 카드 머리의 태그가 아니라 「결과」 kv 의 값으로
+ * 한 번만 선다. 같은 낱말이 한 카드 안에 두 번 서면 어느 쪽이 사실인지 묻게 된다.
+ */
+const TONE_TEXT = {
+  ok: 'text-[var(--pl-ok-text)]',
+  err: 'text-[var(--pl-err-text)]',
+  warn: 'text-[var(--pl-warn-text)]',
+  off: 'text-[var(--pl-text-weak)]',
 } as const;
 
 /**
@@ -137,7 +142,7 @@ const TAG_TONE = {
  * 와 같은 규칙) 판정 문장에서는 요청에 대해 아무 말도 하지 않는다.
  */
 const REQUEST_STATUS: Readonly<
-  Record<string, { label: string; tone: keyof typeof TAG_TONE; closed: boolean }>
+  Record<string, { label: string; tone: keyof typeof TONE_TEXT; closed: boolean }>
 > = {
   PENDING: { label: '승인 대기', tone: 'warn', closed: false },
   APPROVED: { label: '승인', tone: 'ok', closed: false },
@@ -378,14 +383,24 @@ export function ConfirmTab({
     diffCount: reconcile?.diffCount ?? null,
   });
 
-  // 요청 카드 머리의 상태 태그 — RequestTab 의 상태 pill 과 같은 tone 토큰(fill+text 쌍).
-  const requestTag: { toneClass: string; label: string } | null =
+  /**
+   * 요청 카드의 「결과」 — **어휘로** 말한다. 계약 enum(`APPROVED`)을 그대로 찍으면 화면이
+   * 제 언어를 버리는 것이고, 이 탭에서 원문 enum 은 이미 한 번 기각됐다.
+   *
+   * 승인일 때만 건수를 덧붙인다: 그때의 확정은 그 건수를 기준으로 만들어진다.
+   */
+  const requestOutcome: { toneClass: string; label: string; note?: string } | null =
     request.state !== 'ready' ? null
-      : requestData == null ? { toneClass: TAG_TONE.off, label: '요청 없음' }
-        : requestSpec != null ? { toneClass: TAG_TONE[requestSpec.tone], label: requestSpec.label }
+      : requestData == null ? { toneClass: TONE_TEXT.off, label: '요청 없음' }
+        : requestSpec != null
+          ? {
+              toneClass: TONE_TEXT[requestSpec.tone],
+              label: requestSpec.label,
+              ...(requestApproved ? { note: `${selectedCount}건` } : {}),
+            }
           // 계약에 있으나 어휘가 없는 값(`RESET`)은 상태 문자열을 그대로 중립 톤으로 —
           // 지어낸 라벨보다 원문이 정확하다.
-          : { toneClass: TAG_TONE.off, label: requestStatus ?? '요청 없음' };
+          : { toneClass: TONE_TEXT.off, label: requestStatus ?? '요청 없음' };
 
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
   // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
@@ -427,7 +442,7 @@ export function ConfirmTab({
           <ReconcilePane
             request={requestData}
             requestFailed={request.state === 'failed'}
-            requestTag={requestTag}
+            requestOutcome={requestOutcome}
             wire={requestData?.wire ?? null}
             confirmed={confirmedWire}
             confirmedAt={confirmedAt}

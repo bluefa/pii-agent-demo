@@ -29,7 +29,12 @@ interface Counts {
 export type ReconcileTable = Counts &
   ({ kind: 'cloud'; rows: ConfirmedResourceRow[] } | { kind: 'idc'; rows: IdcResourceTableRow[] });
 
-/** An approved row in the confirmed table's shape — identity and attributes only. */
+/**
+ * An approved row in the confirmed table's shape — identity and attributes only.
+ *
+ * `connectionStatus` is left out, not defaulted: this row is not in the confirmed record, so
+ * it has no connection to report.
+ */
 function approvedToConfirmed(row: RequestResourceRow): ConfirmedResourceRow {
   return {
     resourceId: row.resourceId ?? '',
@@ -43,7 +48,6 @@ function approvedToConfirmed(row: RequestResourceRow): ConfirmedResourceRow {
     networkInterfaceId: null,
     ipConfigurationName: null,
     credentialId: null,
-    connectionStatus: 'CONNECTED',
   };
 }
 

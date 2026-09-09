@@ -53,8 +53,11 @@ export interface ReconcilePaneProps {
   request: ApprovalRequestDetail | null;
   /** 요청 조회가 실패했다 — 없는 것과 다르다. */
   requestFailed: boolean;
-  /** 요청 카드 머리의 상태 태그. 어휘와 tone 은 탭이 정한다(`REQUEST_STATUS`). */
-  requestTag: { toneClass: string; label: string } | null;
+  /**
+   * 「결과」 줄이 말할 것 — 이 탭의 어휘와 그 색(`REQUEST_STATUS`). 계약 enum 원문이 아니고,
+   * 카드 머리의 태그도 아니다: 결말은 한 카드 안에서 한 번만 선다.
+   */
+  requestOutcome: { toneClass: string; label: string; note?: string } | null;
   /** Raw 렌즈가 그대로 뿌리는 요청 원문. */
   wire: unknown;
   confirmed: ConfirmedIntegrationResponse | null;
@@ -76,7 +79,7 @@ export interface ReconcilePaneProps {
 export function ReconcilePane({
   request,
   requestFailed,
-  requestTag,
+  requestOutcome,
   wire,
   confirmed,
   confirmedAt,
@@ -124,13 +127,9 @@ export function ReconcilePane({
               연동 요청{requestId != null ? ` #${requestId}` : ''}
             </p>
             <div className={paneStyles.actions}>
-              {requestFailed ? (
-                <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>
-              ) : (
-                requestTag && (
-                  <span className={cn(styles.tag, requestTag.toneClass)}>{requestTag.label}</span>
-                )
-              )}
+              {/* 머리가 지는 유일한 상태는 **조회 실패**다 — 그건 결말이 아니라 이 카드의
+                  값들이 왜 비었는지에 대한 답이라, 「결과」 줄에 앉을 수 없다. */}
+              {requestFailed && <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>}
               {/* 렌즈는 요청 원문을 여는 문이라 요청 카드에 붙는다 — 아래 표 자리를 바꾼다. */}
               <SegControl
                 value={lens}
@@ -157,7 +156,19 @@ export function ReconcilePane({
               value={verdict?.processedBy ?? '—'}
               note={verdict?.processedAt ? fmtDateTime(verdict.processedAt) : undefined}
             />
-            <Kv label="결과" value={verdict?.status ?? request?.request.status ?? '—'} />
+            {/* 계약 enum 원문(`APPROVED`)이 아니라 이 탭의 어휘다. 색은 채운 배지가 아니라
+                글자에 실린다 — 카드 안에서 결말은 이 한 줄이 전부다. */}
+            <Kv
+              label="결과"
+              value={
+                requestOutcome ? (
+                  <span className={requestOutcome.toneClass}>{requestOutcome.label}</span>
+                ) : (
+                  '—'
+                )
+              }
+              note={requestOutcome?.note}
+            />
             {reconcile && (
               <Kv
                 label="대조"

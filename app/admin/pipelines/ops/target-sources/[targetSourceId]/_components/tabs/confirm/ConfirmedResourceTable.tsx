@@ -42,8 +42,15 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
  * rows the confirmed record does NOT have (approved but unconfirmed) — the caller shapes those
  * into this same type, because the table's question is "what does this row say", not "where
  * did it come from".
+ *
+ * `connectionStatus` turns optional for exactly that row. The domain type admits only
+ * CONNECTED or DISCONNECTED, and a resource that was never confirmed has neither — filling in
+ * either one would put a fabricated fact in the data, whatever this variant happens to render.
  */
-export type ConfirmedResourceRow = ConfirmedResource & { reconcile?: ReconcileVerdict };
+export type ConfirmedResourceRow = Omit<ConfirmedResource, 'connectionStatus'> & {
+  connectionStatus?: ConfirmedResource['connectionStatus'];
+  reconcile?: ReconcileVerdict;
+};
 
 export function ConfirmedResourceTable({
   resources,

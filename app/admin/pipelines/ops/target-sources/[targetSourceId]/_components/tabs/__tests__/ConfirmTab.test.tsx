@@ -145,6 +145,25 @@ describe('ConfirmTab 두 기록 카드', () => {
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
+  it('결말은 어휘로, 카드 안에서 한 번만 말한다 — 계약 enum 원문은 없다', async () => {
+    mount();
+
+    await screen.findByText('연동 요청 #12');
+    // 「결과」 줄 하나가 결말을 진다. 머리의 태그가 같은 낱말을 또 세우지 않는다.
+    expect(screen.getAllByText('승인')).toHaveLength(1);
+    expect(screen.queryByText('APPROVED')).toBeNull();
+    // 승인일 때만 건수가 붙는다 — 확정은 그 건수를 기준으로 만들어진다.
+    expect(screen.getByText('0건')).toBeTruthy();
+  });
+
+  it('요청 조회가 실패하면 머리가 그 사실을 진다 — 결말이 아니라 빈 값의 사유다', async () => {
+    getApprovalRequestLatest.mockRejectedValue(new Error('boom'));
+    mount();
+
+    expect(await screen.findByText('불러오지 못함')).toBeTruthy();
+    expect(screen.queryByText('승인')).toBeNull();
+  });
+
   it('Terraform 어휘가 화면 어디에도 없다', async () => {
     const { container } = mount();
 
