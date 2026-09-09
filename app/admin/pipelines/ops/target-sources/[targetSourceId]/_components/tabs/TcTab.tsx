@@ -147,7 +147,7 @@ export function TcTab({
   // "Has a load settled at least once", not "has THIS load settled" — a reload
   // triggered by a write in the tab keeps the current values on screen instead of
   // blanking every card until the refetch lands.
-  const settled = loadedKey !== null;
+  const settled = loadedKey?.startsWith(`${targetSourceId}:`) ?? false;
   // The progress denominator counts what the test reports on, not what the table lists:
   // one Athena region is one result no matter how many databases it holds. Counting rows
   // here would print 진행 5/7 on a run that only ever produces five results — the same
@@ -189,16 +189,18 @@ export function TcTab({
   }, [running, reload, onStatusReload, installReload]);
 
   const installPending = installPendingState.pending;
+  const hasConfirmedResources = settled && !confirmedFailed && confirmedRows.length > 0;
+  const installNoticeLoading = installPending !== null && (!settled || (hasConfirmedResources && installPendingState.loading));
   // 카드까지 내려가는 한 묶음 — 그릴지 말지는 상자가 정한다(`startGate` 와 같은 길).
   const installPendingNotice = useMemo<InstallPendingNoticeData | null>(
     () =>
-      installPending === null
+      !hasConfirmedResources || installPending === null
         ? null
         : {
             result: installPending, lastCheck: installPendingState.lastCheck,
             tasks: installPendingState.tasks, targetSourceId, provider, manualInstall,
           },
-    [installPending, installPendingState.lastCheck, installPendingState.tasks, targetSourceId, provider, manualInstall],
+    [hasConfirmedResources, installPending, installPendingState.lastCheck, installPendingState.tasks, targetSourceId, provider, manualInstall],
   );
 
   // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,
@@ -269,7 +271,7 @@ export function TcTab({
         onOpenDecisionHistory={() => setHistoryOpen(true)}
         onOpenCredentials={() => setCredentialsOpen(true)}
         installPendingSlot={
-          <InstallPendingNotice data={installPendingNotice} className="mt-4" />
+          <InstallPendingNotice data={installPendingNotice} loading={installNoticeLoading} className="mt-4" />
         }
       >
         <ConfirmedInfoCard

@@ -2,6 +2,7 @@
 
 import { type ReactElement } from 'react';
 import Link from 'next/link';
+import { LocaleProvider } from '@/app/components/LocaleProvider';
 import { bgColors, borderColors, cn, primaryColors, statusColors, tagStyles, textColors, textStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useModal } from '@/app/hooks/useModal';
@@ -28,6 +29,7 @@ export interface InstallPendingNoticeData {
 export interface InstallPendingNoticeProps {
   data: InstallPendingNoticeData | null;
   className?: string;
+  loading?: boolean;
 }
 
 const TASK_COLORS: Record<InstallTask['state'], string> = {
@@ -35,8 +37,29 @@ const TASK_COLORS: Record<InstallTask['state'], string> = {
 };
 
 /** Readiness guidance stays visible after completion; TC execution remains operator-controlled. */
-export function InstallPendingNotice({ data, className }: InstallPendingNoticeProps): ReactElement | null {
+export function InstallPendingNotice({ data, className, loading = false }: InstallPendingNoticeProps): ReactElement | null {
   const detailModal = useModal<string>();
+  if (loading) return (
+    <section aria-label="설치 정보 조회 중" aria-busy="true" className={cn('rounded-xl border overflow-hidden', borderColors.light, bgColors.surface, textColors.primary, className)}>
+      <div aria-hidden="true" className={cn('flex items-center justify-between gap-3 border-b px-4 py-3', borderColors.light, bgColors.muted)}>
+        <span className={cn(opsStyles.skeletonBar, 'h-5 w-44')} />
+        <span className={cn(opsStyles.skeletonBar, 'h-4 w-52')} />
+      </div>
+      <div aria-hidden="true">
+        {[0, 1].map(row => (
+          <div key={row} className={cn('grid grid-cols-[112px_minmax(0,1fr)_auto] gap-4 border-b px-4 py-4', borderColors.light)}>
+            <span className={cn(opsStyles.skeletonBar, 'h-4 w-20')} />
+            <div className="space-y-2">
+              <div className={cn(opsStyles.skeletonBar, 'h-5 w-40')} />
+              <div className={cn(opsStyles.skeletonBar, 'h-4 w-3/4')} />
+            </div>
+            <span className={cn(opsStyles.skeletonBar, 'h-5 w-24')} />
+          </div>
+        ))}
+        <div className="px-4 py-3"><div className={cn(opsStyles.skeletonBar, 'h-4 w-1/2')} /></div>
+      </div>
+    </section>
+  );
   if (data === null || data.result.kind === 'unknown') return null;
   const { result, lastCheck, tasks, targetSourceId, provider, manualInstall } = data;
   const complete = result.kind === 'done';
@@ -54,7 +77,9 @@ export function InstallPendingNotice({ data, className }: InstallPendingNoticePr
           <div className="flex items-center gap-2">
             <span className={cn(textStyles.caption, textColors.tertiary)}>마지막 확인</span>
             {lastCheck?.checkedAt ? (
-              <LastCheckStamp lastCheck={lastCheck} tooltip={INSTALL_CHECK_TOOLTIP} />
+              <LocaleProvider initial="ko">
+                <LastCheckStamp lastCheck={lastCheck} tooltip={INSTALL_CHECK_TOOLTIP} />
+              </LocaleProvider>
             ) : <span className={cn(textStyles.caption, textColors.tertiary)}>확인 기록 없음</span>}
           </div>
         </div>

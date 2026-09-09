@@ -95,7 +95,8 @@ export const buildInstallTasks = ({ provider, manualInstall, detail }: InstallPe
     const done = isSettledInstallStatus(role.status);
     tasks.push({
       id: 'permission', owner: 'service', title: 'Terraform 실행 권한 설정',
-      description: '서비스 담당자가 AWS 자동 설치를 위한 Terraform 실행 권한을 설정해야 합니다.',
+      description: done ? '자동 설치를 위한 실행 권한 설정이 완료되었습니다.'
+        : '서비스 담당자가 AWS 자동 설치를 위한 Terraform 실행 권한을 설정해야 합니다.',
       state: done ? 'done' : 'check', label: done ? '완료' : '권한 확인 필요', rows: [],
     });
   }

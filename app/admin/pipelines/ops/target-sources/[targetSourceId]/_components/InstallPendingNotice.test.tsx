@@ -23,6 +23,17 @@ const noticeData = (resources: InstallDetailResource[], provider = 'aws', manual
 };
 
 describe('InstallPendingNotice', () => {
+  it('shows only the skeleton until loading settles, even with a prior completed snapshot', () => {
+    const data = noticeData([resource('db', { service: 'COMPLETED' })]);
+    const { rerender } = render(<InstallPendingNotice data={data} loading />);
+    expect(screen.getByRole('region', { name: '설치 정보 조회 중' }).getAttribute('aria-busy')).toBe('true');
+    expect(screen.queryByText('설치가 완료되었습니다.')).toBeNull();
+    expect(screen.queryByText('마지막 확인')).toBeNull();
+    rerender(<InstallPendingNotice data={data} loading={false} />);
+    expect(screen.queryByRole('region', { name: '설치 정보 조회 중' })).toBeNull();
+    expect(screen.getByText('설치가 완료되었습니다.')).toBeTruthy();
+  });
+
   it('does not claim readiness when installation status is absent or unknown', () => {
     const { rerender } = render(<InstallPendingNotice data={null} />);
     expect(screen.queryByRole('region', { name: '설치 현황' })).toBeNull();

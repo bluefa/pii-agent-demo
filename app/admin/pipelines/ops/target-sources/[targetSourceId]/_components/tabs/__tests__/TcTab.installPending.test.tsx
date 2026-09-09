@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import { getConfirmedIntegration, type ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 
 /**
  * 실행 단추와 설치 미완료 판정 사이의 배선 — 순수 함수 테스트가 못 보는 자리.
@@ -104,10 +104,42 @@ const runButton = (): HTMLElement => screen.getByRole('button', { name: /연결 
 
 describe('TcTab — 설치 미완료 확인', () => {
   beforeEach(() => {
+    vi.mocked(getConfirmedIntegration).mockReset();
+    vi.mocked(getConfirmedIntegration).mockImplementation(async () => ({ resource_infos: [confirmedRow(credentialId)] }) as Awaited<ReturnType<typeof getConfirmedIntegration>>);
     triggerTestConnection.mockClear();
     getAwsInstallationStatus.mockClear();
     credentialId = 7;
     getAwsInstallationStatus.mockResolvedValue(installing);
+  });
+
+  it.each(['empty', 'failed'])('hides installation status after confirmed information is %s', async state => {
+    if (state === 'empty') vi.mocked(getConfirmedIntegration).mockResolvedValue({ resource_infos: [] } as Awaited<ReturnType<typeof getConfirmedIntegration>>);
+    else vi.mocked(getConfirmedIntegration).mockRejectedValue(new Error('502'));
+    getAwsInstallationStatus.mockResolvedValue(settled);
+    renderTab();
+    await waitFor(() => expect(screen.queryByRole('region', { name: '설치 정보 조회 중' })).toBeNull());
+    expect(screen.queryByRole('region', { name: '설치 현황' })).toBeNull();
+    expect(screen.queryByText('설치가 완료되었습니다.')).toBeNull();
+  });
+
+  it('waits for confirmed information before revealing an already loaded installation result', async () => {
+    let resolveConfirmed!: (value: Awaited<ReturnType<typeof getConfirmedIntegration>>) => void;
+    vi.mocked(getConfirmedIntegration).mockReturnValue(new Promise(resolve => { resolveConfirmed = resolve; }));
+    getAwsInstallationStatus.mockResolvedValue(settled);
+    renderTab();
+    await act(async () => {});
+    expect(screen.getByRole('region', { name: '설치 정보 조회 중' })).toBeTruthy();
+    expect(screen.queryByText('설치가 완료되었습니다.')).toBeNull();
+    await act(async () => resolveConfirmed({ resource_infos: [confirmedRow(7)] } as Awaited<ReturnType<typeof getConfirmedIntegration>>));
+    expect(screen.getByText('설치가 완료되었습니다.')).toBeTruthy();
+  });
+
+  it('keeps the skeleton while confirmed resources exist but installation lookup is pending', async () => {
+    getAwsInstallationStatus.mockReturnValue(new Promise(() => {}));
+    renderTab();
+    await act(async () => {});
+    expect(screen.getByRole('region', { name: '설치 정보 조회 중' })).toBeTruthy();
+    expect(screen.queryByText('연결 테스트 전 준비 사항')).toBeNull();
   });
 
   it('안 끝난 설치가 있으면 확인 모달이 먼저 서고, 실행은 나가지 않는다', async () => {
