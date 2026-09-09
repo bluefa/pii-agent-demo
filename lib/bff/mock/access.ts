@@ -161,7 +161,7 @@ function seed(): Store {
     { requestId: 1012, serviceCode: 'SEL', userId: 'admin-1', reason: '셀러 정산 대상 등록 문의 대응.', requestedAt: T(12, 10), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
     { requestId: 1013, serviceCode: 'LOG', userId: 'admin-1', reason: '통합 로그 수집 파이프라인 점검.', requestedAt: T(12, 16), status: 'PENDING', processedAt: null, processedBy: null, processedNote: null },
 
-    // 아래 둘은 이력 첫 장이 여섯 종류를 다 담게 하려고 최근으로 처리해 둔 건이다.
+    // 아래 둘은 이력 첫 장이 일곱 종류를 다 담게 하려고 최근으로 처리해 둔 건이다.
     // 이력에 REQUEST_* 를 직접 심지 않고 요청 행으로 두는 이유: 반려 탭은 반려된
     // **요청**을 세므로, 로그에만 반려 이벤트를 넣으면 탭은 4건인데 이력엔 5번
     // 반려한 것으로 보인다.
@@ -174,6 +174,24 @@ function seed(): Store {
   ];
 
   for (const request of requests) {
+    /**
+     * 요청이 열린 것도 이력이다(`REQUEST_CREATED`). 실서버는 요청마다 한 줄씩 남기지만
+     * seed 는 1014 한 건만 심는다 — 열다섯 건을 다 심으면 이력 첫 장 여덟 줄이 접수
+     * 줄로만 차서 나머지 여섯 종류가 다음 장으로 밀린다. 1014 를 고른 건 같은 요청의
+     * 승인 줄이 이미 있어서 PRD 시트의 이력이 "접수 → 승인" 한 쌍으로 읽히기 때문이고,
+     * 접수 시각(11일)이 첫 장 안에 든다. 요청은 본인이 내므로 대상과 수행자가 같다.
+     */
+    if (request.requestId === 1014) {
+      history.push({
+        historyId: historySeq++,
+        type: 'REQUEST_CREATED',
+        serviceCode: request.serviceCode,
+        targetUserId: request.userId,
+        actorUserId: request.userId,
+        note: request.reason,
+        createdAt: request.requestedAt,
+      });
+    }
     if (request.status === 'PENDING') continue;
     history.push({
       historyId: historySeq++,
@@ -188,11 +206,11 @@ function seed(): Store {
 
   /**
    * 요청을 거치지 않는 네 종류 — 직접 부여·해제와 관리자 부여·회수. 이 넷은 런타임
-   * 행동으로만 생겨서 seed 직후 이력에는 승인·반려 둘밖에 없었고, 그러면 화면이
-   * 여섯 종류를 어떻게 그리는지 첫 장에서 볼 수가 없다.
+   * 행동으로만 생겨서 seed 직후 이력에는 접수·승인·반려 셋밖에 없었고, 그러면 화면이
+   * 일곱 종류를 어떻게 그리는지 첫 장에서 볼 수가 없다.
    *
-   * 날짜를 요청 처리분보다 뒤(10~13일)에 두어 위의 REQUEST_* 둘과 함께 이력 첫 장
-   * 8줄 안에 여섯 종류가 다 든다.
+   * 날짜를 요청 처리분보다 뒤(10~13일)에 두어 위의 REQUEST_* 셋과 함께 이력 첫 장
+   * 8줄 안에 일곱 종류가 다 든다.
    *
    * 부여는 대상자가 실제로 그 권한을 갖고 있는 쌍으로, 회수·해제는 갖고 있지 **않은**
    * 쌍으로 고른다 — 이력과 담당자 목록이 서로 다른 말을 하면 안 된다. 사유는 회수 쪽에만
@@ -604,6 +622,18 @@ export const mockAccess = {
         processedAt: null,
         processedBy: null,
         processedNote: null,
+      });
+      // 접수도 이력에 남는다. `log()` 는 쓰지 않는다 — 저건 서비스의 담당자 변경 시각
+      // (`serviceTouchedAt`)까지 같이 찍는데, 요청 접수는 담당자를 바꾸지 않는다.
+      // 멱등 경로(이미 대기 중)에서는 요청이 새로 열리지 않으므로 줄도 남지 않는다.
+      s.history.push({
+        historyId: s.historySeq++,
+        type: 'REQUEST_CREATED',
+        serviceCode,
+        targetUserId: caller.id,
+        actorUserId: caller.id,
+        note: text,
+        createdAt: nowIso(),
       });
     }
     return noContent();

@@ -83,6 +83,9 @@ export function RequestStatusPill({
 const historyTone = (
   t: AccessCopy,
 ): Record<AccessHistoryType, { label: string; tone: Tone }> => ({
+  // 접수는 결과가 아니라 시작이라 잉크가 중립이다 — 이력 줄은 그 톤을 영영 지니므로,
+  // 대기 pill 의 호박색을 여기 쓰면 이미 끝난 요청도 계속 대기 중으로 읽힌다.
+  REQUEST_CREATED: { label: t.historyRequested, tone: 'off' },
   REQUEST_APPROVED: { label: t.historyApproved, tone: 'ok' },
   REQUEST_REJECTED: { label: t.historyRejected, tone: 'err' },
   OWNER_GRANTED: { label: t.historyGranted, tone: 'info' },
