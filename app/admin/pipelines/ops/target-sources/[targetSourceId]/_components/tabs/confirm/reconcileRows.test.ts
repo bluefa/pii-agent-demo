@@ -51,6 +51,8 @@ describe('buildReconcileTable — cloud', () => {
 
     expect(table.kind).toBe('cloud');
     expect(table.rows).toHaveLength(1);
+    // 위 단언이 이미 답했다 — 아래 줄들이 클라우드 행의 필드를 읽을 수 있게 좁혀 준다.
+    if (table.kind !== 'cloud') return;
     const [row] = table.rows;
     expect(row.reconcile).toBe('missingConfirmed');
     // 정체와 속성은 승인이 말한 것 그대로다.
@@ -61,8 +63,9 @@ describe('buildReconcileTable — cloud', () => {
       region: 'ap-northeast-2',
       type: 'AWS_DB_INSTANCE',
     });
-    // 확정 쪽에만 있는 사실은 지어내지 않는다.
+    // 확정 쪽에만 있는 사실은 지어내지 않는다 — 연결 상태는 값이 없지 CONNECTED 가 아니다.
     expect(row).toMatchObject({ host: null, port: null, credentialId: null });
+    expect(row.connectionStatus).toBeUndefined();
   });
 
   it('양쪽에 있는 행은 확정 응답의 값을 싣는다 — 실제로 등록된 것이 그쪽이다', () => {
