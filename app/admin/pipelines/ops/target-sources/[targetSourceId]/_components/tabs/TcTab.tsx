@@ -29,6 +29,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { isMissingConfirmedIntegrationError } from '@/lib/errors';
+import { cn, pipelineStyles } from '@/lib/theme';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import {
   getConfirmedIntegration,
   getSecrets,
@@ -210,13 +212,11 @@ export function TcTab({
   const [triggering, setTriggering] = useState(false);
   const [triggerFailed, setTriggerFailed] = useState(false);
   const [pendingConfirmOpen, setPendingConfirmOpen] = useState(false);
-  // The server owns eligibility (409 while running / 4xx before install), so this
-  // just reports; the button is disabled while a run is open to spare a request
-  // that can only be refused.
+  // A confirmed resource snapshot is required before starting a test.
   const startRun = useCallback(async (): Promise<void> => {
     // 버튼이 이미 잠겨 있지만 게이트는 값에도 둔다 — 배정을 지우는 쓰기가 이 화면에서
     // 일어나므로(Credential 배정 모달), 눌린 순간과 세어진 순간 사이가 벌어질 수 있다.
-    if (credentialMissing > 0) return;
+    if (!hasConfirmedResources || credentialMissing > 0) return;
     setTriggering(true);
     setTriggerFailed(false);
     try {
@@ -229,7 +229,7 @@ export function TcTab({
     } finally {
       setTriggering(false);
     }
-  }, [targetSourceId, credentialMissing, onStatusReload, toast]);
+  }, [targetSourceId, hasConfirmedResources, credentialMissing, onStatusReload, toast]);
 
   /**
    * 단추가 부르는 것. 두 게이트가 순서를 갖는다:
@@ -241,13 +241,31 @@ export function TcTab({
    * 확인은 곧 의미 없는 관문이 되고, 진짜 예보일 때의 무게까지 같이 깎는다.
    */
   const runTest = useCallback((): void => {
-    if (credentialMissing > 0) return;
+    if (!hasConfirmedResources || credentialMissing > 0) return;
     if (installPending?.kind === 'needed') {
       setPendingConfirmOpen(true);
       return;
     }
     void startRun();
-  }, [credentialMissing, installPending, startRun]);
+  }, [hasConfirmedResources, credentialMissing, installPending, startRun]);
+
+  if (!hasConfirmedResources) {
+    return (
+      <section className={pipelineStyles.card.base} aria-label="연결 테스트" aria-busy={!settled}>
+        <h2 className={opsStyles.cardTitle}>연결 테스트</h2>
+        {!settled ? (
+          <div aria-label="확정정보 조회 중" className="mt-4 space-y-4">
+            <div aria-hidden="true" className={cn(opsStyles.skeletonBar, 'h-4 w-2/3')} />
+            <div aria-hidden="true" className={cn(opsStyles.skeleton, 'h-24 w-full')} />
+          </div>
+        ) : (
+          <p className={opsStyles.cardDesc}>
+            {confirmedFailed ? '확정정보를 불러오지 못했습니다.' : '확정정보가 없습니다.'}
+          </p>
+        )}
+      </section>
+    );
+  }
 
   return (
     <>

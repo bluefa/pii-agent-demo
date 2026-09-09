@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getConfirmedIntegration, type ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 
 /**
  * 실행 단추와 설치 미완료 판정 사이의 배선 — 순수 함수 테스트가 못 보는 자리.
@@ -112,12 +113,15 @@ describe('TcTab — 설치 미완료 확인', () => {
     getAwsInstallationStatus.mockResolvedValue(installing);
   });
 
-  it.each(['empty', 'failed'])('hides installation status after confirmed information is %s', async state => {
+  it.each(['empty', 'missing', 'failed'])('prevents testing and hides installation status when confirmed information is %s', async state => {
     if (state === 'empty') vi.mocked(getConfirmedIntegration).mockResolvedValue({ resource_infos: [] } as Awaited<ReturnType<typeof getConfirmedIntegration>>);
+    else if (state === 'missing') vi.mocked(getConfirmedIntegration).mockRejectedValue(new AppError({ status: 404, code: 'CONFIRMED_INTEGRATION_NOT_FOUND', message: 'Not confirmed', retriable: false }));
     else vi.mocked(getConfirmedIntegration).mockRejectedValue(new Error('502'));
     getAwsInstallationStatus.mockResolvedValue(settled);
     renderTab();
-    await waitFor(() => expect(screen.queryByRole('region', { name: '설치 정보 조회 중' })).toBeNull());
+    await screen.findByText(state === 'failed' ? '확정정보를 불러오지 못했습니다.' : '확정정보가 없습니다.');
+    expect(screen.queryByRole('button', { name: /연결 테스트.*실행/ })).toBeNull();
+    expect(triggerTestConnection).not.toHaveBeenCalled();
     expect(screen.queryByRole('region', { name: '설치 현황' })).toBeNull();
     expect(screen.queryByText('설치가 완료되었습니다.')).toBeNull();
   });
@@ -128,7 +132,10 @@ describe('TcTab — 설치 미완료 확인', () => {
     getAwsInstallationStatus.mockResolvedValue(settled);
     renderTab();
     await act(async () => {});
-    expect(screen.getByRole('region', { name: '설치 정보 조회 중' })).toBeTruthy();
+    expect(screen.getByLabelText('확정정보 조회 중')).toBeTruthy();
+    expect(screen.queryByText('확정정보가 없습니다.')).toBeNull();
+    expect(screen.queryByRole('button', { name: /연결 테스트.*실행/ })).toBeNull();
+    expect(triggerTestConnection).not.toHaveBeenCalled();
     expect(screen.queryByText('설치가 완료되었습니다.')).toBeNull();
     await act(async () => resolveConfirmed({ resource_infos: [confirmedRow(7)] } as Awaited<ReturnType<typeof getConfirmedIntegration>>));
     expect(screen.getByText('설치가 완료되었습니다.')).toBeTruthy();
