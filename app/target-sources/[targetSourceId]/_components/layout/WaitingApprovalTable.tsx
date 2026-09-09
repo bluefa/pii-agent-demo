@@ -55,6 +55,11 @@ import {
   verdictText,
   cn,
 } from '@/lib/theme';
+import {
+  RECONCILE_COLUMN_LABEL,
+  ReconcileVerdictText,
+} from '@/app/components/ui/ReconcileVerdictText';
+import type { ReconcileVerdict } from '@/lib/types/reconcile';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { INSTALL_COPY } from '@/app/components/features/process-status/install-copy';
 import {
@@ -131,6 +136,13 @@ export interface WaitingApprovalResource {
   /** The chosen member `resource_id`, an instance ARN (`metadata.selected_rds_instance_resource_id`) — marks one instance 선택됨. */
   selectedRdsInstanceResourceId?: string;
   /**
+   * `plain` variant only — this row's answer when the approved selection and the confirmed
+   * record are read as one list (@see `ReconcileVerdict`). Whether the COLUMN exists is the
+   * caller's answer (`reconcileColumn`), for the reason on `hasKindColumn`: this table only
+   * ever sees one page, so it cannot speak for the list.
+   */
+  reconcile?: ReconcileVerdict;
+  /**
    * Stable React key, never rendered. A consumer whose rows carry an identifier it must
    * NOT display (IDC's `resource_id` is an internal NLB key — design-spec §8) would
    * otherwise fall back to the list index, which makes per-row Tooltip and copy state
@@ -148,6 +160,9 @@ export interface WaitingApprovalResource {
  * `plain` (admin ops 확정 정보): identity and attributes only. That slot asks a question ABOUT the
  * row, and this surface owns no per-row question — the logical-DB counts belong to step 5, the
  * verdict to steps 2·3 — so it is dropped rather than filled with a value the screen cannot manage.
+ * It takes ONE trailing column back when the caller opts in (`reconcileColumn`): once that tab
+ * lists the approval and the confirmed record as one table, "which side is this row on" IS a
+ * question about the row, and it is the reason the two lists were joined.
  */
 type WaitingApprovalTableVariant = 'approval' | 'confirmed' | 'install' | 'plain';
 
@@ -246,6 +261,14 @@ interface WaitingApprovalTableProps {
    * cannot answer for the list (see that helper). Omitted = no kind column.
    */
   kindColumn?: boolean;
+  /**
+   * `plain` variant only — draw the trailing 판정 column, reading `resource.reconcile`.
+   *
+   * The CALLER answers, over the full roster it holds, not this table over the page it was
+   * handed — the paging artifact `hasKindColumn` documents applies here identically. Rows
+   * without a verdict leave the cell blank rather than claiming 일치.
+   */
+  reconcileColumn?: boolean;
   /**
    * Build the Athena GROUP TREE — one parent row per region, its databases as children.
    *
@@ -743,7 +766,7 @@ const installColumns = (
  * 원장 §2). Same floors as steps 6·7, so the two surfaces stay in register on the columns
  * they share.
  */
-const plainColumns = (regionLabel: string): ConsoleTableColumn[] => [
+const plainColumns = (regionLabel: string, reconcile: boolean): ConsoleTableColumn[] => [
   {
     key: 'name',
     label: 'Resource Name',
@@ -755,6 +778,9 @@ const plainColumns = (regionLabel: string): ConsoleTableColumn[] => [
   { key: 'id', label: 'Resource ID', width: CONFIRMED_COLUMN_WIDTHS.id, flex: true },
   { key: 'dbType', label: 'Database Type', width: CONFIRMED_COLUMN_WIDTHS.dbType },
   { key: 'region', label: regionLabel, width: CONFIRMED_COLUMN_WIDTHS.region },
+  // 116 — the floor its sibling verdict column (요청 대상 여부) took in round 19, and the
+  // widest word here (확정 없음 + the glyph) sits well inside it.
+  ...(reconcile ? [{ key: 'reconcile', label: RECONCILE_COLUMN_LABEL, width: 116 }] : []),
 ];
 
 /**
@@ -786,6 +812,7 @@ export const WaitingApprovalTable = memo(
     identityColumns,
     columns,
     kindColumn = false,
+    reconcileColumn = false,
     grouped: groupedProp,
   }: WaitingApprovalTableProps) => {
     const { locale } = useLocale();
@@ -1240,7 +1267,13 @@ export const WaitingApprovalTable = memo(
               </td>
             </>
           )}
-          {plainVariant ? null : confirmedVariant ? (
+          {plainVariant ? (
+            reconcileColumn ? (
+              <td className={cn(idcStyles.table.approvalCell, coveredCell)}>
+                {resource.reconcile && <ReconcileVerdictText verdict={resource.reconcile} />}
+              </td>
+            ) : null
+          ) : confirmedVariant ? (
             /* Athena·DynamoDB have no logical-DB management at all, so both columns answer
                설정 불필요 rather than —. The dash is where a value we do not have goes; on a
                concept that does not exist it reads as missing data and sends the user looking
@@ -1406,7 +1439,7 @@ export const WaitingApprovalTable = memo(
       : installVariant
         ? installColumns(t, identityColumns)
         : plainVariant
-          ? plainColumns(regionLabel)
+          ? plainColumns(regionLabel, reconcileColumn)
           : approvalColumns(t, regionLabel);
 
     // The row blocks, shared by both shells below: one tbody per block, because a group

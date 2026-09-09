@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 /**
- * 확정 정보 탭의 축은 둘이다 — 연동 요청 확인 · 확정 정보.
+ * 확정 정보 탭의 축은 둘이다 — 연동 요청 확인 · 확정 정보. 밴드로 **번갈아** 보여 주던
+ * 두 축이 오너 채택안(B1)에서 요약 카드 둘로 동시에 서고, 리소스는 한 표로 합쳐졌다.
  *
  * 2026-08-30 오너 지시로 셋째 축(설치 · Terraform)이 이 탭에서 빠졌다. 같은 릴리스에서
  * 인프라 작업 탭이 그 상태를 소유했기 때문이다. 여기 첫 두 테스트가 트립와이어다 —
- * 다음 라운드가 조용히 되돌리지 못하게 밴드 칸 수와 어휘를 함께 잰다.
+ * 다음 라운드가 조용히 되돌리지 못하게 카드 수와 어휘를 함께 잰다.
  *
  * 세 번째·네 번째는 그 반대편을 지킨다: terraform-status 콜 자체는 남았고, 남은 이유가
  * `latest_confirmed_at`(확정 시각) 하나라는 것. 확정 계약(`{ resource_infos }`)에는
  * 시각이 없어서 이 화면의 확정 시각은 그 응답에만 있다.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import type { ConfirmedIntegrationResponse, TerraformStatusResponse } from '@/app/lib/api';
@@ -82,7 +83,28 @@ const terraformStatus = (): TerraformStatusResponse => ({
   ],
 });
 
-/** 기본은 **SDU 가 아닌** 대상이다 — 이 파일의 밴드 단언이 서는 유일한 조건이다. */
+/** 승인 행 — 확정 행(`confirmedRow`)과 같은 `resource_id` 로 맞물린다. */
+const approvedRow = (index: number, selected = true) => ({
+  resourceId: `res-${index}`,
+  resourceName: `confirmed-${index}`,
+  selected,
+  exclusionReason: null,
+  integrationCategory: null,
+  recommendFailReason: null,
+  databaseType: 'mysql',
+  region: 'ap-northeast-2',
+  idcKind: null,
+  connectTargets: [],
+  port: 3306,
+  oracleSid: null,
+  sourceIps: [],
+  nlbIndex: null,
+  resourceType: 'RDS',
+  rdsInstanceCandidates: [],
+  selectedRdsInstanceResourceId: null,
+});
+
+/** 기본은 **SDU 가 아닌** 대상이다 — 이 파일의 카드 단언이 서는 유일한 조건이다. */
 const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNECTED') =>
   render(
     <ConfirmTab
@@ -94,7 +116,7 @@ const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNE
     />,
   );
 
-describe('ConfirmTab 밴드', () => {
+describe('ConfirmTab 두 기록 카드', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getApprovalRequestLatest.mockResolvedValue({
@@ -113,48 +135,42 @@ describe('ConfirmTab 밴드', () => {
     getTerraformStatus.mockResolvedValue(terraformStatus());
   });
 
-  it('축은 둘이다 — 설치 (Terraform) 칸은 없다', async () => {
+  it('두 기록이 동시에 선다 — 설치 (Terraform) 카드는 없다', async () => {
     mount();
 
-    const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    expect(within(band).getAllByRole('tab')).toHaveLength(2);
-    expect(within(band).getByRole('tab', { name: /연동 요청 확인/ })).toBeTruthy();
-    expect(within(band).getByRole('tab', { name: /확정 정보/ })).toBeTruthy();
-    expect(within(band).queryByRole('tab', { name: /설치/ })).toBeNull();
+    // 고르는 화면이 아니다: 번갈아 보여 주는 tablist 는 걷혔다(B1).
+    expect(await screen.findByText('연동 요청 #12')).toBeTruthy();
+    expect(screen.getByText('확정 정보')).toBeTruthy();
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
   });
 
   it('Terraform 어휘가 화면 어디에도 없다', async () => {
     const { container } = mount();
 
-    await screen.findByRole('tablist', { name: '확정 정보 축' });
+    await screen.findByText('연동 요청 #12');
     // 응답에는 overall_state·task 가 실려 있는데도 — 그 축은 인프라 작업 탭이 소유한다.
     expect(container.textContent).not.toContain('Terraform');
     expect(screen.queryByText('vpc-peering')).toBeNull();
   });
 
-  it('확정 시각이 확정 정보 칸과 pane 에 닿는다 — 이 콜이 남은 유일한 이유', async () => {
+  it('확정 시각이 확정 카드의 「등록」 줄에 닿는다 — 이 콜이 남은 유일한 이유', async () => {
     mount();
 
-    const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    expect(within(band).getByRole('tab', { name: /확정 정보/ }).textContent).toContain(
-      '리소스 2건 · 08-14',
-    );
-    // 기본 선택 칸은 확정 정보다 — pane 머리가 같은 시각을 전체 형태로 다시 말한다.
-    expect(screen.getByText(/리소스 2건 · 2026-08-14 14:00 등록/)).toBeTruthy();
+    expect(await screen.findByText('리소스 2건 · 2026-08-14 14:00')).toBeTruthy();
     expect(getTerraformStatus).toHaveBeenCalledWith(1642);
   });
 
-  it('terraform 조회가 실패하면 배너 대신 그 칸이 무엇이 없는지 말한다', async () => {
+  it('terraform 조회가 실패하면 배너 대신 그 자리가 무엇이 없는지 말한다', async () => {
     getTerraformStatus.mockRejectedValue(new Error('boom'));
     mount();
 
-    const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    const confirmCell = within(band).getByRole('tab', { name: /확정 정보/ });
-    // 잃는 것은 날짜 한 칸이라 배너를 올리지 않는다.
-    expect(confirmCell.textContent).toContain('리소스 2건');
+    // 잃는 것은 날짜 한 칸이라 배너를 올리지 않는다. 그렇다고 침묵하지도 않는다 —
+    // `리소스 2건` 만 남으면 "시각 없는 확정"과 구분이 안 된다.
+    expect(await screen.findByText('리소스 2건 · 확정 시각 불러오지 못함')).toBeTruthy();
     expect(screen.queryByText('일부 정보를 불러오지 못했습니다.')).toBeNull();
-    // 그렇다고 침묵하지도 않는다 — `리소스 2건` 만 남으면 "시각 없는 확정"과 구분이 안 된다.
-    expect(confirmCell.textContent).toContain('확정 시각 불러오지 못함');
+    // 문구는 화면에 한 번만 선다 — 두 pane 이 같은 말을 겹쳐 적지 않는다.
+    expect(screen.getAllByText(/확정 시각 불러오지 못함/)).toHaveLength(1);
   });
 
   /**
@@ -286,16 +302,14 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
   });
 
   /**
-   * 같은 인스턴스가 다른 대상을 받는 경로(라우트 파라미터만 바뀐다). 요청 칸을 고른 채로
-   * 축이 빠지면 고른 칸은 화면에 없고, 아무 pane 도 조건을 맞추지 못해 셸 안이 통째로 빈다.
+   * 같은 인스턴스가 다른 대상을 받는 경로(라우트 파라미터만 바뀐다). 요청 카드가 선 채로
+   * 축이 빠지면 그 카드는 이 대상에 없는 사실을 말하게 된다.
    */
-  it('요청 칸을 고른 채 SDU 로 바뀌어도 pane 은 선다', async () => {
+  it('요청 카드가 선 채 SDU 로 바뀌면 그 카드가 사라진다', async () => {
     const { rerender } = mount(false);
 
-    fireEvent.click(await screen.findByRole('tab', { name: /연동 요청 확인/ }));
-    // 이 describe 의 픽스처는 요청이 없는 대상이라 RequestPane 은 제 빈 상태로 선다 —
-    // 그 문장이 이 pane 이 화면에 있다는 표시다.
-    expect(await screen.findByText('승인 요청 이력이 없습니다.')).toBeTruthy();
+    // 이 describe 의 픽스처는 요청이 없는 대상이라 요청 카드는 「요청 없음」으로 선다.
+    expect(await screen.findByText('요청 없음')).toBeTruthy();
 
     rerender(
       <ConfirmTab
@@ -308,17 +322,127 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
     );
 
     expect(await screen.findByText('확정 정보')).toBeTruthy();
-    expect(screen.queryByRole('tablist', { name: '확정 정보 축' })).toBeNull();
-    expect(screen.queryByText('승인 요청 이력이 없습니다.')).toBeNull();
+    expect(screen.queryByText('요청 없음')).toBeNull();
+    expect(screen.queryByText('연동 요청')).toBeNull();
+  });
+});
+
+/**
+ * 대조 — 승인 스냅샷과 확정 기록을 한 표로 합치고, 행마다 판정을 붙인다.
+ *
+ * 셀 수 있을 때만 선다: 맞댈 승인이 없으면(요청 없음·대기·반려) 「일치」는 화면이 벌지
+ * 않은 주장이라, 표는 예전 그대로 확정 행만 판정 열 없이 싣는다.
+ */
+describe('ConfirmTab 대조', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getApprovalRequestLatest.mockResolvedValue({
+      request: {
+        requestId: 12,
+        status: 'APPROVED',
+        requestedBy: 'ops',
+        requestedAt: '2026-08-10T05:00:00Z',
+      },
+      // res-9 는 승인에만 있다 — 확정 응답은 res-0 · res-1 이다.
+      resources: [approvedRow(0), approvedRow(1), approvedRow(9)],
+      verdict: { status: 'APPROVED', processedBy: 'admin', processedAt: '2026-08-11T05:00:00Z' },
+    });
+    getConfirmedIntegration.mockResolvedValue({
+      resource_infos: [confirmedRow(0), confirmedRow(1)],
+    });
+    getTerraformStatus.mockResolvedValue(terraformStatus());
   });
 
-  it('밴드가 서는 대상에서는 pane 이 그 말을 되풀이하지 않는다', async () => {
-    // 그 대상에서는 확정 칸이 이미 말한다 — pane 이 또 적으면 같은 사실이 두 벌이 된다.
-    getTerraformStatus.mockRejectedValue(new Error('boom'));
-    mount(false);
+  it('카드마다 제 쪽의 차이만 말한다 — 합산 문장은 없다', async () => {
+    mount();
 
-    const band = await screen.findByRole('tablist', { name: '확정 정보 축' });
-    expect(within(band).getByText(/확정 시각 불러오지 못함/)).toBeTruthy();
-    expect(screen.getAllByText(/확정 시각 불러오지 못함/)).toHaveLength(1);
+    // 승인 카드: 확정에 없는 것. 확정 카드: 승인에 없는 것(여기서는 0건 → 일치).
+    expect(await screen.findByText('확정에 없음 1건')).toBeTruthy();
+    expect(screen.queryByText(/승인에 없음/)).toBeNull();
+    expect(screen.getAllByText('일치').length).toBeGreaterThan(0);
+  });
+
+  it('한 표에 판정 열이 서고, 기본은 차이만 본다', async () => {
+    mount();
+
+    expect(await screen.findByText('판정')).toBeTruthy();
+    // 차이만(기본) — 승인에만 있는 한 행이다.
+    expect(screen.getByText('확정 없음')).toBeTruthy();
+    expect(screen.queryByText('confirmed-0')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '전체' }));
+    expect(screen.getByText('confirmed-0')).toBeTruthy();
+    expect(screen.getByText('confirmed-9')).toBeTruthy();
+  });
+
+  it('차이가 없으면 범위 칩도 서지 않는다', async () => {
+    getConfirmedIntegration.mockResolvedValue({
+      resource_infos: [confirmedRow(0), confirmedRow(1), confirmedRow(9)],
+    });
+    mount();
+
+    await screen.findByText('연동 요청 #12');
+    expect(screen.queryByRole('button', { name: '차이만' })).toBeNull();
+    expect(screen.queryByText(/확정에 없음/)).toBeNull();
+    // 두 카드가 각각 제 쪽에서 일치라고 말하고, 세 행이 저마다 같은 판정을 진다.
+    expect(screen.getAllByText('일치')).toHaveLength(5);
+  });
+
+  it('맞댈 승인이 없으면 대조도 판정 열도 없다', async () => {
+    getApprovalRequestLatest.mockResolvedValue(null);
+    mount();
+
+    await screen.findByText('요청 없음');
+    expect(screen.queryByText('판정')).toBeNull();
+    expect(screen.queryByText('대조')).toBeNull();
+    expect(screen.queryByRole('button', { name: '차이만' })).toBeNull();
+    // 확정 행 자체는 예전 그대로 선다.
+    expect(screen.getByText('confirmed-0')).toBeTruthy();
+  });
+
+  it('확정이 비어 있어도 승인 행은 「확정 없음」으로 표에 남는다', async () => {
+    getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
+    mount();
+
+    expect(await screen.findByText('아직 확정된 리소스가 없습니다')).toBeTruthy();
+    expect(screen.getAllByText('확정 없음')).toHaveLength(3);
+    expect(screen.getByText('확정에 없음 3건')).toBeTruthy();
+  });
+
+  /**
+   * 3단계(반영 중)인데 확정이 이미 있다 — 등록됐다는 사실만 말하면 끝난 것처럼 읽히지만,
+   * 그 확정으로는 다음 단계로 넘어가지 않는다.
+   */
+  it('재확정이 필요하면 그 말을 헤드라인·상태·문에서 함께 한다', async () => {
+    mount(false, 'CONFIRMING');
+
+    expect(
+      await screen.findByText('확정 정보를 다시 입력해야 합니다 — 승인과 차이 1건'),
+    ).toBeTruthy();
+    expect(screen.getByText('다시 입력 필요')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
+  });
+
+  it('재확정은 인프라 작업 탭으로 보낸다', async () => {
+    const onOpenInfra = vi.fn();
+    render(
+      <ConfirmTab
+        targetSourceId={1642}
+        detail={CSP}
+        processStatus="CONFIRMING"
+        isSdu={false}
+        onOpenInfra={onOpenInfra}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '재확정' }));
+    expect(onOpenInfra).toHaveBeenCalledTimes(1);
+  });
+
+  it('설치가 끝난 대상에는 재확정 문이 없다', async () => {
+    mount(false, 'CONNECTED');
+
+    await screen.findByText('확정과 설치가 끝났습니다');
+    expect(screen.queryByRole('button', { name: '재확정' })).toBeNull();
   });
 });

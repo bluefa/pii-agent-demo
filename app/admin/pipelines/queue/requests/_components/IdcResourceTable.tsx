@@ -12,7 +12,8 @@
  * attribute of the assigned NLB, but it keeps a column of its own.
  *
  * 판정 열 쌍(요청 대상 여부 · 제외 사유)은 `showVerdict` 로 내려갈 수 있다 — 확정 정보처럼
- * 판정이 이미 끝난 목록에서는 두 열이 모든 행에서 같은 값이다.
+ * 판정이 이미 끝난 목록에서는 두 열이 모든 행에서 같은 값이다. 그 자리에 대신 설 수 있는
+ * 열이 하나 있다(`reconcileColumn`): 승인과 확정을 한 표로 합쳐 보는 화면의 대조 판정.
  *
  * resource_id is NEVER rendered — the row identity is 접속 주소 (IP/Host) + Port +
  * DB type + SID. Presentational throughout: the NLB cell is a text button that hands
@@ -44,9 +45,21 @@ import type { SuspectMark } from '@/app/admin/pipelines/queue/requests/_duplicat
 import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import {
+  RECONCILE_COLUMN_LABEL,
+  ReconcileVerdictText,
+} from '@/app/components/ui/ReconcileVerdictText';
+import type { ReconcileVerdict } from '@/lib/types/reconcile';
+
+/**
+ * A request row, optionally carrying the admin ops 확정 정보 tab's join verdict — that tab
+ * lists the approved selection and the confirmed record as ONE table, and the verdict is the
+ * per-row answer to which side a row came from. Every other caller passes plain rows.
+ */
+export type IdcResourceTableRow = RequestResourceRow & { reconcile?: ReconcileVerdict };
 
 export interface IdcResourceTableProps {
-  rows: RequestResourceRow[];
+  rows: IdcResourceTableRow[];
   /** Lock NLB editing — the request is no longer PENDING, so a save would 409.
    *  The assignment still reads, as plain text. */
   disabled?: boolean;
@@ -74,6 +87,12 @@ export interface IdcResourceTableProps {
    * 질문이 그 화면에 없으면 열도 없다. 기본값은 요청 화면 그대로다.
    */
   showVerdict?: boolean;
+  /**
+   * 대조 판정 열(판정) — 승인·확정을 한 표로 합쳐 보는 화면에서만 선다. 행이 판정을
+   * 들고 있어도 열을 세우는 것은 호출자다: 이 표는 한 페이지만 보므로 목록 전체에 대해
+   * 답할 수 없다(`showVerdict` 와 같은 규칙).
+   */
+  reconcileColumn?: boolean;
   /**
    * NLB 점유표가 아직(또는 끝내) 없는 동안 배정 버튼을 이 이유(title)로 잠근다.
    * `disabled`(잠금: 버튼이 텍스트로 내려간다)와 달리 버튼은 버튼으로 남는다 —
@@ -123,6 +142,7 @@ export function IdcResourceTable({
   onShowServices,
   suspectMarks,
   showVerdict = true,
+  reconcileColumn = false,
   assignDisabledReason,
   servicesDisabledReason,
 }: IdcResourceTableProps): ReactElement {
@@ -145,6 +165,8 @@ export function IdcResourceTable({
     { key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> },
     ...(onShowServices ? [{ key: 'services', label: '사용 서비스', width: 110 }] : []),
     ...(showVerdict ? [{ key: 'reason', label: '제외 사유', width: 142, flex: true }] : []),
+    // 요청 대상 여부(116)와 같은 하한 — 같은 층의 한 낱말짜리 판정이다.
+    ...(reconcileColumn ? [{ key: 'reconcile', label: RECONCILE_COLUMN_LABEL, width: 116 }] : []),
   ];
 
   return (
@@ -246,6 +268,11 @@ export function IdcResourceTable({
                       <ReasonChip row={row} />
                     </td>
                   )}
+                  {reconcileColumn && (
+                    <td className={table.approvalCell}>
+                      {row.reconcile && <ReconcileVerdictText verdict={row.reconcile} />}
+                    </td>
+                  )}
                 </tr>
               );
             }
@@ -324,6 +351,11 @@ export function IdcResourceTable({
                 )}
                 {/* 제외 사유 — a target row has none. */}
                 {showVerdict && <td className={table.approvalCell} />}
+                {reconcileColumn && (
+                  <td className={table.approvalCell}>
+                    {row.reconcile && <ReconcileVerdictText verdict={row.reconcile} />}
+                  </td>
+                )}
               </tr>
             );
           })}

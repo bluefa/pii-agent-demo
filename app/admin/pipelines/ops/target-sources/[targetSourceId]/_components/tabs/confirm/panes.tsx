@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 확정 정보 워크벤치의 pane 문법과 두 pane.
+ * 확정 정보 워크벤치의 pane 문법과 확정 pane.
  *
  * pane 은 네 슬롯 고정이다 — ① 머리(제목 + 카운터 + 액션) ② 정체(kv 2~3열, 테두리
  * 없음) ③ 실체(테이블 하나, 전폭) ④ 원본(우상단 렌즈 토글). 순서는 불변이고, 채울
@@ -10,19 +10,16 @@
  * 테두리 있는 표면은 화면당 하나(= 탭 밴드를 머리로 쓰는 컨테이너)뿐이므로, 여기의
  * 슬롯들은 전부 그 안의 바닥에 직접 놓이고 헤어라인으로만 갈린다.
  */
-import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { useMemo, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
-import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { ResourceList } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RequestTab';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
 import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
+import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedIdcRows';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
-import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
 
 export const paneStyles = {
   pane: 'px-[22px] pt-5',
@@ -46,7 +43,7 @@ export const paneStyles = {
   emptyDesc: 'mt-1.5 text-[12px] text-[var(--pl-text-weak)]',
 } as const;
 
-function Kv({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }): ReactElement {
+export function Kv({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }): ReactElement {
   return (
     <div className="min-w-0">
       <p className={paneStyles.kvKey}>{label}</p>
@@ -54,92 +51,6 @@ function Kv({ label, value, note }: { label: string; value: ReactNode; note?: Re
         {value}
         {note != null && <span className={cn(paneStyles.kvNote, 'ml-1.5')}>{note}</span>}
       </p>
-    </div>
-  );
-}
-
-// ── ① 연동 요청 확인 ─────────────────────────────────────────────────────────
-
-/**
- * 승인은 요청 없이 존재하지 않으므로 한 pane 이다. 계약이 주는 것만 쓴다 —
- * ApprovalRequestLatestDto 에 요청 유형(신규/재승인) 필드는 없으므로 그 말은 하지
- * 않고, 결과는 result 가 있을 때만 쓴다.
- */
-export function RequestPane({
-  detail,
-  wire,
-  isIdc,
-  targetSourceId,
-}: {
-  detail: ApprovalRequestDetail | null;
-  wire: unknown;
-  isIdc: boolean;
-  targetSourceId: number;
-}): ReactElement {
-  const [lens, setLens] = useState<'structure' | 'raw'>('structure');
-
-  if (!detail?.request) {
-    return (
-      <div className={paneStyles.pane}>
-        <div className={paneStyles.slot1}>
-          <p className={paneStyles.head}>연동 요청 확인</p>
-        </div>
-        <PlEmptyState icon="inbox" message="승인 요청 이력이 없습니다." className="my-10" />
-      </div>
-    );
-  }
-
-  const { request, verdict, resources } = detail;
-  const selected = resources.filter((row) => row.selected).length;
-
-  return (
-    <div className={paneStyles.pane}>
-      <div className={paneStyles.slot1}>
-        <p className={paneStyles.head}>
-          연동 요청{request.requestId != null ? ` #${request.requestId}` : ''}
-          <span className={paneStyles.headSub}>승인 요청 리소스 {selected}건</span>
-        </p>
-        <div className={paneStyles.actions}>
-          <SegControl
-            value={lens}
-            onChange={setLens}
-            ariaLabel="연동 요청 보기 방식"
-            options={[
-              { value: 'structure', label: '구조' },
-              { value: 'raw', label: 'Raw' },
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className={paneStyles.slot2}>
-        <Kv label="요청" value={request.requestedBy ?? '—'} note={fmtDateTime(request.requestedAt)} />
-        {/* "승인" 이 아니라 "처리" 다 — 계약 필드가 processed_by/processed_at 이고,
-            반려된 요청에도 처리자가 있다. 승인이라 부르면 반려를 승인으로 읽힌다. */}
-        <Kv
-          label="처리"
-          value={verdict?.processedBy ?? '—'}
-          note={verdict?.processedAt ? fmtDateTime(verdict.processedAt) : undefined}
-        />
-        <Kv label="결과" value={verdict?.status ?? request.status ?? '—'} />
-      </div>
-
-      {lens === 'raw' ? (
-        <div className={cn(paneStyles.bleed, paneStyles.bleedTop)}>
-          <pre className={paneStyles.raw}>{JSON.stringify(wire, null, 2)}</pre>
-        </div>
-      ) : resources.length === 0 ? (
-        <PlEmptyState icon="inbox" message="요청 리소스가 없습니다." className="my-10" />
-      ) : (
-        <div className="pb-6">
-          <ResourceList
-            key={`${targetSourceId}:${request.requestId ?? 'latest'}`}
-            targetSourceId={targetSourceId}
-            rows={resources}
-            isIdc={isIdc}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -197,6 +108,8 @@ export function ConfirmPane({
   const empty = resources.length === 0;
   // Step 6·7 과 같은 표가 도메인 타입을 읽는다 — 같은 응답을 같은 매퍼로 넘긴다.
   const structureRows = useMemo(() => (wire ? confirmedIntegrationToConfirmed(wire) : []), [wire]);
+  // IDC 행은 요청 표와 같은 모양으로 내려간다 — 매핑은 호출부의 몫이다(`ConfirmedIdcTable`).
+  const idcRows = useMemo(() => confirmedToIdcRows(wire?.resource_infos ?? []), [wire]);
 
   // 문의 낱말은 늘 「입력」이다 — 등록을 고쳐 쓰는 길은 없고 지운 뒤 다시 넣는다(오너
   // 2026-09-03). 그래서 등록이 있는 동안 문은 자리를 지키되 잠긴다. 사유가 있는 잠금은
@@ -263,7 +176,7 @@ export function ConfirmPane({
           </p>
         </div>
       ) : isIdc ? (
-        <ConfirmedIdcTable rows={resources} className="mt-6 pb-6" />
+        <ConfirmedIdcTable rows={idcRows} className="mt-6 pb-6" />
       ) : (
         <ConfirmedResourceTable resources={structureRows} className="mt-6 pb-6" />
       )}
