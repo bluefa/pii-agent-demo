@@ -8,10 +8,19 @@
  *
  * 화면이 단정할 수 없는 것은 여기서도 말하지 않는다: 요청 로드가 끝나기 전의
  * "요청 없음"(모르는 것을 없다고 하지 않는다). 점 규칙은 탭과 같다 — 초록 = 결말
- * 있음 · 회색 = 아직 · 빨강 = API 가 실패/반려라고 말한 것. 경고색은 없다.
+ * 있음 · 회색 = 아직 · 빨강 = API 가 실패/반려라고 말한 것.
+ *
+ * The screen grew a warn dot with the 재확정 case (B1): a target still on step 3 with a
+ * confirmed record has a WRITTEN record that the pipeline will not move on. That is not a
+ * failure the API declared (red) and not a finished step (green) — it is the one state
+ * where the reader has to act on this tab.
+ *
+ * A DIFFERENCE against the approval never colours the dot. It is a fact the two 대조 rows
+ * and the 판정 column already carry, and difference is not by itself a problem — the
+ * confirmed record is allowed to say something the approval did not.
  */
 
-export type VerdictDot = 'done' | 'idle' | 'failed';
+export type VerdictDot = 'done' | 'idle' | 'failed' | 'warn';
 
 export interface ConfirmVerdict {
   dot: VerdictDot;
@@ -45,8 +54,20 @@ export function deriveConfirmVerdict(input: {
   installed: boolean;
   confirmedCount: number;
   request: RequestFacet;
+  /**
+   * Step 3 (`CONFIRMING`) with a confirmed record already written — the record exists but the
+   * pipeline has not accepted it, so it has to be entered again. Computed by the tab, which
+   * owns `processStatus`.
+   */
+  reconfirmNeeded: boolean;
+  /**
+   * Rows that differ between the approved selection and the confirmed record, or `null` when
+   * the two cannot be compared at all (no approved request, a failed load, no approval axis).
+   * `null` is not 0: "nothing differs" is a claim this screen must have earned.
+   */
+  diffCount: number | null;
 }): ConfirmVerdict {
-  const { installed, confirmedCount, request } = input;
+  const { installed, confirmedCount, request, reconfirmNeeded, diffCount } = input;
 
   if (installed) {
     return {
@@ -59,11 +80,34 @@ export function deriveConfirmVerdict(input: {
     };
   }
 
+  // Ahead of the plain "등록되어 있습니다": both are true, and only this one says the
+  // record on screen is not the one the pipeline will run on.
+  if (reconfirmNeeded) {
+    return diffCount != null && diffCount > 0
+      ? {
+          dot: 'warn',
+          head: `확정 정보를 다시 입력해야 합니다 — 승인과 차이 ${diffCount}건`,
+          sub: '진행 상태가 아직 3단계(반영 중)입니다. 차이를 확인한 뒤 재확정하세요.',
+        }
+      : {
+          dot: 'warn',
+          head:
+            diffCount == null
+              ? '확정 정보를 다시 입력해야 합니다'
+              : '리소스 정보는 전부 일치하지만 확정 정보를 다시 입력해야 합니다',
+          sub: '진행 상태가 아직 3단계(반영 중)입니다. 현재 확정 정보로는 다음 단계로 넘어가지 않습니다.',
+        };
+  }
+
   if (confirmedCount > 0) {
     return {
       dot: 'done',
       head: `확정 정보 ${confirmedCount}건이 등록되어 있습니다`,
-      sub: '설치(Terraform)는 이 확정 정보를 기준으로 진행됩니다.',
+      // 차이는 결함이 아니다 — 점은 초록으로 두고 문장만 그 사실을 덧붙인다.
+      sub:
+        diffCount != null && diffCount > 0
+          ? `승인 내용과 차이 ${diffCount}건이 있습니다.`
+          : '설치(Terraform)는 이 확정 정보를 기준으로 진행됩니다.',
     };
   }
 

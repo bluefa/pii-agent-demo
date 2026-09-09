@@ -33,14 +33,23 @@ import {
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { useApprovalTableState } from '@/app/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import type { ReconcileVerdict } from '@/lib/types/reconcile';
 
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+
+/**
+ * A confirmed resource, optionally carrying the 대조 판정. The reconciled list also contains
+ * rows the confirmed record does NOT have (approved but unconfirmed) — the caller shapes those
+ * into this same type, because the table's question is "what does this row say", not "where
+ * did it come from".
+ */
+export type ConfirmedResourceRow = ConfirmedResource & { reconcile?: ReconcileVerdict };
 
 export function ConfirmedResourceTable({
   resources,
   className,
 }: {
-  resources: readonly ConfirmedResource[];
+  resources: readonly ConfirmedResourceRow[];
   /** 놓이는 자리마다 바깥 여백이 다르다 — 표 자체는 같고 여백만 호출부가 정한다. */
   className?: string;
 }): ReactElement {
@@ -58,6 +67,7 @@ export function ConfirmedResourceTable({
         // 행 틴트가 이 값을 읽는다.
         selected: true,
         displayDbType: resource.databaseType ?? undefined,
+        ...(resource.reconcile ? { reconcile: resource.reconcile } : {}),
       })),
     [resources],
   );
@@ -76,6 +86,9 @@ export function ConfirmedResourceTable({
     ephemeralKeys: PLAIN_FLEX_KEYS,
   });
   const showFilterEmpty = approvalRows.length > 0 && table.filteredCount === 0;
+  // Asked of the FULL roster, which this component holds — the table below is handed one
+  // page, so a page of all-confirmed rows must not take the column away (see `hasKindColumn`).
+  const reconcileColumn = resources.some((resource) => resource.reconcile != null);
 
   return (
     <div className={className}>
@@ -99,6 +112,7 @@ export function ConfirmedResourceTable({
         // 데이터베이스에만 걸린 검색어는, 접힌 채로 두면 화면 어디에도 나타나지 않는다.
         expandFolds={!!table.searchValue.trim() || !!table.dbType || !!table.region}
         emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+        reconcileColumn={reconcileColumn}
         columns={resize}
       />
       {table.filteredCount > 0 && (

@@ -8,22 +8,26 @@
  * task 행으로 그 상태를 소유했고, 여기 셋째 축은 같은 사실을 더 나쁜 자리에서 한 번 더
  * 말하는 것이었다.
  *
- * 골격은 표면 하나다. 테두리 있는 컨테이너 한 개, 그 머리를 두 칸 밴드가 차지하고,
- * 아래 pane 이 고정된 슬롯 문법으로 내용을 채운다 — 카드 셋을 나란히 놓으면 등급을
- * 아무리 매겨도 형제 셋일 뿐이라 계층이 생기지 않는다(계층 = 포함).
+ * 골격은 표면 하나다 — 테두리 있는 컨테이너 한 개, 그 안에 pane 하나. 예전에는 그 머리를
+ * 두 칸 밴드(연동 요청 확인 | 확정 정보)가 차지하고 pane 이 번갈아 바뀌었다. 밴드는
+ * 오너 채택안(B1)에서 걷혔다: 두 축을 **번갈아** 보여 주는 화면은 "승인에는 있는데 확정에
+ * 없다"에 답하지 못한다 — 사람이 두 화면을 기억으로 맞대야 했다. 지금은 두 기록이 요약
+ * 카드 둘로 동시에 서고, 리소스는 그 질문의 단위이므로 **한 표**로 합쳐 행마다 판정이 붙는다
+ * (`ReconcilePane`).
  *
  * 화면이 말하는 것은 계약이 주는 것뿐이다:
  *   - 확정이 어느 승인에 근거하는지는 계약에 없다 → "근거 승인"을 추정해 적지 않는다.
- *   - 상태 점: 초록 = 그 단계가 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것.
+ *     대조도 **계보가 아니라 두 목록의 비교**다: 최신 승인과 현재 확정을 맞댈 뿐이다.
+ *   - 상태 점: 초록 = 그 단계가 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것 ·
+ *     주황 = 손댈 일이 남음(3단계인데 확정이 이미 있는 재확정 상태).
  *
- * 판정 문장은 확정 축의 결말만 말한다(등록 여부·설치 여부) — 규칙은 verdict.ts 한
- * 곳에 있다. 승인 스냅샷과의 대조(비교 렌즈)는 라이브 리뷰에서 제거됐다: "뭘
- * 비교한다는 건지"가 전달되지 않았고, 확정 pane 은 현재 확정 정보만 보여 준다.
+ * 판정 문장의 규칙은 verdict.ts 한 곳에 있다. 대조 건수는 그 문장의 입력이지만 점을
+ * 물들이지는 않는다 — 차이는 결함이 아니다.
  *
  * 로드는 진입 3콜(요청·확정·terraform)이고 서로 독립이라 하나가 실패해도 나머지
  * 칸은 그대로 그린다. 이 탭이 Terraform 을 하나도 그리지 않는데 terraform-status 를
  * 계속 부르는 이유는 **소비자가 둘 남아서**다:
- *   - `latest_confirmed_at`(확정 시각) — 밴드의 확정 칸 부제와 `ConfirmPane` 이 쓴다.
+ *   - `latest_confirmed_at`(확정 시각) — 확정 카드의 「등록」 줄과 `ConfirmPane` 이 쓴다.
  *     확정 계약 `BffConfirmedIntegration` 은 `{ resource_infos }` 뿐이라 자기 시각이
  *     없고, 이 화면의 확정 시각은 그 응답에만 있다.
  *   - `overall_state` — 응답 객체째로 `ConfirmDeleteModal` 에 넘어가 그 모달의 **경고
@@ -32,28 +36,21 @@
  * 이 콜을 "날짜 하나짜리 헬퍼"로 줄이려면 삭제 모달의 경고 카드를 먼저 옮겨야 한다.
  *
  * 대신 이 콜의 실패는 오류 배너를 올리지 않는다 — 잃는 것이 날짜 한 칸이라 배너의
- * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 칸 부제가 그 자리에서
- * `확정 시각 불러오지 못함` 이라고 말한다(빈 슬롯이 왜 비었는지는 말해야 한다).
+ * 크기가 아니다. 그래도 침묵하지는 않는다: 확정 정보 자리가 그 자리에서
+ * `확정 시각 불러오지 못함` 이라고 말한다(빈 슬롯이 왜 비었는지는 말해야 한다). 두 pane
+ * 다 `confirmedAtFailed` 로 그 말을 지므로, 문구는 화면에 한 번만 선다.
  *
- * **SDU 에는 밴드가 없다.** 승인 단계가 없어(계약 §0, 제출이 곧 1 → 4) 요청이 만들어지지
- * 않으므로 그 축은 비어 있는 것이 아니라 **존재하지 않고**, 남는 한 축을 위해 밴드를
- * 세우면 누를 때마다 이미 보고 있는 것을 다시 고르는 tablist 가 된다. 그래서 SDU 에서는
- * `ConfirmPane` 이 곧 탭 본문이다 — pane 이 제 머리(「확정 정보」 + 건수·시각)를 이미
- * 가지고 있어, 한 칸짜리 밴드는 같은 사실을 두 번 적는 일이기도 하다.
- *
- * 밴드가 사라지면서 그 칸이 나르던 사실 하나가 갈 곳을 잃는다: 확정은 읽혔는데
- * `latest_confirmed_at` 만 없는 상태(`확정 시각 불러오지 못함`). pane 의 머리는 시각이
- * 없으면 그냥 생략하므로 「시각 없는 확정」과 구별되지 않는다 — 그래서 그 문구를 pane 으로
- * 들고 갔다(`confirmedAtFailed`). SDU 에서만 내려간다: 다른 대상에서는 밴드가 이미 말한다.
+ * **SDU 에는 요청 카드도 대조도 없다.** 승인 단계가 없어(계약 §0, 제출이 곧 1 → 4) 요청이
+ * 만들어지지 않으므로 그 축은 비어 있는 것이 아니라 **존재하지 않는다** — 맞댈 목록이
+ * 없으니 대조는 계산되지 않고, 확정 pane 이 곧 탭 본문이다.
  *
  * 쓰기 경로는 조회와 이름이 다르다: 확정 정보의 등록·삭제는 `confirmed-integration`
  * 이 아니라 CSP 별 `…/{aws|gcp|azure|idc}-resources` 의 POST·DELETE 다(swagger
  * `create/delete{Csp}ConfirmedResource`). SDU 에는 그 path 가 없어 액션이 내려가지 않는다.
  */
-import { useCallback, useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
-import { fmtDateTime } from '@/lib/pipeline/format';
 import { normalizeCloudProvider } from '@/lib/types';
 import {
   getConfirmedIntegration,
@@ -74,11 +71,14 @@ import { resolveWriteProvider } from '@/app/admin/pipelines/ops/target-sources/[
 import {
   deriveConfirmVerdict,
   type RequestFacet,
+  type VerdictDot,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/verdict';
+import { ConfirmPane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
+import { ReconcilePane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ReconcilePane';
 import {
-  ConfirmPane,
-  RequestPane,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
+  buildReconcileTable,
+  type ReconcileTable,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/reconcileRows';
 import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmEditorModal';
 import { ConfirmDeleteModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmDeleteModal';
 
@@ -91,10 +91,6 @@ type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { sta
  * 없는 것을 못 불러왔다고 말한다. 가짜 ready 데이터로 덮는 것도 같은 거짓말이다.
  */
 type RequestLoad = Load<ApprovalRequestDetail> | { state: 'absent' };
-
-type CellKey = 'request' | 'confirm';
-/** 초록 = 단계 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것. 경고색은 없다. */
-type Dot = 'done' | 'idle' | 'failed';
 
 /** 설치가 끝난 뒤의 상태 — 판정 문장에서 다른 모든 입력을 이기는 유일한 기준. */
 const INSTALLED: ReadonlySet<string> = new Set<ProcessStatus>(['INSTALLED', 'CONNECTED', 'COMPLETED']);
@@ -111,23 +107,14 @@ const styles = {
   /** 화면에서 테두리를 가진 유일한 표면. */
   shell:
     'mt-5 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
-  /** 밴드가 컨테이너의 머리다 — 탭 스트립과 내용은 붙어 있어야 소속을 말한다. */
-  band: 'grid grid-cols-2 bg-[var(--pl-gray-50)]',
-  cell:
-    'relative min-w-0 cursor-pointer border-b border-l border-[var(--pl-border)] px-[18px] pb-[15px] pt-3.5 text-left first:border-l-0',
-  cellOn:
-    'bg-[var(--pl-bg-card)] border-b-transparent after:absolute after:inset-x-0 after:top-0 after:h-0.5 after:bg-[var(--pl-primary)] after:content-[""]',
-  cellTitle: 'flex items-center gap-2 text-[14px] font-semibold leading-[1.4]',
-  cellSub: 'ml-[15px] mt-1 truncate text-[12px] text-[var(--pl-text-weak)]',
-  dot: 'h-[7px] w-[7px] flex-none rounded-full',
-  /** 밴드 부제의 상태 태그 — RequestTab 의 상태 pill 과 같은 tone 토큰(fill+text 쌍)을 쓴다. */
-  tag: 'inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[12px] font-semibold leading-[1.34]',
 } as const;
 
-const DOT_FILL: Record<Dot, string> = {
+/** 초록 = 단계 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것 · 주황 = 손댈 일이 남음. */
+const DOT_FILL: Record<VerdictDot, string> = {
   done: 'bg-[var(--pl-ok)]',
   idle: 'bg-[var(--pl-gray-300)]',
   failed: 'bg-[var(--pl-err)]',
+  warn: 'bg-[var(--pl-warn)]',
 };
 
 /** 요청 축의 결말 태그 — 반려만 빨강, 대기는 콘솔 관례대로 warn, 요청 없음은 무채색. */
@@ -190,18 +177,6 @@ export function requestFacetOf(input: {
   return spec.closed ? { kind: 'closed', label: spec.label } : { kind: 'pending', requestId };
 }
 
-/**
- * 'YYYY-MM-DD HH:mm' 에서 'MM-DD' 만 — 밴드 부제는 한 줄이라 날짜만 붙인다.
- * 자체 파싱을 하지 않고 fmtDateTime(Asia/Seoul, 형태 고정) 위에 얹는다.
- */
-const shortDate = (iso: string | null | undefined): string | null => {
-  const formatted = fmtDateTime(iso);
-  return formatted === '-' ? null : formatted.slice(5, 10);
-};
-
-const joinDots = (...parts: ReadonlyArray<string | null | undefined>): string =>
-  parts.filter((part): part is string => !!part).join(' · ');
-
 export interface ConfirmTabProps {
   targetSourceId: number;
   detail: RawTargetSourceDetail;
@@ -231,8 +206,6 @@ export function ConfirmTab({
   const [fetched, setFetched] = useState<Load<ApprovalRequestDetail>>({ state: 'loading' });
   const [confirmed, setConfirmed] = useState<Load<ConfirmedIntegrationResponse>>({ state: 'loading' });
   const [terraform, setTerraform] = useState<Load<TerraformStatusResponse>>({ state: 'loading' });
-  // 기본 선택은 주제(확정 정보), 칸의 순서는 생성 흐름. 비활성 칸은 두지 않는다.
-  const [cell, setCell] = useState<CellKey>('confirm');
   const [reloadKey, setReloadKey] = useState(0);
   const retry = useCallback(() => setReloadKey((key) => key + 1), []);
   // 편집과 삭제는 pane 머리의 두 문이고, 모달도 둘이다 — 삭제는 편집기의 크롬(파라미터·
@@ -316,35 +289,20 @@ export function ConfirmTab({
             (gray-100)가 아니라 바닥용 `skeletonWash` 가 진다. */}
         <div className={cn(opsStyles.skeletonWash, 'ml-[18px] mt-1 h-[21px] w-[430px] max-w-[76ch]')} />
         <div className={styles.shell}>
-          {/* 밴드가 없는 대상에서는 그 자리도 비워 둔다 — 스켈레톤이 정착 프레임에 없는
-              머리를 그리면 도착하는 순간 pane 이 통째로 위로 뛴다. */}
-          {!isSdu && (
-          <div className={cn(styles.band, 'pointer-events-none')}>
-            {(['request', 'confirm'] as const).map((key, index) => (
-              <div key={key} className={styles.cell}>
-                <span className={styles.cellTitle}>
-                  <span className={cn(styles.dot, DOT_FILL.idle)} />
-                  <span className={cn(opsStyles.skeletonBar, 'h-5 w-[120px]')} />
-                </span>
-                <span className={cn(styles.cellSub, 'block')}>
-                  {/* 첫 칸 부제는 상태 태그(20px 줄)라 옆 칸(18px 줄)보다 한 뼘 높다. */}
-                  <span
-                    className={cn(
-                      opsStyles.skeletonBar,
-                      'block',
-                      index === 0 ? 'h-5 w-[180px]' : 'h-[18px] w-[130px]',
-                    )}
-                  />
-                </span>
-              </div>
-            ))}
-          </div>
-          )}
           <div className="px-[22px] pb-6 pt-5">
-            <div className="flex items-center justify-between">
-              <span className={cn(opsStyles.skeletonBar, 'h-[22px] w-[150px]')} />
-              <span className={cn(opsStyles.skeleton, 'h-8 w-[110px]')} />
-            </div>
+            {/* 승인 축이 있는 대상은 카드 둘로 열린다. 축이 없는 대상(SDU)은 pane 머리
+                한 줄이라, 도착하는 순간 아래가 통째로 뛰지 않게 각자의 프레임을 잡는다. */}
+            {isSdu ? (
+              <div className="flex items-center justify-between">
+                <span className={cn(opsStyles.skeletonBar, 'h-[22px] w-[150px]')} />
+                <span className={cn(opsStyles.skeleton, 'h-8 w-[110px]')} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <span className={cn(opsStyles.skeleton, 'block h-[148px]')} />
+                <span className={cn(opsStyles.skeleton, 'block h-[148px]')} />
+              </div>
+            )}
             <div className={cn(opsStyles.skeleton, 'mt-6 h-[240px]')} />
           </div>
         </div>
@@ -389,71 +347,45 @@ export function ConfirmTab({
 
   const installed = processStatus != null && INSTALLED.has(processStatus);
   const hasConfirmed = confirmedRows.length > 0;
+  /**
+   * 진행 상태가 아직 3단계(반영 중)인데 확정 정보가 이미 등록돼 있다. 등록됐다는 사실만
+   * 말하면 화면은 끝난 것처럼 읽히지만, 그 확정으로는 다음 단계로 넘어가지 않는다 —
+   * 다시 입력해야 한다(RECONFIRM).
+   */
+  const reconfirmNeeded = processStatus === 'CONFIRMING' && hasConfirmed;
+
+  /**
+   * 대조는 **승인된 요청이 있을 때만** 가능하다. 없으면(요청 없음·대기·반려·조회 실패)
+   * 맞댈 목록 하나가 없는 것이고, 그때의 「일치」는 화면이 벌지 않은 주장이다.
+   *
+   * 확정이 404(=`data: null`)인 것은 실패가 아니라 **빈 목록**이므로 대조가 가능하다 —
+   * 승인 행 전부가 「확정 없음」인, 이 표의 첫 칸이다.
+   */
+  const reconcile: ReconcileTable | null =
+    requestApproved && requestData != null && confirmed.state === 'ready'
+      ? buildReconcileTable({
+          isIdc,
+          approved: requestData.resources,
+          confirmed: confirmedWire ?? { resource_infos: [] },
+        })
+      : null;
+
   const verdict = deriveConfirmVerdict({
     installed,
     confirmedCount: confirmedRows.length,
     request: requestFacet,
+    reconfirmNeeded,
+    diffCount: reconcile?.diffCount ?? null,
   });
 
-  // ── 밴드 두 칸 — 각 칸은 그 축의 결말만 말한다.
-  const requestDot: Dot =
-    requestStatus == null ? 'idle'
-      : requestStatus === 'REJECTED' ? 'failed'
-        : APPROVED_STATUSES.has(requestStatus) ? 'done'
-          : 'idle';
-
-  // 요청 칸의 부제 — 현재 상태는 태그로, 신원(#id·건수·처리자·날짜)은 그 옆의 텍스트로.
-  const requestTag: { tone: keyof typeof TAG_TONE; label: string } | null =
+  // 요청 카드 머리의 상태 태그 — RequestTab 의 상태 pill 과 같은 tone 토큰(fill+text 쌍).
+  const requestTag: { toneClass: string; label: string } | null =
     request.state !== 'ready' ? null
-      : requestData == null ? { tone: 'off', label: '요청 없음' }
-        : requestSpec != null ? { tone: requestSpec.tone, label: requestSpec.label }
+      : requestData == null ? { toneClass: TAG_TONE.off, label: '요청 없음' }
+        : requestSpec != null ? { toneClass: TAG_TONE[requestSpec.tone], label: requestSpec.label }
           // 계약에 있으나 어휘가 없는 값(`RESET`)은 상태 문자열을 그대로 중립 톤으로 —
           // 지어낸 라벨보다 원문이 정확하다.
-          : { tone: 'off', label: requestStatus ?? '요청 없음' };
-  const requestMeta =
-    requestData == null
-      ? null
-      : joinDots(
-          requestData.request.requestId != null ? `#${requestData.request.requestId}` : null,
-          requestApproved ? `${selectedCount}건` : null,
-          requestVerdict?.processedBy,
-          shortDate(requestVerdict?.processedAt ?? requestData.request.requestedAt),
-        );
-
-  const cells: ReadonlyArray<{ key: CellKey; title: string; sub: ReactNode; dot: Dot }> = [
-    {
-      key: 'request',
-      title: '연동 요청 확인 (1,2단계)',
-      dot: requestDot,
-      sub:
-        request.state === 'failed'
-          ? '불러오지 못함'
-          : requestTag && (
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className={cn(styles.tag, TAG_TONE[requestTag.tone])}>{requestTag.label}</span>
-                {requestMeta && <span className="truncate">{requestMeta}</span>}
-              </span>
-            ),
-    },
-    {
-      key: 'confirm',
-      title: '확정 정보',
-      dot: hasConfirmed ? 'done' : 'idle',
-      // 확정 시각은 terraform 응답에 실려 오므로 그 조회가 실패하면 날짜가 빈다. 배너를
-      // 올릴 크기는 아니지만(파일 머리 주석) 침묵할 일도 아니다 — `리소스 2건` 만 남은
-      // 프레임은 "시각이 없는 확정"과 구분되지 않는다. 문구가 맨 `불러오지 못함` 이면
-      // 이 칸의 확정 조회 실패·요청 칸의 실패와 같은 말이 되므로 무엇이 없는지까지 적는다.
-      // 확정이 없으면 빌 날짜도 없어서 이 문구는 `hasConfirmed` 일 때만 선다.
-      sub:
-        confirmed.state === 'failed' ? '불러오지 못함'
-          : hasConfirmed
-            ? joinDots(
-                `리소스 ${confirmedRows.length}건`,
-                terraform.state === 'failed' ? '확정 시각 불러오지 못함' : shortDate(confirmedAt),
-              )
-            : '미등록',
-    },
-  ];
+          : { toneClass: TAG_TONE.off, label: requestStatus ?? '요청 없음' };
 
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
   // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
@@ -477,58 +409,35 @@ export function ConfirmTab({
       )}
 
       <div className={styles.shell}>
-        {/* 축이 하나뿐인 대상에는 밴드를 세우지 않는다 — 누를 때마다 이미 보고 있는 것을
-            다시 고르는 tablist 는 열리지 않는 버튼과 같은 결함이고, pane 이 제 머리로
-            같은 두 사실(제목 · 건수와 시각)을 이미 말한다. */}
-        {!isSdu && (
-        <div className={styles.band} role="tablist" aria-label="확정 정보 축">
-          {cells.map((item) => {
-            const active = item.key === cell;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setCell(item.key)}
-                className={cn(styles.cell, active && styles.cellOn)}
-              >
-                <span
-                  className={cn(
-                    styles.cellTitle,
-                    active ? 'text-[var(--pl-text-strong)]' : 'text-[var(--pl-text-medium)]',
-                  )}
-                >
-                  <span className={cn(styles.dot, DOT_FILL[item.dot])} />
-                  {item.title}
-                </span>
-                <span className={cn(styles.cellSub, 'block')}>{item.sub}</span>
-              </button>
-            );
-          })}
-        </div>
-        )}
-
-        {!isSdu && cell === 'request' && (
-          <RequestPane
-            detail={requestData}
-            wire={requestData?.wire ?? null}
-            isIdc={isIdc}
-            targetSourceId={targetSourceId}
-          />
-        )}
-        {/* 밴드가 없으면 고를 것도 없다 — pane 이 곧 탭 본문이다. */}
-        {(isSdu || cell === 'confirm') && (
+        {/* 승인 축이 없는 대상(SDU)에는 맞댈 기록이 없다 — 대조도, 요청 카드도 세울 수
+            없으므로 확정 pane 이 곧 탭 본문이다(계약 §0: 제출이 곧 1 → 4). */}
+        {isSdu ? (
           <ConfirmPane
             wire={confirmedWire}
             confirmedAt={confirmedAt}
             isIdc={isIdc}
-            hasApproval={request.state !== 'absent'}
-            // 밴드의 확정 칸이 나르던 문구를 pane 이 대신 진다 — **밴드가 없는 대상에서만**.
-            // 다른 대상에서는 그 칸이 이미 말하므로 여기서 또 적으면 같은 사실이 두 벌이 된다.
-            confirmedAtFailed={isSdu && terraform.state === 'failed'}
+            hasApproval={false}
+            // 확정은 읽혔는데 시각만 없는 상태를 pane 머리가 그 자리에서 말한다.
+            confirmedAtFailed={terraform.state === 'failed'}
             onEdit={writeProvider ? editorModal.open : undefined}
             // 지울 것이 있을 때만 문이 선다 — 미등록 pane 에는 삭제할 확정이 없다.
+            onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
+          />
+        ) : (
+          <ReconcilePane
+            request={requestData}
+            requestFailed={request.state === 'failed'}
+            requestTag={requestTag}
+            wire={requestData?.wire ?? null}
+            confirmed={confirmedWire}
+            confirmedAt={confirmedAt}
+            confirmedAtFailed={terraform.state === 'failed'}
+            isIdc={isIdc}
+            reconcile={reconcile}
+            reconfirmNeeded={reconfirmNeeded}
+            // 재확정의 자리는 인프라 작업 탭이다 — 이 탭은 그리로 가는 길만 준다.
+            onReconfirm={reconfirmNeeded && writeProvider ? onOpenInfra : undefined}
+            onEdit={writeProvider ? editorModal.open : undefined}
             onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
           />
         )}

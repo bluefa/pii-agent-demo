@@ -64,13 +64,18 @@ function haystack(row: RequestResourceRow, isIdc: boolean): string {
   return parts.filter((v): v is string => v != null && v !== '').join(' ').toLowerCase();
 }
 
-export function queryResources(
-  rows: readonly RequestResourceRow[],
+/**
+ * Generic in the ROW, not just in the fields it reads: a caller may hand rows that carry more
+ * than the request row (the 확정 정보 tab's 대조 판정), and a filter must not narrow the type
+ * of what it passed through.
+ */
+export function queryResources<T extends RequestResourceRow>(
+  rows: readonly T[],
   query: ResourceQuery,
   isIdc: boolean,
   /** 'suspect' 필터가 통과시킬 행들. 이 필터가 아닐 때는 쓰이지 않는다. */
   suspects?: ReadonlySet<RequestResourceRow>,
-): RequestResourceRow[] {
+): T[] {
   const search = query.search.trim().toLowerCase();
   return rows.filter((row) => {
     if (query.filter === 'target' && !row.selected) return false;

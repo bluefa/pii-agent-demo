@@ -12,12 +12,15 @@
  * 읽기 전용이다: NLB 배정 편집은 승인 전 요청의 일이고(`disabled`), 사용 서비스 조회는
  * 현재 인프라를 묻는 다른 질문이라 열지 않는다 — 같은 이유로 연동 요청 pane 도 잠근다.
  */
-import { useMemo, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
 import { ResourceToolbar } from '@/app/admin/pipelines/queue/requests/_components/ResourceFilterBar';
-import { IdcResourceTable } from '@/app/admin/pipelines/queue/requests/_components/IdcResourceTable';
+import {
+  IdcResourceTable,
+  type IdcResourceTableRow,
+} from '@/app/admin/pipelines/queue/requests/_components/IdcResourceTable';
 import {
   axisOptions,
   databaseTypeOptions,
@@ -25,23 +28,25 @@ import {
   queryResources,
   useResourceListState,
 } from '@/app/admin/pipelines/queue/requests/_resourceQuery';
-import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedIdcRows';
-import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 
 /** 배정 버튼이 내려가지 않으므로(`disabled`) 호출될 일이 없다 — prop 이 필수라 둔다. */
 const NOOP = (): void => {};
 
+/**
+ * 행은 호출부가 만든다(`confirmedToIdcRows`). 대조 화면은 확정 응답에 없는 행 — 승인에만
+ * 있는 행 — 도 같은 표에 실으므로, 확정 응답을 여기서 다시 매핑하면 그 행들이 들어올 자리가
+ * 없다. 표는 자기가 받은 행만 그린다.
+ */
 export function ConfirmedIdcTable({
   rows,
   className,
 }: {
-  rows: readonly ConfirmedIntegrationResourceInfo[];
+  rows: readonly IdcResourceTableRow[];
   /** 놓이는 자리마다 바깥 여백이 다르다 — 표 자체는 같고 여백만 호출부가 정한다. */
   className?: string;
 }): ReactElement {
-  const idcRows = useMemo(() => confirmedToIdcRows(rows), [rows]);
   const list = useResourceListState();
-  const filtered = queryResources(idcRows, list.query, true);
+  const filtered = queryResources(rows, list.query, true);
   const paged = pageResources(filtered, list.page, list.pageSize);
 
   return (
@@ -56,7 +61,7 @@ export function ConfirmedIdcTable({
             label: 'Database Type',
             value: list.query.databaseType,
             onChange: (next) => list.patchQuery({ databaseType: next }),
-            options: databaseTypeOptions(idcRows),
+            options: databaseTypeOptions(rows),
             formatOption: getDatabaseShortLabel,
           },
           {
@@ -64,7 +69,7 @@ export function ConfirmedIdcTable({
             label: '구분',
             value: list.query.axis,
             onChange: (next) => list.patchQuery({ axis: next }),
-            options: axisOptions(idcRows, true),
+            options: axisOptions(rows, true),
             formatOption: (value) => (value === 'HOST' ? 'Host' : 'IP'),
           },
         ]}
@@ -76,7 +81,14 @@ export function ConfirmedIdcTable({
         {filtered.length === 0 ? (
           <PlEmptyState icon="inbox" message="조건에 맞는 리소스가 없어요." />
         ) : (
-          <IdcResourceTable rows={paged.rows} disabled onAssignNlb={NOOP} showVerdict={false} />
+          <IdcResourceTable
+            rows={paged.rows}
+            disabled
+            onAssignNlb={NOOP}
+            showVerdict={false}
+            // 목록 전체에 대해 답한다 — 페이지가 아니라(`ConfirmedResourceTable` 과 같은 규칙).
+            reconcileColumn={rows.some((row) => row.reconcile != null)}
+          />
         )}
       </div>
 
