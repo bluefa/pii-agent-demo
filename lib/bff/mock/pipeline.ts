@@ -66,7 +66,11 @@ type JobType = 'PLAN' | 'APPLY' | 'DESTROY';
 
 interface CatalogDef {
   name: string;
-  provider: CloudProvider;
+  /**
+   * null = ADR-023 의 `ALL_CSP` 공통 Task — 어느 CSP 의 것도 아니다. 계약도 이 자리에
+   * null 을 싣는다(`provider_scope=ALL_CSP` 인 항목의 provider 는 null).
+   */
+  provider: CloudProvider | null;
   operation: TaskOperation;
   kind: TaskKind;
   displayName: string;
@@ -99,6 +103,15 @@ const CONDITION_SUCCESS_POLICY =
 
 const CONDITION_RESULT_STORAGE =
   '별도 result 저장은 없다 — 폴 관찰(호출 횟수, 마지막 외부 상태)은 task_check에 남는다.';
+
+const HTTP_SUCCESS_POLICY =
+  '설치 API를 직접 호출하고 계약이 정한 status(확정 정보 삭제 200, 추천 조회 200, 등록 201)를 받으면 성공이다. '
+  + '추천 404는 RECOMMENDATION_NOT_FOUND, 등록 409·412는 CONFIRMATION_CONFLICT로 그 자리에서 종결 실패하고, '
+  + '401·403과 계약을 벗어난 응답도 재시도하지 않는다. 429·5xx·연결 장애·per-call timeout만 재시도 예산 안에서 다시 호출한다.';
+
+const HTTP_RESULT_STORAGE =
+  '호출마다 응답 원문을 attempt에 저장한다(기본 1 MiB 상한, 넘으면 truncated로 표시). 성공한 추천 원문은 Task의 입력 행에 '
+  + '따로 고정돼 등록 재시도가 같은 원문을 다시 쓴다.';
 
 const tf = (
   name: string,
@@ -265,6 +278,32 @@ const CATALOG_DEFS: CatalogDef[] = [
     successPolicy: CONDITION_SUCCESS_POLICY,
     resultStorage: CONDITION_RESULT_STORAGE,
   },
+  // ── HTTP_REQUEST · ALL_CSP (ADR-023) ──
+  // 정확히 둘이고, CSP 별 복제본이 없다. 재확정 레시피 네 벌이 이 같은 두 정의를 공유한다.
+  {
+    name: 'DELETE_CONFIRMED_RESOURCES_V1',
+    provider: null,
+    operation: 'DELETE_CONFIRMED_RESOURCES',
+    kind: 'HTTP_REQUEST',
+    displayName: '확정 정보 삭제',
+    description: '대상에 등록된 확정 정보를 설치 API로 삭제한다.',
+    statusApi: 'DELETE /install/v1/target-sources/{targetSourceId}/{csp}-resources',
+    successPolicy: HTTP_SUCCESS_POLICY,
+    resultStorage: HTTP_RESULT_STORAGE,
+  },
+  {
+    name: 'CONFIRM_RESOURCES_FROM_RECOMMENDATION_V1',
+    provider: null,
+    operation: 'CONFIRM_RESOURCES_FROM_RECOMMENDATION',
+    kind: 'HTTP_REQUEST',
+    displayName: '추천 정보 기반 확정 정보 입력',
+    // 추천 조회와 등록은 **한 Task**다 — 내부 단계만 둘로 나뉜다(ADR-023 §2.1).
+    description: '승인된 추천값을 조회해 원문 그대로 고정한 뒤, 같은 Task에서 확정 정보로 등록한다.',
+    statusApi: 'GET /install/v1/target-sources/{targetSourceId}/{csp}-resources/approved-recommendations'
+      + ' → POST /install/v1/target-sources/{targetSourceId}/{csp}-resources',
+    successPolicy: HTTP_SUCCESS_POLICY,
+    resultStorage: HTTP_RESULT_STORAGE,
+  },
 ];
 
 const CATALOG: Map<string, CatalogDef> = new Map(CATALOG_DEFS.map((d) => [d.name, d]));
@@ -337,6 +376,37 @@ const RECIPES: RecipeDef[] = [
     name: 'IDC_DELETE_V1', provider: 'IDC', type: 'DELETE', displayName: 'IDC 인프라 삭제',
     description: 'IDC BDP와 CX 인프라를 Terraform destroy로 제거한다(BDP destroy는 pod 삭제 동반, 순서는 설치의 역순 가정).',
     steps: ['IDC_BDP_DESTROY_V1', 'IDC_CX_DESTROY_V1'],
+  },
+  // ── 재확정 (ADR-023) ──
+  // 어느 CSP든 꼬리 둘은 같다: 확정 정보를 지우고, 추천값으로 다시 등록한다. 앞에 붙는
+  // 삭제 prefix만 CSP마다 다르고, 그것이 그 CSP의 DELETE 레시피와 같은 순서다.
+  {
+    name: 'AWS_RECONFIRM_V1', provider: 'AWS', type: 'RECONFIRM', displayName: 'AWS 재확정',
+    description: 'AWS 인프라를 설치의 역순으로 destroy 한 뒤, 확정 정보를 삭제하고 승인된 추천값으로 다시 등록한다.'
+      + ' 완료는 확정 정보 등록까지이며 인프라 재설치는 포함하지 않는다.',
+    steps: ['AWS_BDC_SERVICE_LEVEL_DESTROY_V1', 'AWS_BDC_COMMON_DESTROY_V1', 'AWS_SERVICE_DESTROY_V1',
+      'DELETE_CONFIRMED_RESOURCES_V1', 'CONFIRM_RESOURCES_FROM_RECOMMENDATION_V1'],
+  },
+  {
+    name: 'GCP_RECONFIRM_V1', provider: 'GCP', type: 'RECONFIRM', displayName: 'GCP 재확정',
+    description: 'GCP BDC와 서비스 인프라를 destroy 한 뒤, 확정 정보를 삭제하고 승인된 추천값으로 다시 등록한다.'
+      + ' 완료는 확정 정보 등록까지이며 인프라 재설치는 포함하지 않는다.',
+    steps: ['GCP_BDC_DESTROY_V1', 'GCP_SERVICE_DESTROY_V1',
+      'DELETE_CONFIRMED_RESOURCES_V1', 'CONFIRM_RESOURCES_FROM_RECOMMENDATION_V1'],
+  },
+  {
+    name: 'AZURE_RECONFIRM_V1', provider: 'AZURE', type: 'RECONFIRM', displayName: 'Azure 재확정',
+    description: 'Azure BDC 인프라를 destroy 한 뒤, 확정 정보를 삭제하고 승인된 추천값으로 다시 등록한다.'
+      + ' 완료는 확정 정보 등록까지이며 인프라 재설치는 포함하지 않는다.',
+    steps: ['AZURE_BDC_DESTROY_V1',
+      'DELETE_CONFIRMED_RESOURCES_V1', 'CONFIRM_RESOURCES_FROM_RECOMMENDATION_V1'],
+  },
+  {
+    name: 'IDC_RECONFIRM_V1', provider: 'IDC', type: 'RECONFIRM', displayName: 'IDC 재확정',
+    description: 'IDC BDP와 CX 인프라를 destroy 한 뒤, 확정 정보를 삭제하고 승인된 추천값으로 다시 등록한다.'
+      + ' 완료는 확정 정보 등록까지이며 인프라 재설치는 포함하지 않는다.',
+    steps: ['IDC_BDP_DESTROY_V1', 'IDC_CX_DESTROY_V1',
+      'DELETE_CONFIRMED_RESOURCES_V1', 'CONFIRM_RESOURCES_FROM_RECOMMENDATION_V1'],
   },
 ];
 
@@ -1301,7 +1371,13 @@ const isCloudProvider = (value: string): value is CloudProvider =>
   value === 'AWS' || value === 'GCP' || value === 'AZURE' || value === 'IDC';
 
 const isPipelineType = (value: string): value is PipelineType =>
-  value === 'INSTALL' || value === 'DELETE' || value === 'CUSTOM';
+  value === 'INSTALL' || value === 'DELETE' || value === 'RECONFIRM' || value === 'CUSTOM';
+
+/** 카탈로그 레시피를 가진 유형 — preview·#10 생성이 받는 값. CUSTOM 은 #11 의 것이다. */
+type CatalogPipelineType = Exclude<PipelineType, 'CUSTOM'>;
+
+const isCatalogType = (value: unknown): value is CatalogPipelineType =>
+  value === 'INSTALL' || value === 'DELETE' || value === 'RECONFIRM';
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -1833,7 +1909,7 @@ export const mockPipeline = {
       return err(400, 'UNSUPPORTED_RECIPE',
         'type CUSTOM has no catalog recipe; use the custom endpoint for custom execution', path);
     }
-    if (type !== 'INSTALL' && type !== 'DELETE') {
+    if (!isCatalogType(type)) {
       return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', path);
     }
     const provider = resolveProvider(targetSourceId);
@@ -1880,7 +1956,7 @@ export const mockPipeline = {
       return err(400, 'UNSUPPORTED_RECIPE',
         'type CUSTOM has no catalog recipe; use the custom endpoint for custom execution', path);
     }
-    if (type !== 'INSTALL' && type !== 'DELETE') {
+    if (!isCatalogType(type)) {
       return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', path);
     }
     const provider = resolveProvider(targetSourceId);
@@ -1990,6 +2066,12 @@ export const mockPipeline = {
       return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', PATH.taskDefinitions);
     }
     const entries: TaskCatalogEntry[] = CATALOG_DEFS
+      // ponytail: ALL_CSP 공통 Task 둘은 카탈로그에서 빠지므로 CUSTOM 빌더로 담을 수 없다 —
+      // `TaskCatalogEntry.provider` 가 non-null 이라 null provider 를 실을 자리가 없다. 재확정
+      // 레시피는 이 응답이 아니라 RECIPES 를 읽으므로 preview·생성 경로는 온전하다. 올리는 길:
+      // TaskCatalogEntry 를 nullable provider + provider_scope + execution_available 로 넓히고,
+      // customBuilder 의 중복 제거를 정의 이름 기준에서 행 기준으로 바꾼다(같은 Task 반복 구성).
+      .filter((def): def is CatalogDef & { provider: CloudProvider } => def.provider !== null)
       .filter((def) => (provider && isCloudProvider(provider) ? def.provider === provider : true))
       .map((def) => ({
         name: def.name,

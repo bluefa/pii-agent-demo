@@ -88,7 +88,12 @@ export type TaskOperation =
   | 'IDC_BDP_TF_PLAN'
   | 'IDC_BDP_TF_APPLY'
   | 'IDC_BDP_TF_DESTROY'
-  | 'NETWORK_READY';
+  | 'NETWORK_READY'
+  // ADR-023 의 두 공통 operation. 위 24 개와 달리 CSP 별 복제본이 없다 — 하나의
+  // 정의가 네 CSP 를 모두 실행하고, 대상의 provider 는 파이프라인 생성 시 저장된
+  // 값에서 온다(TaskDefinition 의 provider 가 아니다).
+  | 'DELETE_CONFIRMED_RESOURCES'
+  | 'CONFIRM_RESOURCES_FROM_RECOMMENDATION';
 
 /**
  * Terraform job action, derived server-side from the operation (backend
