@@ -186,10 +186,10 @@ export function RequestDetailHeader({
         <Link
           href={passRoutes.pipelines.ops.targetSource(targetSourceId)}
           className={outLink}
-          title="TargetSource 관리 — 이 대상의 운영 상세 화면"
+          title="이 대상의 운영 상세 화면으로 이동"
         >
           {/* ↗ 는 이 앱에서 「이 화면을 떠난다」는 표식이다(OpsHeader 관련 페이지와 같은 규칙). */}
-          TargetSource 관리 <Icon name="arrow-ur" size="sm" />
+          Target 관리 페이지로 이동 <Icon name="arrow-ur" size="sm" />
         </Link>
         <CtaPair pending={pending} onApprove={onApprove} onReject={onReject} />
       </div>

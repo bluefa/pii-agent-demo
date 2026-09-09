@@ -15,7 +15,7 @@
  *   4. NLB occupancy pending: only the buttons that open it are held (리스너
  *      현황 · 배정하기), 사용 서비스 조회 stays live, and the hold releases
  *      when the table lands.
- *   5. 「TargetSource 관리」 stands in EVERY state of the head — while the request
+ *   5. 「Target 관리 페이지로 이동」 stands in EVERY state of the head — while the request
  *      facts are pending AND on a decided request, where the 승인/반려 pair is
  *      gone. Moving to the ops detail is not gated on the verdict.
  */
@@ -195,7 +195,7 @@ describe('RequestDetailPage — split loading gates', () => {
     });
   });
 
-  it('「TargetSource 관리」 points at the ops detail while the request facts are pending', async () => {
+  it('「Target 관리 페이지로 이동」 points at the ops detail while the request facts are pending', async () => {
     getRequestHeader.mockResolvedValue(HEADER_ROW);
     getApprovalRequestLatest.mockReturnValue(pending());
     getNlbTable.mockReturnValue(pending());
@@ -203,13 +203,13 @@ describe('RequestDetailPage — split loading gates', () => {
 
     render(<RequestDetailPage />);
 
-    const link = (await screen.findByRole('link', { name: /TargetSource 관리/ })) as HTMLAnchorElement;
+    const link = (await screen.findByRole('link', { name: /Target 관리 페이지로 이동/ })) as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/admin/pipelines/ops/target-sources/1031');
     // The CTA is disabled in this state — the way out is not.
     expect((screen.getByRole('button', { name: '승인' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('「TargetSource 관리」 survives the verdict — it stands where 승인/반려 no longer do', async () => {
+  it('「Target 관리 페이지로 이동」 survives the verdict — it stands where 승인/반려 no longer do', async () => {
     getRequestHeader.mockResolvedValue(HEADER_ROW);
     getApprovalRequestLatest.mockResolvedValue(DECIDED_DETAIL);
     getNlbTable.mockResolvedValue([]);
@@ -217,7 +217,7 @@ describe('RequestDetailPage — split loading gates', () => {
 
     render(<RequestDetailPage />);
 
-    const link = (await screen.findByRole('link', { name: /TargetSource 관리/ })) as HTMLAnchorElement;
+    const link = (await screen.findByRole('link', { name: /Target 관리 페이지로 이동/ })) as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/admin/pipelines/ops/target-sources/1031');
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: '승인' })).toBeNull();

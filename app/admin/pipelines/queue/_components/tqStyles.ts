@@ -198,13 +198,20 @@ export const tqStyles = {
   },
 
   /** Outgoing link (`나가는 줄`) — the ops masthead's `opsStyles.aboutLink`
-   *  grammar reused on P3: black 14/500 with the `arrow-ur` glyph, and the only
-   *  "you can press this" signal is the hover underline in `--pl-primary`. Black
-   *  and not brand-blue on purpose (owner, 2026-08-27, on the ops panel): colour
-   *  AND weight together made the least-used control on the screen read the
-   *  loudest. No hand-drawn focus ring — the global outline owns that. */
+   *  grammar reused on P3: black 14/500 with the `arrow-ur` glyph. The underline
+   *  is permanent (owner follow-up), so "you can press this" is said at rest and
+   *  hover only RECOLOURS the rule to `--pl-primary` — the state change is a hue
+   *  shift on a line that was already there, not the line appearing. Black and not
+   *  brand-blue on purpose (owner, 2026-08-27, on the ops panel): colour AND weight
+   *  together made the least-used control on the screen read the loudest.
+   *  The rest colour is `--pl-border-strong`, not `--pl-border`: gray-300 measures
+   *  1.41:1 on this page's `--pl-bg-page` wash, so a permanent rule in it says
+   *  nothing. `--pl-border-strong` reads 2.46:1 and rides the existing ramp —
+   *  `prefers-contrast: more` steps it to #667085 (4.76:1) with no rule of its own
+   *  here. Hover lands at 4.95:1, so pressing-ness roughly doubles the contrast.
+   *  No hand-drawn focus ring — the global outline owns that. */
   outLink:
-    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-strong)] hover:underline hover:decoration-[var(--pl-primary)]',
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-strong)] underline underline-offset-4 decoration-[var(--pl-border-strong)] hover:decoration-[var(--pl-primary)]',
 
   /** Stat tile (`.stat`) — gray-100 centered read-only summary; label over value.
    *  Value tone: warn (대기), err (반려>0), strong (default). */
