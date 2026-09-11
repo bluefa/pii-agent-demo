@@ -458,10 +458,16 @@ describe('ConfirmTab 대조', () => {
     expect(onOpenInfra).toHaveBeenCalledTimes(1);
   });
 
-  it('설치가 끝난 대상에는 재확정 문이 없다', async () => {
+  /**
+   * 재확정 문은 상태를 묻지 않는다(오너 2026-09-11). 설치가 끝난 대상에서도 다시 확정할
+   * 일은 생기고, 그 길은 이 탭이 아는 유일한 길이다 — 「다시 입력 필요」를 이 문의 조건으로
+   * 되돌리면 여기가 먼저 깨진다. 다음 라운드에서 붙는 잠금은 실행 중인 파이프라인이지
+   * 확정 상태가 아니다.
+   */
+  it('설치가 끝난 대상에도 재확정 문은 선다', async () => {
     mount(false, 'CONNECTED');
 
     await screen.findByText('확정과 설치가 끝났습니다');
-    expect(screen.queryByRole('button', { name: '재확정' })).toBeNull();
+    expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 });

@@ -450,8 +450,10 @@ export function ConfirmTab({
             isIdc={isIdc}
             reconcile={reconcile}
             reconfirmNeeded={reconfirmNeeded}
-            // 재확정의 자리는 인프라 작업 탭이다 — 이 탭은 그리로 가는 길만 준다.
-            onReconfirm={reconfirmNeeded && writeProvider ? onOpenInfra : undefined}
+            // 재확정의 자리는 인프라 작업 탭이다 — 이 탭은 그리로 가는 길만 준다. 쓰기
+            // 경로가 있으면 언제나 준다(오너 2026-09-11): 「다시 입력 필요」는 이 문을
+            // 여는 조건이 아니라 pane 이 따로 말하는 상태다.
+            onReconfirm={writeProvider ? onOpenInfra : undefined}
             onEdit={writeProvider ? editorModal.open : undefined}
             onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
           />
