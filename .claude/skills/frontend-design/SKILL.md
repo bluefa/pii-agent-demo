@@ -39,6 +39,18 @@ If `DESIGN.md`, this skill, and `lib/theme.ts` disagree, prefer `DESIGN.md` for 
 - For editor or contenteditable surfaces, do not infer dirty state from raw HTML string comparison. Track whether the user actually typed as a separate signal.
 - Block click-navigation on inline editor links and surface the URL so users can inspect it.
 
+## Status Copy
+
+Owner rules (2026-09-11) for status text on admin screens.
+
+- One sentence carries one fact. Never join two clauses with an em dash (—) or a hyphen in UI text. A second fact is a second sentence.
+- No implied-context phrasing such as "~을 기준으로 등록됩니다" or "처리 결과를 기준으로 확정합니다". Assume the admin reading it cannot infer the rest from context. Name the current state, then say what has to happen next and who does it.
+- A disabled control always carries its reason in the same plain form, as a tooltip or adjacent text. A greyed-out button with no stated reason is not an acceptable state.
+- State is text, not colour. Do not express a state with a coloured dot or marker alone beside a headline or label. Use a text tag whose words name the state exactly ("미등록", "등록됨", "다시 입력 필요"). Colour may accompany the words, never replace them.
+
+Rejected example: "아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다."
+Write instead: "연동 요청이 없습니다. 서비스가 연동 요청을 보내고 관리자가 승인하면 확정 정보를 입력할 수 있습니다."
+
 ## Review Checklist
 
 - `DESIGN.md` was read and the implementation follows its component/tokens direction.
