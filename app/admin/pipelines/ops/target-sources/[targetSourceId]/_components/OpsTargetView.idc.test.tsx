@@ -108,9 +108,9 @@ describe('OpsTargetView — IDC 스캔 탭', () => {
       detail({ target_source_id: 1010, cloud_provider: 'AWS' }),
     );
     render(<OpsTargetView targetSourceId={1010} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
-    // 라벨만 본다 — 상태가 걸린 탭은 `.sr-only` 낱말을 뒤에 달고 나오므로 textContent
+    // 라벨만 본다 — 걸린 단계의 탭은 「현재 단계」 태그를 뒤에 달고 나오므로 textContent
     // 통짜 비교는 이 단언이 재려는 것(구성)과 상관없는 것(상태)에 묶인다.
-    const labels = (await tabNames()).map((name) => (name ?? '').split(',')[0]);
+    const labels = (await tabNames()).map((name) => (name ?? '').replace('현재 단계', '').trim());
     expect(labels).toEqual(Object.values(OPS_TAB_SLUGS));
   });
 

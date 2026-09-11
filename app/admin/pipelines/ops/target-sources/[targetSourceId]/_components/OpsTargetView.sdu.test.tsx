@@ -70,7 +70,7 @@ vi.mock('@/app/lib/api/ops', () => ({
   getDagStatus: (...args: unknown[]) => getDagStatus(...args),
 }));
 // 연결 테스트 세 응답은 SDU 에서도 돈다 — SDU 도 ProcessStatus 5 에 도착하고(§8) 그 탭을
-// 그대로 받는다. 이력이 없다는 뜻의 null 이라 탭 줄의 점은 켜지지 않는다.
+// 그대로 받는다. 이력이 없다는 뜻의 null 이다.
 const getTestConnectionDetail = vi.fn(async (): Promise<null> => null);
 vi.mock('@/app/lib/api/task-queue-tc', () => ({
   getTestConnectionDetail: () => getTestConnectionDetail(),
@@ -158,8 +158,8 @@ const detail = (over: Record<string, unknown> = {}) => ({
 /** What the strip actually drew — the list itself is the assertion target. */
 const tabNames = async (): Promise<string[]> => {
   await waitFor(() => expect(screen.getAllByRole('tab').length).toBeGreaterThan(0));
-  // 라벨만 본다 — 상태가 걸린 탭은 `.sr-only` 낱말을 뒤에 달고 나온다.
-  return screen.getAllByRole('tab').map((el) => (el.textContent ?? '').split(',')[0]);
+  // 라벨만 본다 — 걸린 단계의 탭은 「현재 단계」 태그를 뒤에 달고 나온다.
+  return screen.getAllByRole('tab').map((el) => (el.textContent ?? '').replace('현재 단계', '').trim());
 };
 
 /** 조건 ③ 이 판정을 내릴 수 있는 §10 응답. */

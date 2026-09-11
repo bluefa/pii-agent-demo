@@ -17,9 +17,11 @@
  * A missing snapshot (404) is an empty state, not a failure.
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import Link from 'next/link';
 import { cn, pipelineStyles, textColors } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { normalizeCloudProvider } from '@/lib/types';
+import { passRoutes } from '@/lib/routes';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
@@ -256,12 +258,33 @@ export function RequestTab({ targetSourceId, detail }: RequestTabProps): ReactEl
 
   return (
     <section className={pipelineStyles.card.base} aria-label="최근 승인 요청">
-      <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
-      <p className={opsStyles.cardDesc}>
-        {summary?.requestId != null
-          ? `요청 ID #${summary.requestId}`
-          : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className={opsStyles.cardTitle}>최근 승인 요청</h2>
+          <p className={opsStyles.cardDesc}>
+            {summary?.requestId != null
+              ? `요청 ID #${summary.requestId}`
+              : '서비스가 제출한 연동 요청의 승인 정보입니다.'}
+          </p>
+        </div>
+        {/* The queue's request detail page is keyed by target source and opens the latest
+            request — the same one this card shows. Only a request that exists has a page
+            to open, so loading, failed and empty states draw no door. PlButton renders a
+            <button>, so the link wears its classes (PipelineDetailView's pattern). */}
+        {summary != null && (
+          <Link
+            href={passRoutes.pipelines.queue.request(targetSourceId)}
+            className={cn(
+              pipelineStyles.button.base,
+              pipelineStyles.button.sm,
+              pipelineStyles.button.secondary,
+              'flex-none',
+            )}
+          >
+            요청 상세 보기
+          </Link>
+        )}
+      </div>
 
       {request.state === 'loading' ? (
         /* The settled card's own frame: the meta row over the resource list. Field labels
