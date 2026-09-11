@@ -20,7 +20,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
 
   it('설치 끝 + 확정 0건이면 건수 없이 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...base, installed: true, request: NONE });
-    expect(verdict.tag).toBe('미등록');
+    expect(verdict.tag).toBeNull();
     expect(verdict.sub).toBe('확정한 리소스가 인프라에 반영되었습니다.');
   });
 
@@ -33,7 +33,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
 
   it('미등록 + 반려는 반려 사실과 다음에 누가 무엇을 해야 하는지를 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'rejected' } });
-    expect(verdict.tag).toBe('미등록');
+    expect(verdict.tag).toBeNull();
     expect(verdict.head).toBe('연동 요청이 반려되었습니다');
     expect(verdict.sub).toBe(`반려된 요청으로는 확정 정보를 입력할 수 없습니다. ${AFTER_RESEND}`);
   });
@@ -59,7 +59,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
   it('승인 없이 끝난 요청은 대기라고 말하지 않는다 — 취소·연동 불가', () => {
     for (const label of ['요청 취소', '연동 불가']) {
       const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'closed', label } });
-      expect(verdict.tag).toBe('미등록');
+      expect(verdict.tag).toBeNull();
       expect(verdict.sub).toBe(`최신 연동 요청이 ${label} 상태입니다. ${AFTER_RESEND}`);
       expect(verdict.sub).not.toContain('대기');
     }
@@ -72,7 +72,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
 
   it('요청 축이 없는 대상에서는 승인을 입에 담지 않는다', () => {
     const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'absent' } });
-    expect(verdict.tag).toBe('미등록');
+    expect(verdict.tag).toBeNull();
     expect(verdict.head).toBe('확정 정보가 필요합니다');
     expect(verdict.sub).not.toContain('승인');
   });

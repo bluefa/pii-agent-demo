@@ -124,7 +124,7 @@ export function ReconcilePane({
   const showDiffOnly = hasDiff && diffOnly;
 
   const confirmedFact = empty
-    ? '미등록'
+    ? '—'
     : confirmedAtFailed
       ? `리소스 ${confirmedRows.length}건 · 확정 시각 불러오지 못함`
       : `리소스 ${confirmedRows.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)}` : ''}`;
@@ -232,10 +232,13 @@ export function ReconcilePane({
           </div>
 
           <div className={styles.kvGrid}>
-            <Kv
-              label="상태"
-              value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
-            />
+            {/* No record, no 상태 row: the headline already says what is missing (owner 09-11). */}
+            {stateTag != null && (
+              <Kv
+                label="상태"
+                value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
+              />
+            )}
             <Kv label="등록" value={confirmedFact} />
             {reconcile && (
               <Kv

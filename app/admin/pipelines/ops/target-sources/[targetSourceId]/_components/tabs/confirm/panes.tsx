@@ -127,13 +127,15 @@ export function ConfirmPane({
             않고, 말할 수 있는 사실 하나(등록 시각)만 머리의 보조 텍스트로 붙인다. */}
         <p className={paneStyles.head}>
           확정 정보
-          <span className={paneStyles.headSub}>
-            {empty
-              ? '미등록'
-              : confirmedAtFailed
+          {/* Nothing registered, nothing said (owner 2026-09-11): the verdict head above already
+              says what is missing, and 「미등록」 named no fact the reader could act on. */}
+          {!empty && (
+            <span className={paneStyles.headSub}>
+              {confirmedAtFailed
                 ? `리소스 ${resources.length}건 · 확정 시각 불러오지 못함`
                 : `리소스 ${resources.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)} 등록` : ''}`}
-          </span>
+            </span>
+          )}
         </p>
         {(onEdit || onDelete) && (
           /* 두 문은 같은 눈금(32px)이다 — 이 pane 안의 검색 입력이 32px 이라, 액션만
