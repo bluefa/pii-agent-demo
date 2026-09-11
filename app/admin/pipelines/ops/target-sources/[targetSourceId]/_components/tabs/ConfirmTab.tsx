@@ -402,6 +402,18 @@ export function ConfirmTab({
           // 지어낸 라벨보다 원문이 정확하다.
           : { toneClass: TONE_TEXT.off, label: requestStatus ?? '요청 없음' };
 
+  /**
+   * The 재확정 door is three-way, not two-way (owner 2026-09-11): an approved request known to
+   * exist opens it, a request axis known to hold no approval (absent · PENDING · REJECTED ·
+   * CANCELLED …) blocks it with the reason below, and a FAILED fetch blocks nothing — we do not
+   * close a door on the strength of a value we could not read (same rule as startGate /
+   * pipelineTypeGate).
+   */
+  const reconfirmBlocked: string | null =
+    request.state === 'ready' && !requestApproved
+      ? '승인된 연동 요청이 없어 재확정할 수 없습니다'
+      : null;
+
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
   // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
   const anyFailed = request.state === 'failed' || confirmed.state === 'failed';
@@ -453,6 +465,7 @@ export function ConfirmTab({
             // 경로가 있으면 언제나 준다(오너 2026-09-11): 「다시 입력 필요」는 이 문을
             // 여는 조건이 아니라 pane 이 따로 말하는 상태다.
             onReconfirm={writeProvider ? onOpenInfra : undefined}
+            reconfirmBlocked={reconfirmBlocked}
             onEdit={writeProvider ? editorModal.open : undefined}
             onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
           />

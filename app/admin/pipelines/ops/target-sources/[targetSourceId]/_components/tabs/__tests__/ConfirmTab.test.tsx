@@ -471,6 +471,38 @@ describe('ConfirmTab 대조', () => {
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 
+  /**
+   * 재확정은 승인 내용으로 다시 등록하는 일이라, 승인된 요청이 없으면 기준이 될 목록이
+   * 없다(오너 2026-09-11). 문은 자리를 지키되 잠기고, 사유는 hover 로 닿는다 —
+   * `aria-disabled` 라야 마우스로도 키보드로도 그 사유에 닿는다.
+   */
+  it('승인된 요청이 없으면 재확정이 막히고, hover 가 그 사유를 말한다', async () => {
+    getApprovalRequestLatest.mockResolvedValue(null);
+    mount();
+
+    const button = await screen.findByRole('button', { name: '재확정' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+
+    fireEvent.mouseEnter(button.parentElement as HTMLElement);
+    expect(await screen.findByText('승인된 연동 요청이 없어 재확정할 수 없습니다')).toBeTruthy();
+    // 막힌 문에 툴팁은 하나다 — 동작 설명은 사유에 자리를 내준다.
+    expect(screen.queryByText(/인프라는 다시 설치되지 않습니다/)).toBeNull();
+  });
+
+  /**
+   * 못 읽은 값으로는 문을 닫지 않는다(`startGate`·`pipelineTypeGate` 와 같은 규칙). 조회
+   * 실패는 "승인이 없다"가 아니라 "모른다"이고, 모름을 금지로 읽으면 백엔드가 흔들릴 때마다
+   * 화면이 할 수 있는 일을 빼앗는다.
+   */
+  it('요청 조회가 실패하면 재확정은 열린 채로 남는다', async () => {
+    getApprovalRequestLatest.mockRejectedValue(new Error('boom'));
+    mount();
+
+    const button = await screen.findByRole('button', { name: '재확정' });
+    expect(button.getAttribute('aria-disabled')).toBeNull();
+    expect(screen.queryByText('승인된 연동 요청이 없어 재확정할 수 없습니다')).toBeNull();
+  });
+
   /** 이 문이 무엇을 하는지는 hover 가 말한다 — 막힌 이유가 아니라 동작 설명이다. */
   it('재확정에 hover 하면 무엇을 다시 하는지 말한다', async () => {
     mount(false, 'CONFIRMING');
