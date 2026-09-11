@@ -70,7 +70,11 @@ export interface ReconcilePaneProps {
   reconcile: ReconcileTable | null;
   /** 3단계인데 확정이 이미 있다 — 그 확정으로는 다음 단계로 넘어가지 않는다. */
   reconfirmNeeded: boolean;
-  /** 재확정 — 철거·재설치는 인프라 작업 탭이 소유하므로 그리로 보낸다. */
+  /**
+   * 재확정 — 철거·재설치는 인프라 작업 탭이 소유하므로 그리로 보낸다. 쓰기 경로가 있는
+   * 대상에는 **언제나** 선다(오너 2026-09-11): 다시 입력이 필요한 상태에서만 열리던 문이
+   * 아니다.
+   */
   onReconfirm?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -191,12 +195,16 @@ export function ReconcilePane({
               /* 세 문은 같은 눈금(32px)이다 — 등급을 색으로만 가른다. */
               <div className={paneStyles.actions}>
                 {onReconfirm && (
-                  <PlButton variant="secondary" onClick={onReconfirm}>
+                  // The active-pipeline lock ships with the run-line PR: while a pipeline runs on
+                  // this target the button becomes `blocked` with a hover tooltip. This tab does
+                  // not fetch pipeline data yet, so do not re-add the old `reconfirmNeeded` gate
+                  // as a stand-in — the owner (2026-09-11) wants the door always offered.
+                  <PlButton variant="primary" onClick={onReconfirm}>
                     재확정
                   </PlButton>
                 )}
                 {!empty && onDelete && (
-                  <PlButton variant="danger" onClick={onDelete}>
+                  <PlButton variant="dangerSolid" onClick={onDelete}>
                     확정 정보 삭제
                   </PlButton>
                 )}
