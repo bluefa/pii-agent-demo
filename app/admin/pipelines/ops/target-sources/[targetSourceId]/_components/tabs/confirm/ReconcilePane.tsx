@@ -20,7 +20,6 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { ConfirmedResourceTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedResourceTable';
 import { ConfirmedIdcTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmedIdcTable';
@@ -58,8 +57,6 @@ export interface ReconcilePaneProps {
    * 카드 머리의 태그도 아니다: 결말은 한 카드 안에서 한 번만 선다.
    */
   requestOutcome: { toneClass: string; label: string; note?: string } | null;
-  /** Raw 렌즈가 그대로 뿌리는 요청 원문. */
-  wire: unknown;
   confirmed: ConfirmedIntegrationResponse | null;
   /** terraform-status.latest_confirmed_at — 확정 시각을 말하는 유일한 계약 필드. */
   confirmedAt: string | null;
@@ -84,7 +81,6 @@ export function ReconcilePane({
   request,
   requestFailed,
   requestOutcome,
-  wire,
   confirmed,
   confirmedAt,
   confirmedAtFailed,
@@ -95,7 +91,6 @@ export function ReconcilePane({
   onEdit,
   onDelete,
 }: ReconcilePaneProps): ReactElement {
-  const [lens, setLens] = useState<'structure' | 'raw'>('structure');
   // 차이가 있는 화면에서 먼저 답해야 하는 질문은 "무엇이 다른가"다 — 전체 목록은 한 번의
   // 클릭 뒤에 있다. 차이가 없으면 이 칩 줄 자체가 서지 않으므로 기본값이 목록을 숨기는
   // 일은 없다.
@@ -130,21 +125,9 @@ export function ReconcilePane({
             <p className={paneStyles.head}>
               연동 요청{requestId != null ? ` #${requestId}` : ''}
             </p>
-            <div className={paneStyles.actions}>
-              {/* 머리가 지는 유일한 상태는 **조회 실패**다 — 그건 결말이 아니라 이 카드의
-                  값들이 왜 비었는지에 대한 답이라, 「결과」 줄에 앉을 수 없다. */}
-              {requestFailed && <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>}
-              {/* 렌즈는 요청 원문을 여는 문이라 요청 카드에 붙는다 — 아래 표 자리를 바꾼다. */}
-              <SegControl
-                value={lens}
-                onChange={setLens}
-                ariaLabel="연동 요청 보기 방식"
-                options={[
-                  { value: 'structure', label: '구조' },
-                  { value: 'raw', label: 'Raw' },
-                ]}
-              />
-            </div>
+            {/* 머리가 지는 유일한 상태는 **조회 실패**다 — 그건 결말이 아니라 이 카드의
+                값들이 왜 비었는지에 대한 답이라, 「결과」 줄에 앉을 수 없다. */}
+            {requestFailed && <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>}
           </div>
 
           <div className={styles.kvGrid}>
@@ -255,7 +238,7 @@ export function ReconcilePane({
       </div>
 
       {/* 차이가 없으면 고를 것도 없다 — 두 칩이 같은 목록을 가리킨다. */}
-      {hasDiff && lens === 'structure' && (
+      {hasDiff && (
         <div className={styles.chips} role="group" aria-label="리소스 목록 범위">
           {([
             { value: true, label: '차이만' },
@@ -282,34 +265,26 @@ export function ReconcilePane({
         </div>
       )}
 
-      {lens === 'raw' ? (
-        <div className={cn(paneStyles.bleed, paneStyles.bleedTop, 'mt-5')}>
-          <pre className={paneStyles.raw}>{JSON.stringify(wire, null, 2)}</pre>
+      {/* 확정이 하나도 없을 때의 안내는 그대로 선다. 아래 표가 그 자리에서 무엇을
+          기준으로 입력하게 되는지(승인 행 전부가 「확정 없음」)를 이어서 말한다. */}
+      {empty && (
+        <div className={cn(paneStyles.bleed, paneStyles.paneEmpty, 'mt-5')}>
+          <p className={paneStyles.emptyTitle}>아직 확정된 리소스가 없습니다</p>
+          <p className={paneStyles.emptyDesc}>
+            {onEdit
+              ? '승인된 리소스를 기준으로 확정 정보를 입력하세요.'
+              : '승인된 리소스를 기준으로 확정 정보가 등록되면 여기에 표시됩니다.'}
+          </p>
         </div>
-      ) : (
-        <>
-          {/* 확정이 하나도 없을 때의 안내는 그대로 선다. 아래 표가 그 자리에서 무엇을
-              기준으로 입력하게 되는지(승인 행 전부가 「확정 없음」)를 이어서 말한다. */}
-          {empty && (
-            <div className={cn(paneStyles.bleed, paneStyles.paneEmpty, 'mt-5')}>
-              <p className={paneStyles.emptyTitle}>아직 확정된 리소스가 없습니다</p>
-              <p className={paneStyles.emptyDesc}>
-                {onEdit
-                  ? '승인된 리소스를 기준으로 확정 정보를 입력하세요.'
-                  : '승인된 리소스를 기준으로 확정 정보가 등록되면 여기에 표시됩니다.'}
-              </p>
-            </div>
-          )}
-          <ResourceArea
-            isIdc={isIdc}
-            reconcile={reconcile}
-            diffOnly={showDiffOnly}
-            confirmed={confirmed}
-            // 안내가 이미 위 칸을 닫았으면 표는 제 선을 또 긋지 않는다.
-            topRule={!empty}
-          />
-        </>
       )}
+      <ResourceArea
+        isIdc={isIdc}
+        reconcile={reconcile}
+        diffOnly={showDiffOnly}
+        confirmed={confirmed}
+        // 안내가 이미 위 칸을 닫았으면 표는 제 선을 또 긋지 않는다.
+        topRule={!empty}
+      />
     </div>
   );
 }

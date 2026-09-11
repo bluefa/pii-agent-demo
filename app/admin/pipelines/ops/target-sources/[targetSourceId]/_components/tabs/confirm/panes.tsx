@@ -3,9 +3,9 @@
 /**
  * 확정 정보 워크벤치의 pane 문법과 확정 pane.
  *
- * pane 은 네 슬롯 고정이다 — ① 머리(제목 + 카운터 + 액션) ② 정체(kv 2~3열, 테두리
- * 없음) ③ 실체(테이블 하나, 전폭) ④ 원본(우상단 렌즈 토글). 순서는 불변이고, 채울
- * 사실이 없는 슬롯만 통째로 빠진다 — 빈 칸을 추정으로 채우지 않는다.
+ * pane 은 세 슬롯 고정이다 — ① 머리(제목 + 카운터 + 액션) ② 정체(kv 2~3열, 테두리
+ * 없음) ③ 실체(테이블 하나, 전폭). 순서는 불변이고, 채울 사실이 없는 슬롯만 통째로
+ * 빠진다 — 빈 칸을 추정으로 채우지 않는다.
  *
  * 테두리 있는 표면은 화면당 하나(= 탭 밴드를 머리로 쓰는 컨테이너)뿐이므로, 여기의
  * 슬롯들은 전부 그 안의 바닥에 직접 놓이고 헤어라인으로만 갈린다.
@@ -36,8 +36,6 @@ export const paneStyles = {
   /** ③ 실체 — pane 의 좌우 패딩을 벗어나 컨테이너 폭 전체를 쓴다. */
   bleed: '-mx-[22px]',
   bleedTop: 'border-t border-[var(--pl-border)]',
-  /** ④ 원본 — 모달이 아니라 렌즈. */
-  raw: 'max-h-[520px] overflow-auto whitespace-pre bg-[var(--pl-gray-50)] px-[22px] py-[18px] text-[12px] leading-[1.8] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)]',
   paneEmpty: 'border-t border-[var(--pl-border)] px-[22px] py-14 text-center',
   emptyTitle: 'text-[14px] font-semibold text-[var(--pl-text-strong)]',
   emptyDesc: 'mt-1.5 text-[12px] text-[var(--pl-text-weak)]',
