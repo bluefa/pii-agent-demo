@@ -517,16 +517,17 @@ export const opsStyles = {
   tabIdle:
     'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-gray-400)]',
   /**
-   * 걸린 단계의 탭에 붙는 「현재 단계」 태그 (오너 2026-09-11) — 코너 점·연결 테스트 점을
-   * 대신한다. 보이는 낱말이라 탭의 접근명에 그대로 실린다.
+   * 걸린 단계의 탭에 붙는 「현재 단계」 로젠지 — 탭 줄에서 단계를 말하는 **유일한** 장치다
+   * (오너 2026-09-11 E안, `docs/ux/benchmark/ops-tab-current-step.md`). 채운 주황 칩 + 탭
+   * 바닥 + 위 막대는 너무 셌다.
    *
-   * 중립 회색이다: 빨강은 실패로, 파랑(`tabActive`)은 "열린 탭" 으로 이미 읽힌다. 흰 면은
-   * 이 콘솔에서 "수정 가능한 값" 이라(`metaTagQuiet` 주석) 쓰지 않고, 바닥(gray-200)보다 한
-   * 칸 짙은 gray-300 위에 medium 잉크를 올린다. 11/16 + py-px 로 18px 이라 탭 줄 높이를
-   * 바꾸지 않고, `flex-none`·`whitespace-nowrap` 이라 줄바꿈되거나 눌리지 않는다.
+   * 면은 옅게, 색은 글자와 테두리가 진다: 채운 주황은 재확정 CTA(`warnSolid`)로 읽힌다.
+   * 탭 셀은 칠하지 않는다 — 칠한 셀은 열린 탭(파랑 밑줄)과 다툰다(이 줄의 띠·카드 기각
+   * 전례). 12px 은 디자인 가이드의 하한이고, 16px 줄 + 테두리 2px = 18px 이라 탭 줄
+   * 높이가 그대로다. 보이는 낱말이라 탭의 접근명에 그대로 실린다.
    */
   tabStepLabel:
-    'inline-flex flex-none items-center whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium leading-4 bg-[var(--pl-gray-300)] text-[var(--pl-text-medium)]',
+    'inline-flex flex-none items-center whitespace-nowrap rounded border border-[var(--pl-warn-text)] bg-[var(--pl-warn-bg)] px-1.5 text-[12px] font-semibold leading-4 text-[var(--pl-warn-text)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */

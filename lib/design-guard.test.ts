@@ -462,8 +462,10 @@ const TEXT: TextPair[] = [
   // 워시가 램프 한 칸을 먹으므로 weak 가 아니라 medium 이다.
   { what: 'ops active tab ink on the ops ground', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-200)') },
   { what: 'ops idle tab on the ops ground', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-200)') },
-  // 걸린 단계의 「현재 단계」 태그 — 11px 글자라 제 면(gray-300) 위에서 AA 를 넘어야 한다.
-  { what: 'ops current-step tab label on its own face', fg: textOf(classOf(opsSrc, 'tabStepLabel')), on: bgOf(classOf(opsSrc, 'tabStepLabel')) },
+  // 걸린 단계의 「현재 단계」 로젠지 (오너 2026-09-11 E안) — 12px 글자라 제 면 위에서 AA,
+  // 색을 지는 테두리는 그래픽이라 바닥 위 3:1.
+  { what: 'ops current-step lozenge text on its own face', fg: textOf(classOf(opsSrc, 'tabStepLabel')), on: bgOf(classOf(opsSrc, 'tabStepLabel')) },
+  { what: 'ops current-step lozenge border on the ops ground', fg: borderOf(classOf(opsSrc, 'tabStepLabel')), on: resolve('var(--pl-gray-200)'), min: 3 },
   // 근거 줄의 8px 점 — `MonitoringEvidenceBody` 는 카드 없이 바닥 위에 서므로 이 둘도
   // 그래픽 3:1 을 바닥에서 넘어야 한다. 공용 `countDot*` 는 흰 카드(`TcLatestRunCard`)
   // 쪽에 남아 있고, 여기 걸리는 것은 바닥용 짝이다.
