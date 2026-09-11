@@ -4,6 +4,8 @@ import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
 import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
+import { AppError } from '@/lib/errors';
+import { passRoutes } from '@/lib/routes';
 
 const getApprovalRequestLatest = vi.fn();
 const getConfirmedIntegration = vi.fn();
@@ -336,5 +338,32 @@ describe('RequestTab 요청 리소스', () => {
       expect(await screen.findByText(/NLB 리스너 현황을 불러오지 못했어요/)).toBeTruthy();
       expect(screen.queryByText('NLB Index')).toBeNull();
     });
+  });
+});
+
+describe('RequestTab 요청 상세 보기', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getApprovalHistory.mockResolvedValue({ content: [] });
+    getNlbTable.mockResolvedValue([]);
+    getNlbIndexMappings.mockResolvedValue([]);
+  });
+
+  it('요청이 있으면 큐의 요청 상세로 가는 링크가 같은 창에서 열린다', async () => {
+    mountWith(1);
+
+    const link = await screen.findByRole('link', { name: '요청 상세 보기' });
+    expect(link.getAttribute('href')).toBe(passRoutes.pipelines.queue.request(1642));
+    expect(link.getAttribute('target')).toBeNull();
+  });
+
+  it('요청 이력이 없으면 링크를 그리지 않는다', async () => {
+    getApprovalRequestLatest.mockRejectedValue(
+      new AppError({ status: 404, code: 'NOT_FOUND', message: 'HTTP 404', retriable: false }),
+    );
+    render(<RequestTab targetSourceId={1642} detail={CSP} />);
+
+    expect(await screen.findByText('승인 요청 이력이 없습니다.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '요청 상세 보기' })).toBeNull();
   });
 });
