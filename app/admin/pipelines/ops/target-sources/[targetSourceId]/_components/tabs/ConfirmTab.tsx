@@ -443,7 +443,6 @@ export function ConfirmTab({
             request={requestData}
             requestFailed={request.state === 'failed'}
             requestOutcome={requestOutcome}
-            wire={requestData?.wire ?? null}
             confirmed={confirmedWire}
             confirmedAt={confirmedAt}
             confirmedAtFailed={terraform.state === 'failed'}
