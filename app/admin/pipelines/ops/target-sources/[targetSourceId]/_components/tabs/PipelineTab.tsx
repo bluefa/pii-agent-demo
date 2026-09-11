@@ -18,10 +18,8 @@
  * EmptyPipelineCard's 작업 시작 and the 최근 작업 card's 새 작업 시작 — and this is
  * simply the one place that owns their shared modal.
  *
- * When 확정 정보 is missing this tab does NOT state it twice. The head just reads
- * 미확정, and the ONE sentence about why 작업 시작 is closed — plus the one move
- * that opens it — is computed here by `gateStage` and handed to the 현재 작업
- * card, which is where the closed action lives.
+ * There is no start gate (owner 2026-09-11): 작업 시작 is always offered. The one
+ * judgement this tab still computes is which type row is live in the modal.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useModal } from '@/app/hooks/useModal';
@@ -34,10 +32,7 @@ import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipe
 import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
 import { providerKey } from '@/lib/pipeline/format';
 import { isSduTarget } from '@/lib/types';
-import {
-  gateStage,
-  pipelineTypeGate,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import { pipelineTypeGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import { getTerraformStatus, type TerraformStatusResponse } from '@/app/lib/api';
 import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import type { OpsTargetTabLabel } from '@/lib/routes';
@@ -80,13 +75,7 @@ export interface PipelineTabProps {
   detail: RawTargetSourceDetail;
   /** Which step the target is at — names the stage the gate is waiting on. */
   processStatus: ProcessStatus | null;
-  /**
-   * 게이트의 마지막 갈래가 이 값으로 갈린다 — SDU 에는 관리자가 확정 정보를 직접 넣는
-   * 경로가 없어(계약에 쓰기 path 가 없다) 그 탭으로 보내는 지시가 참이 아니다. 판정은
-   * 부르는 쪽이 내린다: provider 비교로는 SDU 가 잡히지 않는다.
-   */
-  isSdu: boolean;
-  /** Opens another tab of this screen — the gate's next step (승인 / 확정 정보). */
+  /** Opens another tab of this screen (the head's step link). */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
 
@@ -94,7 +83,6 @@ export function PipelineTab({
   targetSourceId,
   detail,
   processStatus,
-  isSdu,
   onSelectTab,
 }: PipelineTabProps): ReactElement {
   const [status, setStatus] = useState<TerraformStatusResponse | null>(null);
@@ -134,15 +122,7 @@ export function PipelineTab({
   // failed) allows: this gate is operator guidance, not enforcement — the server
   // has to reject an unconfirmed start on its own — and a transient lookup
   // failure must not strand an operator with legitimate work to do.
-  const startGate = useMemo(
-    () =>
-      status != null && !status.has_confirmed_infra
-        ? gateStage(processStatus, targetSourceId, isSdu)
-        : null,
-    [status, processStatus, targetSourceId, isSdu],
-  );
-
-  // 어느 작업 유형 행이 모달에서 살아 있는가. `startGate` 와 같은 두 사실을 읽지만 답하는
+  // 어느 작업 유형 행이 모달에서 살아 있는가. 두 사실을 읽지만 답하는
   // 질문이 다르다 — 저쪽은 「작업 시작이 왜 닫혔는가」, 이쪽은 「열렸을 때 무엇을 고를 수
   // 있는가」다. 여기서도 못 읽은 상태(null)는 「없다」가 아니다.
   const typeGate = useMemo(
@@ -156,7 +136,7 @@ export function PipelineTab({
   // 실제로 무엇이 서 있는지를 묻는다(installation-status). 서비스가 손댈 단계가 있는 두
   // 경우에만 조회하고, 그 밖의 대상에서는 요청 자체가 나가지 않는다.
   const install = useInstallCheck(targetSourceId, provider, isManualInstall(detail));
-  // `startGate` 와 같은 길로 내려간다 — 판정은 여기서 나고, 그것을 문장으로 만드는 일은
+  // 판정은 여기서 나고, 그것을 문장으로 만드는 일은
   // 그 문장이 붙는 동작(작업 시작)을 가진 카드가 한다.
   const serviceWork = useMemo<ServiceWorkNoticeData | null>(
     () =>
@@ -187,9 +167,7 @@ export function PipelineTab({
         targetSourceId={String(targetSourceId)}
         provider={orchProvider}
         onStart={previewModal.open}
-        startGate={startGate}
         serviceWork={serviceWork}
-        onSelectTab={onSelectTab}
         onRunsChanged={onRunsChanged}
         refreshKey={startedKey}
       />

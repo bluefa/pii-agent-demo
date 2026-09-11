@@ -668,7 +668,6 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               processStatus={processStatus}
               // 작업 시작 게이트의 마지막 갈래가 이 값으로 갈린다 — SDU 에는 확정 정보를
               // 직접 넣는 경로가 없어 「확정 정보 탭에서 확정하면」이 참이 아니다.
-              isSdu={isSdu}
               onSelectTab={selectTab}
             />
           )}

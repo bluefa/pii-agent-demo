@@ -22,7 +22,6 @@ import {
   EmptyPipelineCard,
   type CurrentPipelineCardProps,
 } from '@/app/admin/pipelines/_detail/CurrentPipelineCard';
-import { gateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import type {
@@ -141,36 +140,12 @@ const renderRun = (actions: Array<TerraformAction | null>) => renderCard(makeDet
 const startButton = (): HTMLButtonElement =>
   screen.getByRole('button', { name: /작업 시작/ }) as HTMLButtonElement;
 
-describe('EmptyPipelineCard — 확정 정보 gate', () => {
+describe('EmptyPipelineCard', () => {
   it('offers the start CTA and says what it does when nothing blocks', () => {
-    render(<EmptyPipelineCard sectionTitle="현재 작업" onStart={vi.fn()} onSelectTab={vi.fn()} />);
+    render(<EmptyPipelineCard sectionTitle="현재 작업" onStart={vi.fn()} />);
 
     expect(startButton().disabled).toBe(false);
     expect(screen.getByText(PRE_WARNING)).toBeTruthy();
-  });
-
-  it('states the gate once and offers its move when blocked', () => {
-    const onSelectTab = vi.fn();
-    render(
-      <EmptyPipelineCard
-        sectionTitle="현재 작업"
-        onStart={vi.fn()}
-        gate={gateStage('CONFIRMING', 1029, false)}
-        onSelectTab={onSelectTab}
-      />,
-    );
-
-    expect(screen.getByText(/아직 확정된 연동 정보가 없습니다/)).toBeTruthy();
-    // The reason is stated ONCE — the block above says it, and nothing repeats it
-    // under the button (benchmark P1; that fix survives the button's return).
-    expect(screen.queryByText(PRE_WARNING)).toBeNull();
-    expect(screen.getAllByText(/아직 확정된 연동 정보가 없습니다/)).toHaveLength(1);
-
-    // The gate's move is the one control that responds.
-    const move = screen.getByRole('button', { name: /확정 정보 탭으로/ }) as HTMLButtonElement;
-    expect(move.disabled).toBe(false);
-    fireEvent.click(move);
-    expect(onSelectTab).toHaveBeenCalledWith('확정 정보');
   });
 
   /**
@@ -178,61 +153,6 @@ describe('EmptyPipelineCard — 확정 정보 gate', () => {
    * (계약에 쓰기 path 가 없다) 보내 봐야 누를 것이 없다. 카드는 문장만 세우고, 옆자리는
    * 비운다: 누를 것이 없는 곳으로 보내는 버튼은 버튼이 없는 것보다 나쁘다.
    */
-  it('내놓을 수가 없는 게이트는 문장만 세우고 버튼을 만들지 않는다', () => {
-    render(
-      <EmptyPipelineCard
-        sectionTitle="현재 작업"
-        onStart={vi.fn()}
-        gate={gateStage('CONFIRMING', 1029, true)}
-        onSelectTab={vi.fn()}
-      />,
-    );
-
-    // `GateSentence` 는 「작업 시작」을 굵게 하려고 문장을 쪼갠다 — 그래서 그 낱말을
-    // 건너뛰는 매처는 노드 경계에 걸린다. 이어 붙인 텍스트로 잰다.
-    expect(document.body.textContent).toContain('확정되면 여기서 작업 시작이 열립니다');
-    expect(document.body.textContent).not.toContain('확정 정보 탭에서 확정하면');
-    expect(screen.queryByRole('button', { name: /확정 정보 탭으로/ })).toBeNull();
-    // 잠긴 작업 시작은 그대로 선다 — 사라지는 것은 게이트의 이동 버튼 하나다.
-    expect(startButton().disabled).toBe(true);
-  });
-
-  it('offers 작업 시작 as a DISABLED button while 확정 정보 is missing', () => {
-    // 오너 2026-08-27 2차 — the gated card shows the control in its blocked
-    // condition rather than hiding it, superseding the earlier removal.
-    const onStart = vi.fn();
-    render(
-      <EmptyPipelineCard
-        sectionTitle="현재 작업"
-        onStart={onStart}
-        gate={gateStage('CONFIRMING', 1029, false)}
-        onSelectTab={vi.fn()}
-      />,
-    );
-
-    expect(startButton().disabled).toBe(true);
-    // The dead button answers "why" on hover, without a second reason line.
-    expect(startButton().getAttribute('title')).toMatch(/아직 확정된 연동 정보가 없습니다/);
-
-    fireEvent.click(startButton());
-    expect(onStart).not.toHaveBeenCalled();
-  });
-
-  it('sends the operator out to the service screen while the target is IDLE', () => {
-    render(
-      <EmptyPipelineCard
-        sectionTitle="현재 작업"
-        onStart={vi.fn()}
-        gate={gateStage('IDLE', 1029, false)}
-        onSelectTab={vi.fn()}
-      />,
-    );
-
-    const link = screen.getByRole('link', { name: /서비스 담당자가 보는 화면/ });
-    expect(link.getAttribute('href')).toBe('/target-sources/1029');
-    // Every gate stage disables the same way — not just the 확정 정보 one.
-    expect(startButton().disabled).toBe(true);
-  });
 });
 
 const stopButton = (): HTMLButtonElement =>
@@ -308,19 +228,6 @@ describe('CurrentPipelineCard — terminal runs', () => {
     expect(screen.getByRole('button', { name: '새 작업 시작' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '재시작' }));
     expect(onRestart).toHaveBeenCalledTimes(1);
-  });
-
-  it('disables both terminal CTAs and says why when the gate is closed', () => {
-    renderCard(makeTerminalDetail('FAILED', ['FAILED']), {
-      sectionTitle: '최근 작업',
-      blockedReason: '확정된 연동 정보가 없어 시작할 수 없습니다.',
-    });
-
-    expect((screen.getByRole('button', { name: '재시작' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(
-      (screen.getByRole('button', { name: '새 작업 시작' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(screen.getByText('확정된 연동 정보가 없어 시작할 수 없습니다.')).toBeTruthy();
   });
 
   it('drops the interruption prose the owner cut', () => {
@@ -510,7 +417,6 @@ describe('서비스 측 작업 경고 — 시작 동작을 가진 카드에만',
         sectionTitle="현재 작업"
         onStart={vi.fn()}
         serviceWork={NEEDED}
-        onSelectTab={vi.fn()}
       />,
     );
 
@@ -518,22 +424,6 @@ describe('서비스 측 작업 경고 — 시작 동작을 가진 카드에만',
     expect(startButton().disabled).toBe(false);
   });
 
-  it('확정 정보 게이트와 함께 서면 게이트 문장이 제자리를 지킨다', () => {
-    render(
-      <EmptyPipelineCard
-        sectionTitle="현재 작업"
-        onStart={vi.fn()}
-        gate={gateStage('CONFIRMING', 1029, false)}
-        serviceWork={NEEDED}
-        onSelectTab={vi.fn()}
-      />,
-    );
-
-    // 둘 다 선다. 게이트가 여전히 버튼을 잠그고(그건 게이트의 일이다), 주의는 그 위에 쌓인다.
-    expect(screen.getByText(/아직 확정된 연동 정보가 없습니다/)).toBeTruthy();
-    expect(screen.getByText(NOTICE)).toBeTruthy();
-    expect(startButton().disabled).toBe(true);
-  });
 
   it('done·unknown·해당 없음은 아무 자리도 차지하지 않는다', () => {
     const detail = makeTerminalDetail('DONE', ['DONE']);

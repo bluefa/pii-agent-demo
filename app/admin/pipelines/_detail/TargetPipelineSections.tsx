@@ -35,9 +35,8 @@ import {
 import { TaskDetailModal } from '@/app/admin/pipelines/_detail/TaskDetailModal';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
-import { passRoutes, type OpsTargetTabLabel } from '@/lib/routes';
+import { passRoutes } from '@/lib/routes';
 import {
   fmtDateTime,
   isLivePipeline,
@@ -61,13 +60,6 @@ import type {
 const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
 
-/**
- * 최근 작업 keeps the short form of the gate: that card's CTAs stay disabled with
- * a reason line beside them (out of scope for the round that rewrote the empty
- * card), and a reason line has room for a clause, not for the two-sentence
- * hand-off the empty card now states.
- */
-const RESTART_BLOCKED_REASON = '확정된 연동 정보가 없어 시작할 수 없습니다.';
 
 export interface TargetPipelineSectionsProps {
   targetSourceId: string;
@@ -76,17 +68,10 @@ export interface TargetPipelineSectionsProps {
   /** Opens the start-pipeline modal, which the tab owns (its head has the CTA). */
   onStart: () => void;
   /**
-   * Set while 작업 시작 is closed: the sentence 현재 작업 states, and the one move
-   * that opens it. Null (the default) allows starting.
-   */
-  startGate?: GateStage | null;
-  /**
-   * 서비스 측 작업 조회 결과 — `startGate` 와 같은 길로, 같은 이유로 내려온다: 시작 동작에
-   * 대한 한 문장은 그 동작을 가진 카드 안에 선다. Null = 이 대상에는 서비스 측 단계가 없다.
+   * 서비스 측 작업 조회 결과 — 시작 동작에 대한 한 문장은 그 동작을 가진 카드 안에 선다.
+   * Null = 이 대상에는 서비스 측 단계가 없다.
    */
   serviceWork?: ServiceWorkNoticeData | null;
-  /** Performs the gate's tab jump (the tab strip lives above this component). */
-  onSelectTab: (tab: OpsTargetTabLabel) => void;
   /** Fired when a run reaches a terminal state, so the caller can refetch
    *  anything derived from it (the tab's Terraform status). */
   onRunsChanged?: () => void;
@@ -98,9 +83,7 @@ export function TargetPipelineSections({
   targetSourceId,
   provider,
   onStart,
-  startGate = null,
   serviceWork = null,
-  onSelectTab,
   onRunsChanged,
   refreshKey = 0,
 }: TargetPipelineSectionsProps): ReactElement {
@@ -258,7 +241,6 @@ export function TargetPipelineSections({
               onCancel={() => cancelModal.open()}
               onRestart={() => restartModal.open()}
               onStartNew={onStart}
-              blockedReason={startGate ? RESTART_BLOCKED_REASON : null}
               serviceWork={serviceWork}
               onOpenTask={setOpenTask}
             />
@@ -268,9 +250,7 @@ export function TargetPipelineSections({
             <EmptyPipelineCard
               sectionTitle="현재 작업"
               onStart={onStart}
-              gate={startGate}
               serviceWork={serviceWork}
-              onSelectTab={onSelectTab}
             />
           )}
         </div>
