@@ -182,9 +182,18 @@ export function ReconcilePane({
                   // this target the button becomes `blocked` with a hover tooltip. This tab does
                   // not fetch pipeline data yet, so do not re-add the old `reconfirmNeeded` gate
                   // as a stand-in — the owner (2026-09-11) wants the door always offered.
-                  <PlButton variant="primary" onClick={onReconfirm}>
-                    재확정
-                  </PlButton>
+                  //
+                  // The tip describes what the door does; it is not a blocked reason, so the
+                  // button stays enabled under it.
+                  <Tooltip
+                    content="확정 정보를 지우고 승인 내용으로 다시 등록합니다. 인프라는 다시 설치되지 않습니다."
+                    variant="value"
+                    triggerClassName="shrink-0"
+                  >
+                    <PlButton variant="warnSolid" onClick={onReconfirm}>
+                      재확정
+                    </PlButton>
+                  </Tooltip>
                 )}
                 {!empty && onDelete && (
                   <PlButton variant="dangerSolid" onClick={onDelete}>

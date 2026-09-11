@@ -470,4 +470,18 @@ describe('ConfirmTab 대조', () => {
     await screen.findByText('확정과 설치가 끝났습니다');
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
+
+  /** 이 문이 무엇을 하는지는 hover 가 말한다 — 막힌 이유가 아니라 동작 설명이다. */
+  it('재확정에 hover 하면 무엇을 다시 하는지 말한다', async () => {
+    mount(false, 'CONFIRMING');
+
+    const button = await screen.findByRole('button', { name: '재확정' });
+    // `Tooltip` 은 트리거를 감싼 컨테이너가 onMouseEnter 를 듣는다.
+    fireEvent.mouseEnter(button.parentElement as HTMLElement);
+    expect(
+      await screen.findByText(
+        '확정 정보를 지우고 승인 내용으로 다시 등록합니다. 인프라는 다시 설치되지 않습니다.',
+      ),
+    ).toBeTruthy();
+  });
 });

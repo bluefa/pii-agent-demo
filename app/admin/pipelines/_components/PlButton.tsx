@@ -1,9 +1,10 @@
 /**
  * PlButton — design-inventory §5 `.btn` (h32 pad 0 14 14/600; sm h28 pad 0 10
  * 12/600; round 28×28). Variants primary / secondary / outline / danger /
- * dangerSolid / dangerMuted / ghost (dangerSolid = R18 destructive CTA,
- * improvement-r18.md §7-1; dangerMuted = desaturated-red close, 확정 정보
- * 편집기 v2.4 [취소]; outline = brand-stroke tool CTA).
+ * dangerSolid / dangerMuted / warnSolid / ghost (dangerSolid = R18 destructive
+ * CTA, improvement-r18.md §7-1; dangerMuted = desaturated-red close, 확정 정보
+ * 편집기 v2.4 [취소]; warnSolid = 확정 정보 [재확정]; outline = brand-stroke tool
+ * CTA).
  */
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -15,6 +16,7 @@ export type PlButtonVariant =
   | 'danger'
   | 'dangerSolid'
   | 'dangerMuted'
+  | 'warnSolid'
   | 'ghost';
 
 export interface PlButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
