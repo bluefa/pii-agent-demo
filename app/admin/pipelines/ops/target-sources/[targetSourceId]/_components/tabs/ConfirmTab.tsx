@@ -18,7 +18,7 @@
  * 화면이 말하는 것은 계약이 주는 것뿐이다:
  *   - 확정이 어느 승인에 근거하는지는 계약에 없다 → "근거 승인"을 추정해 적지 않는다.
  *     대조도 **계보가 아니라 두 목록의 비교**다: 최신 승인과 현재 확정을 맞댈 뿐이다.
- *   - 헤드라인의 상태는 **낱말**이다: 미등록 · 등록됨 · 다시 입력 필요. 색만으로 말하던
+ *   - 헤드라인의 상태는 **낱말**이다: 등록됨 · 다시 입력 필요(없으면 아무 말도 없다). 색만으로 말하던
  *     점은 사라졌다(오너 2026-09-11) — 같은 사실이 확정 카드의 「상태」 kv 에도 서 있어서
  *     규칙은 `confirmedStateTag` 한 곳에 둔다.
  *
@@ -430,15 +430,17 @@ export function ConfirmTab({
   return (
     <div>
       <p className={styles.verdict}>
-        <span
-          className={cn(
-            confirmTagStyles.tag,
-            confirmTagStyles[CONFIRMED_STATE_TONE[verdict.tag]],
-            styles.verdictTag,
-          )}
-        >
-          {verdict.tag}
-        </span>
+        {verdict.tag != null && (
+          <span
+            className={cn(
+              confirmTagStyles.tag,
+              confirmTagStyles[CONFIRMED_STATE_TONE[verdict.tag]],
+              styles.verdictTag,
+            )}
+          >
+            {verdict.tag}
+          </span>
+        )}
         <span className={styles.verdictHead}>{verdict.head}</span>
       </p>
       <p className={styles.verdictSub}>{verdict.sub}</p>

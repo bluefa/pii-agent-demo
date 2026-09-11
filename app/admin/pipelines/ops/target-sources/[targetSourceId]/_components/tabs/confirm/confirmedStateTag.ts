@@ -9,21 +9,21 @@
  *
  * 톤은 낱말을 **거들 뿐**이다: 색만으로 전달되는 신호는 이 줄에 없다.
  */
-export type ConfirmedStateTag = '미등록' | '등록됨' | '다시 입력 필요';
+/** `null` = no record: nothing is said (owner 2026-09-11 — 「미등록」 named nothing the reader knew). */
+export type ConfirmedStateTag = '등록됨' | '다시 입력 필요' | null;
 
-export type ConfirmedStateTone = 'ok' | 'warn' | 'off';
+export type ConfirmedStateTone = 'ok' | 'warn';
 
 export function deriveConfirmedStateTag(input: {
   confirmedCount: number;
   /** 3단계인데 확정이 이미 있다 — 그 확정으로는 다음 단계로 넘어가지 않는다. */
   reconfirmNeeded: boolean;
 }): ConfirmedStateTag {
-  if (input.confirmedCount === 0) return '미등록';
+  if (input.confirmedCount === 0) return null;
   return input.reconfirmNeeded ? '다시 입력 필요' : '등록됨';
 }
 
-export const CONFIRMED_STATE_TONE: Readonly<Record<ConfirmedStateTag, ConfirmedStateTone>> = {
-  미등록: 'off',
+export const CONFIRMED_STATE_TONE: Readonly<Record<NonNullable<ConfirmedStateTag>, ConfirmedStateTone>> = {
   등록됨: 'ok',
   '다시 입력 필요': 'warn',
 };
