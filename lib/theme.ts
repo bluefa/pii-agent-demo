@@ -4373,6 +4373,14 @@ export const pipelineStyles = {
     dangerMuted:
       'border border-transparent bg-[var(--pl-danger-muted)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-danger-muted-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
     /**
+     * Solid warn CTA (확정 정보 [재확정], owner 2026-09-11) — an action that rewrites a
+     * record without tearing anything down, so it is neither the brand CTA nor the
+     * destructive red. The fill is `--pl-warn-solid` (warning-700), not `--pl-warn`
+     * (warning-500): white text needs 4.5:1 and the -500 fill gives 2.35:1.
+     */
+    warnSolid:
+      'border border-transparent bg-[var(--pl-warn-solid)] text-[var(--pl-white)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-warn-solid-hover)] disabled:bg-[var(--pl-gray-100)] disabled:text-[var(--pl-text-faint)] disabled:shadow-none',
+    /**
      * The `primary` disabled face as a RESTING face — `PlButton blocked`. It is not a
      * `disabled:` variant because the button is enabled as far as CSS is concerned: it stays
      * focusable and hoverable so the tooltip explaining the block can be reached. It replaces
