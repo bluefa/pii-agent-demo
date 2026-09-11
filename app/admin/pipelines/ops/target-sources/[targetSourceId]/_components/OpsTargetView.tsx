@@ -25,7 +25,7 @@ import {
   type TcResultRow,
 } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
-import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
+import { type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsHeader } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsHeader';
 import { ApprovalHistoryCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ApprovalHistoryCard';
@@ -57,11 +57,7 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { COPY } from '@/lib/copy';
 import { getDagStatus } from '@/app/lib/api/ops';
-import {
-  tcRunGate,
-  type DagFetch,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
-import { runStatus } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
+import { type DagFetch } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 
 type TabLabel = OpsTargetTabLabel;
 
@@ -97,16 +93,6 @@ const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
 ];
 
 /**
- * ProcessStatus → the tab that step is worked in. The second underline (보라) stands
- * on this tab: the first (파랑) says which panel is open, this one says where the
- * work currently sits, and the two are different questions.
- *
- * 1단계(IDLE)·7단계(COMPLETED) 는 **어느 탭에도 걸지 않는다**. 1단계는 담당자가 아직
- * 사용자 Step1 화면에서 DB 를 고르는 중이라 「스캔」도 「연동 요청 정보」도 이 콘솔의
- * 사실이 아니고, 7단계는 대응하는 탭 자체가 없다. 없는 자리를 가장 가까운 탭으로
- * 반올림하면 밑줄이 매번 거짓말을 한다.
- */
-/**
  * 그룹이 탭 줄에서 가져가는 몫 = 그 그룹이 든 탭 수. 그래야 넷·둘·둘·하나로 갈린 그룹을
  * 지나도 아홉 셀의 폭이 서로 같다.
  *
@@ -123,7 +109,18 @@ const TAB_GROUPS: readonly (readonly TabLabel[])[] = [
 const GROUP_GROW = ['grow', 'grow-[2]', 'grow-[3]', 'grow-[4]'] as const;
 const growOf = (n: number) => GROUP_GROW[Math.min(Math.max(n, 1), GROUP_GROW.length) - 1];
 
+/**
+ * ProcessStatus → the tab that step is worked in. That tab carries the visible
+ * 「현재 단계」 label next to its name; the active underline (파랑) says which panel
+ * is open, this label says where the work currently sits — two different questions.
+ *
+ * 1단계(IDLE) 는 「스캔」에 건다 (오너 2026-09-11). IDC 는 스캔 탭이 없으므로 그때는
+ * 어느 탭에도 서지 않는다 — 다른 탭으로 옮겨 걸지 않는다. SDU 의 2단계도 같다:
+ * 「연동 요청 정보」 탭이 없으면 라벨은 서지 않는다.
+ * 7단계(COMPLETED) 는 **어느 탭에도 걸지 않는다** — 대응하는 탭 자체가 없다.
+ */
 const STEP_TAB = new Map<ProcessStatus, TabLabel>([
+  ['IDLE', OPS_TAB_SLUGS.scan],
   ['PENDING', OPS_TAB_SLUGS.request],
   ['CONFIRMING', OPS_TAB_SLUGS.confirm],
   ['CONFIRMED', OPS_TAB_SLUGS.infra],
@@ -427,44 +424,9 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
     [needsDag, targetSourceId, reloadKey],
   );
 
-  /**
-   * 「연결 테스트」 탭의 점 — 탭 줄에서 유일하게 상태를 말하는 자리다. 판정은 승인 탭과
-   * 같은 게이트(`tcRunGate`)에서 나오고, 이미 이 화면이 들고 있는 세 응답만 읽는다 —
-   * 탭 줄을 위한 요청은 없다.
-   *
-   * 말하는 것은 둘뿐이다: 최신 실행이 **실패**했거나 아직 **열려 있다**(PENDING·RUNNING).
-   * 이력 없음·조회 실패·enum 밖은 점을 켜지 않는다 — 그것들은 "무엇이 있다"가 아니라
-   * "모른다"라, 탭 옆의 점 하나로 말할 수 있는 사실이 아니다.
-   */
-  const tcGate = tcLoaded
-    ? tcRunGate(runStatus(tcLatest), tcLatest !== null, tcLatestFailed)
-    : 'loading';
-  const tcDot =
-    tcGate === 'failed'
-      ? opsStyles.tabDotFail
-      : tcGate === 'open'
-        ? opsStyles.tabDotRunning
-        : null;
-  /**
-   * 점이 말하는 것을 **낱말로도** 싣는다 — 점 자체는 `aria-hidden` 이라, 이 문장이
-   * 없으면 「연결 테스트 실패」가 스크린 리더에 한 글자도 도착하지 않는다. 탭의
-   * 접근명 뒤에 붙어서 "연결 테스트, 최근 실행 실패" 로 읽힌다.
-   */
-  const tcWord = tcGate === 'failed' ? '최근 실행 실패' : tcGate === 'open' ? '최근 실행 진행 중' : null;
-
-  // 걸린 단계 — 1·7 단계는 STEP_TAB 에 없으므로 어느 탭도 코너 점을 켜지 않는다.
+  // 걸린 단계의 탭 — 7단계는 STEP_TAB 에 없고, 매핑된 탭이 그려지지 않는 대상(IDC 의
+  // 스캔, SDU 의 연동 요청 정보)에서도 어느 탭에도 「현재 단계」가 서지 않는다.
   const stepTab = processStatus ? STEP_TAB.get(processStatus) ?? null : null;
-  const stepInfo = processStatus ? STEP[processStatus] : null;
-  /**
-   * 점의 **색**은 더 이상 갈리지 않는다 (오너 2026-08-29 "색상은 모두 빨간색으로 통일해") —
-   * 갈래는 낱말에만 남는다. 6단계(CONNECTED)만 관리자가 실제로 막혀 있는 자리라
-   * 「확인 필요」라고 말하고, 나머지는 다른 누군가의 차례이거나 파이프라인이 도는
-   * 중이라 「현재 N단계」다.
-   */
-  const stepAlert = processStatus === 'CONNECTED';
-  const stepWord = stepInfo
-    ? `${stepAlert ? '확인 필요 — ' : '현재 '}${stepInfo.n}단계 · ${stepInfo.label}`
-    : null;
 
   if (detailFailed) {
     return (
@@ -608,16 +570,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
             <div key={group[0]} role="presentation" className={cn(opsStyles.tabGroup, growOf(group.length))}>
               {group.map((tab) => {
                 const active = tab === currentTab;
-                // 같은 탭에 같은 빨강이 둘 서지 않는다 — 5단계(INSTALLED)에 서 있고
-                // 최신 실행이 실패하면 인라인 점과 코너 점이 같은 색으로 겹쳤다. 실패는
-                // 인라인 점이 이미 말하므로 코너는 물러난다.
-                const isStep = tab === stepTab && !(tab === OPS_TAB_SLUGS.tc && tcGate === 'failed');
-                // 한 탭이 두 마크를 동시에 들 수 있다 — 라벨 옆 인라인 점은 「연결 테스트」의
-                // 실행 결과, 우상단 코너 점은 걸린 단계다. 뜻이 다른 두 사실이라 자리로 갈린다.
-                const words = [
-                  tab === OPS_TAB_SLUGS.tc ? tcWord : null,
-                  isStep ? stepWord : null,
-                ].filter((word): word is string => word !== null);
+                const isStep = tab === stepTab;
                 return (
                   <button
                     key={tab}
@@ -628,28 +581,14 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
                     className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
                   >
                     {tab}
-                    {/* 낱말이 마크를 대신한다 — 점은 둘 다 aria-hidden 이라, 상태는 탭의
-                        접근명에 실려야 스크린 리더에 도착한다. */}
-                    {words.length > 0 && <span className="sr-only">, {words.join(', ')}</span>}
-                    {tab === OPS_TAB_SLUGS.tc && (
-                      <span
-                        className={cn(opsStyles.tabDot, tcDot, tcDot ? 'opacity-100' : 'opacity-0')}
-                        aria-hidden
-                      />
-                    )}
+                    {/* 보이는 낱말이 곧 접근명이다 — `.sr-only`·`title` 을 따로 두지 않는다.
+                        공백 노드는 flex 에서 그려지지 않고, 접근명만 "확정 정보 현재 단계" 로
+                        띄어 읽힌다. */}
                     {isStep && (
-                      // 흐름 밖이라 슬롯을 예약하지 않는다 — 늦게 도착해도 x 를 밀지 않는다.
-                      //
-                      // `title` 은 버튼이 아니라 **점**이 진다. 버튼에 두면 접근명(내용 =
-                      // 위 `.sr-only` 포함)과 접근설명(title)이 같은 문장이 되어 스크린
-                      // 리더가 두 번 읽는다. 점은 `aria-hidden` 이라 a11y 트리 밖이고,
-                      // 마우스 툴팁만 남는다 — 낱말 쪽은 그대로 둔다(⛔ title 은 낭독이
-                      // 보장되지 않으므로 `.sr-only` 를 title 로 대체할 수 없다).
-                      <span
-                        className={cn(opsStyles.tabCorner, opsStyles.tabCornerAlert)}
-                        title={stepWord ?? undefined}
-                        aria-hidden
-                      />
+                      <>
+                        {' '}
+                        <span className={opsStyles.tabStepLabel}>현재 단계</span>
+                      </>
                     )}
                   </button>
                 );

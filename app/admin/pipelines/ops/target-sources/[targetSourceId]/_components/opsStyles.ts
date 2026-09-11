@@ -517,55 +517,16 @@ export const opsStyles = {
   tabIdle:
     'text-[var(--pl-text-medium)] border-transparent hover:text-[var(--pl-text-strong)] hover:border-[var(--pl-gray-400)]',
   /**
-   * 걸린 단계의 마크 — 탭 **우상단 코너의 점** (오너 2026-08-27 "보라색 밑줄 말고
-   * 확인 필요처럼 보이는 시각적 요소를 써볼까? 우상단의 빨간색 점은 어때?").
+   * 걸린 단계의 탭에 붙는 「현재 단계」 태그 (오너 2026-09-11) — 코너 점·연결 테스트 점을
+   * 대신한다. 보이는 낱말이라 탭의 접근명에 그대로 실린다.
    *
-   * 밑줄이었을 때는 파랑과 같은 자리를 다퉈서 "열린 탭 == 걸린 탭" 일 때 하나가
-   * 물러나는 규칙이 필요했다. 코너로 올라오면 자리가 달라서 그 규칙이 통째로
-   * 사라진다 — 두 사실이 동시에, 서로를 덮지 않고 선다.
-   *
-   * `absolute` 라 흐름 폭을 먹지 않는다: 단계가 어느 탭에 걸리든 아홉 탭의 x 는
-   * 그대로다. 라벨 옆 인라인 슬롯을 예약해야 했던 이유(=자리를 먹는 마크)가 여기엔
-   * 없다. 8px 은 이 화면이 이미 쓰는 점 크기이고(`tcBand.countDot`), 4px 인셋이
-   * 위 헤어라인과 라벨 사이의 빈 모서리에 정확히 들어간다(실측).
+   * 중립 회색이다: 빨강은 실패로, 파랑(`tabActive`)은 "열린 탭" 으로 이미 읽힌다. 흰 면은
+   * 이 콘솔에서 "수정 가능한 값" 이라(`metaTagQuiet` 주석) 쓰지 않고, 바닥(gray-200)보다 한
+   * 칸 짙은 gray-300 위에 medium 잉크를 올린다. 11/16 + py-px 로 18px 이라 탭 줄 높이를
+   * 바꾸지 않고, `flex-none`·`whitespace-nowrap` 이라 줄바꿈되거나 눌리지 않는다.
    */
-  tabCorner: 'absolute right-1 top-1 h-2 w-2 rounded-full',
-  /**
-   * 코너 점은 **한 색이다** (오너 2026-08-29 "색상은 모두 빨간색으로 통일해").
-   *
-   * 08-27 에는 둘이었다 — 6단계(CONNECTED, 관리자 승인 대기)만 빨강이고 2·3·4·5 는
-   * `--pl-current` 보라였다. 그 갈래의 근거는 "걸렸다는 사실 전체에 빨강을 주면 빨강이
-   * 상시 켜져 아무 말도 하지 않게 된다" 였는데, 오너가 그 대가를 받기로 했다: 점이
-   * 말하는 것은 한 가지("이 대상은 여기 걸려 있다")이고, 색이 둘이면 읽는 사람이
-   * 색부터 해석해야 한다. 어느 단계인지는 색이 아니라 **점이 붙은 탭**이 말한다.
-   *
-   * 갈래는 낱말에 남는다 — 6단계만 「확인 필요」, 나머지는 「현재 N단계」다(`stepWord`).
-   * 그쪽은 화면의 소리를 늘리지 않으면서 스크린 리더에 사실을 그대로 전한다.
-   *
-   * `--pl-err-solid` 는 바닥 위 3.90 (실측) 로 그래픽 3:1 위다. 같은 빨강을 `tabDotFail`
-   * 도 쓰지만 뜻이 겹치지 않는다: 저쪽은 라벨 옆 인라인이고 이쪽은 코너다 — 자리가 두
-   * 사실을 가른다(실행이 실패했다 vs 이 대상이 여기 서 있다).
-   */
-  tabCornerAlert: 'bg-[var(--pl-err-solid)]',
-  /**
-   * 「연결 테스트」 탭의 상태 점 — 8px, the size this screen's own dots already use
-   * (`tcBand.countDot`, ConfirmEditorModal). It says only that the latest run
-   * failed or is still open; the tab itself says the rest. No count badges: a
-   * number on a tab claims the tab is a worklist (#735).
-   *
-   * 색은 그래픽이라 3:1 기준이다. `--pl-err` 는 바닥 위 3.03 으로 겨우 그 위라, 이 점은
-   * 8px 이라 램프를 한 칸 더 내려 `--pl-err-solid`(3.90, 실측)를 쓴다. 진행 중은
-   * `--pl-info` 가 2.61 로 3:1 을 **못 넘어서**(실측) 같은 계열의 다음 칸
-   * `--pl-info-text`(4.83)가 진다.
-   *
-   * 자리는 늘 잡혀 있고 `opacity` 로만 나타난다 — 즉 점은 항상 렌더되고 보이지 않는
-   * 동안에도 제 폭을 차지한다. TC 응답은 마스트헤드보다 늦게 도착하는데, 이 점은 라벨 옆
-   * **흐름 안**에 있어서 `display` 로 끼어들면 그때마다 오른쪽 탭들의 x 가 밀린다.
-   * 코너 점(`tabCorner`)이 예약 없이 그냥 나타나도 되는 것은 그쪽이 흐름 밖이기 때문이다.
-   */
-  tabDot: 'h-2 w-2 flex-none rounded-full transition-opacity',
-  tabDotFail: 'bg-[var(--pl-err-solid)]',
-  tabDotRunning: 'bg-[var(--pl-info-text)]',
+  tabStepLabel:
+    'inline-flex flex-none items-center whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium leading-4 bg-[var(--pl-gray-300)] text-[var(--pl-text-medium)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */
@@ -792,8 +753,7 @@ export const opsStyles = {
      * 8px 이라 글자가 아니라 그래픽이고 기준은 3:1 이다. 바닥이 gray-200 이 되면서
      * `--pl-ok` 는 2.395 → **2.116**, `--pl-err` 는 3.432 → **3.031** 로 내려왔다 — 초록은
      * 원래부터 그 아래였고 빨강은 여백이 0.03 만 남았다. 그래서 둘 다 램프에서 한 칸씩
-     * 내려간다: `--pl-ok-text` 4.366 · `--pl-err-solid` 3.897. 탭 옆 점(`tabDotFail`)이
-     * 같은 이유로 `-solid` 를 쓰는 것과 같은 판단이다.
+     * 내려간다: `--pl-ok-text` 4.366 · `--pl-err-solid` 3.897.
      */
     countDotOkGround: 'bg-[var(--pl-ok-text)]',
     countDotFailGround: 'bg-[var(--pl-err-solid)]',

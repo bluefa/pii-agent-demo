@@ -462,22 +462,13 @@ const TEXT: TextPair[] = [
   // 워시가 램프 한 칸을 먹으므로 weak 가 아니라 medium 이다.
   { what: 'ops active tab ink on the ops ground', fg: textOf(classOf(opsSrc, 'tabActive')), on: resolve('var(--pl-gray-200)') },
   { what: 'ops idle tab on the ops ground', fg: textOf(classOf(opsSrc, 'tabIdle')), on: resolve('var(--pl-gray-200)') },
-  // 걸린 단계의 코너 점 — 8px 이라 글자가 아니라 **그래픽**이고 기준은 3:1 이다.
-  // 색은 하나다 (오너 2026-08-29) — 보라 짝은 임자가 사라져 함께 걷혔다.
-  // SURFACES 에 넣으면 안 된다 — 거기는 ΔE00 를 재지 대비를 재지 않아서, 3:1 아래로
-  // 내려가도 초록으로 통과한다(전례: --pl-info 2.94).
-  { what: 'ops step corner dot on the ops ground', fg: bgOf(classOf(opsSrc, 'tabCornerAlert')), on: resolve('var(--pl-gray-200)'), min: 3 },
+  // 걸린 단계의 「현재 단계」 태그 — 11px 글자라 제 면(gray-300) 위에서 AA 를 넘어야 한다.
+  { what: 'ops current-step tab label on its own face', fg: textOf(classOf(opsSrc, 'tabStepLabel')), on: bgOf(classOf(opsSrc, 'tabStepLabel')) },
   // 근거 줄의 8px 점 — `MonitoringEvidenceBody` 는 카드 없이 바닥 위에 서므로 이 둘도
   // 그래픽 3:1 을 바닥에서 넘어야 한다. 공용 `countDot*` 는 흰 카드(`TcLatestRunCard`)
   // 쪽에 남아 있고, 여기 걸리는 것은 바닥용 짝이다.
   { what: 'ops evidence dot (성공) on the ops ground', fg: bgOf(classOf(opsSrc, 'countDotOkGround')), on: resolve('var(--pl-gray-200)'), min: 3 },
   { what: 'ops evidence dot (확인 필요) on the ops ground', fg: bgOf(classOf(opsSrc, 'countDotFailGround')), on: resolve('var(--pl-gray-200)'), min: 3 },
-  // 「연결 테스트」 탭의 8px 상태 점 — 글자가 아니라 그래픽이라 3:1 이다. `--pl-err` 는
-  // 이 워시에서 3.41, `--pl-info` 는 2.94 로 **떨어진다**: 두 계열이 램프에서 한 칸씩
-  // 다른 곳에 서 있는 이유가 그것이고, 여기 걸어 두지 않으면 다음 사람이 짝을 맞추려고
-  // info 를 되돌리는 순간 진행 중 점만 조용히 사라진다.
-  { what: 'ops tc tab dot (fail) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabDotFail')), on: resolve('var(--pl-gray-200)'), min: 3 },
-  { what: 'ops tc tab dot (running) on the ops ground', fg: bgOf(classOf(opsSrc, 'tabDotRunning')), on: resolve('var(--pl-gray-200)'), min: 3 },
   // FrontMeta (ops-target-frontmeta.md 시안 C) — 236px 레일이 사라져 이 화면의 메타 글자는
   // 전부 바닥 위에 직접 산다. 그 바닥은 램프 한 칸을 잡아먹으므로(--pl-text-weak 는
   // 여기서 4.01:1 로 AA 아래다) 라벨 계단이 gray-600(6.20)에서 시작한다.
