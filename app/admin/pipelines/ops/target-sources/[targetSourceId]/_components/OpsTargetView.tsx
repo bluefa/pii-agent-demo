@@ -58,7 +58,6 @@ import { useLocale } from '@/app/components/LocaleProvider';
 import { COPY } from '@/lib/copy';
 import { getDagStatus } from '@/app/lib/api/ops';
 import {
-  TC_COMPLETED,
   tcRunGate,
   type DagFetch,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
@@ -399,23 +398,18 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
   }, [targetSourceId, reloadKey, loadTc]);
 
   /**
-   * §10 dag-status — 한 대상의 응답이 MB 단위까지 간다(논리 DB 1만 행). 그래서 대상을
-   * 열자마자가 아니라 **읽을 사람이 생겼을 때** 받는다:
-   *   완료 승인된 대상   승인 조건 ③ 이 판정을 걸고 있다 (탭과 무관하게 필요)
-   *   Airflow 확인 탭    본문 전체가 이 응답이다
-   * 완료 승인된 대상에서는 이 값이 계속 true 라 승인 ↔ Airflow 를 오가도 deps 가 그대로다
-   * — 탭 전환으로는 다시 부르지 않는다.
-   *
-   * **SDU 의 독자는 다른 사실이 부른다.** 「완료 승인」은 SDU 담당자가 누를 수 없는
-   * 버튼이라(계약 §0), 그것을 독자의 조건으로 두면 조건 ③ 은 헬스를 영영 보지 못하고
-   * ①·② 를 통과한 대상의 연동 완료가 잠긴 채로 굳는다 — 조건 ① 이 겪었던 것과 같은
-   * 막다른 길이다. SDU 에서 독자는 **승인 탭이 열려 있다는 사실** 자체다: 늦춤의 목적
-   * (아무도 읽지 않을 MB 응답을 받지 않는다)은 그대로 지키면서, 어느 탭을 먼저 들렀는지가
-   * CTA 의 잠금을 바꾸는 일도 없어진다.
+   * §10 dag-status — **이 응답을 읽는 탭이 열려 있을 때** 받는다:
+   *   관리자 승인 탭    승인 조건 ③ 이 판정을 건다
+   *   Airflow 확인 탭   본문 전체가 이 응답이다
+   * 대상 종류를 가리지 않는다. 예전에는 완료 승인(①)을 독자의 조건으로 두어 "아무도 읽지
+   * 않을 MB 응답을 받지 않는다"를 지켰는데, 그 전제는 이미 만료됐다 — 진행 상태 탭의
+   * 연동 현황 카드가 단계와 무관하게 서버에서 §10 을 부른다(#832, 오너 "6단계 상관없이
+   * 그냥 조회해"). 그래서 ③ 은 ① 을 기다리지 않고 제 헬스를 판정하고, 어느 탭을 먼저
+   * 들렀는지가 카드를 바꾸는 일도 없다. 승인 ↔ Airflow 를 오가는 동안은 이 값이 계속
+   * true 라 deps 가 그대로다 — 그 전환으로는 다시 부르지 않는다.
    */
-  const needsDag = isSdu
-    ? currentTab === OPS_TAB_SLUGS.approval || currentTab === OPS_TAB_SLUGS.airflow
-    : tcStatus?.status === TC_COMPLETED || currentTab === OPS_TAB_SLUGS.airflow;
+  const needsDag =
+    currentTab === OPS_TAB_SLUGS.approval || currentTab === OPS_TAB_SLUGS.airflow;
   useAbortableEffect(
     (signal) => {
       if (!needsDag) return;
