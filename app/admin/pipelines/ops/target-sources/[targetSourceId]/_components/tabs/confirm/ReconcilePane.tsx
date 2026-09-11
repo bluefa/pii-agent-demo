@@ -34,6 +34,7 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
+import { Badge, type BadgeVariant } from '@/app/components/ui/Badge';
 
 const styles = {
   /** 두 기록은 형제다 — 같은 눈금의 카드 둘, 폭도 같다. */
@@ -59,10 +60,10 @@ export interface ReconcilePaneProps {
   /** 요청 조회가 실패했다 — 없는 것과 다르다. */
   requestFailed: boolean;
   /**
-   * 「결과」 줄이 말할 것 — 이 탭의 어휘와 그 색(`REQUEST_STATUS`). 계약 enum 원문이 아니고,
+   * 요청 카드 머리의 칩이 말할 것 — 이 탭의 어휘와 그 톤(`REQUEST_STATUS`). 계약 enum 원문이 아니고,
    * 카드 머리의 태그도 아니다: 결말은 한 카드 안에서 한 번만 선다.
    */
-  requestOutcome: { toneClass: string; label: string; note?: string } | null;
+  requestOutcome: { tone: BadgeVariant; label: string } | null;
   confirmed: ConfirmedIntegrationResponse | null;
   /** terraform-status.latest_confirmed_at — 확정 시각을 말하는 유일한 계약 필드. */
   confirmedAt: string | null;
@@ -118,7 +119,6 @@ export function ReconcilePane({
   const confirmedRows = confirmed?.resource_infos ?? [];
   const empty = confirmedRows.length === 0;
   const verdict = request?.verdict ?? null;
-  const requestId = request?.request.requestId ?? null;
   const hasDiff = reconcile != null && reconcile.diffCount > 0;
   const stateTag = deriveConfirmedStateTag({ confirmedCount: confirmedRows.length, reconfirmNeeded });
   const showDiffOnly = hasDiff && diffOnly;
@@ -145,11 +145,12 @@ export function ReconcilePane({
       <div className={styles.cards}>
         <section className={styles.cardPast}>
           <div className={styles.cardHead}>
-            <p className={paneStyles.head}>
-              연동 요청{requestId != null ? ` #${requestId}` : ''}
-            </p>
-            {/* 머리가 지는 유일한 상태는 **조회 실패**다 — 그건 결말이 아니라 이 카드의
-                값들이 왜 비었는지에 대한 답이라, 「결과」 줄에 앉을 수 없다. */}
+            {/* The request id is not printed anywhere in this tab (owner 2026-09-11): the
+                연동 요청 정보 tab owns it, and 「#0」 read as a puzzle, not an identity. */}
+            <p className={paneStyles.head}>연동 요청</p>
+            {/* 결말은 머리의 칩 하나다 (owner 2026-09-11) — 승인 대기 · 승인 · 반려 … 이 탭의
+                어휘로. 조회 실패는 결말이 아니라 값들이 왜 비었는지의 답이라 칩이 아니다. */}
+            {requestOutcome && <Badge variant={requestOutcome.tone}>{requestOutcome.label}</Badge>}
             {requestFailed && <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>}
           </div>
 
@@ -165,19 +166,6 @@ export function ReconcilePane({
               label="처리"
               value={verdict?.processedBy ?? '—'}
               note={verdict?.processedAt ? fmtDateTime(verdict.processedAt) : undefined}
-            />
-            {/* 계약 enum 원문(`APPROVED`)이 아니라 이 탭의 어휘다. 색은 채운 배지가 아니라
-                글자에 실린다 — 카드 안에서 결말은 이 한 줄이 전부다. */}
-            <Kv
-              label="결과"
-              value={
-                requestOutcome ? (
-                  <span className={requestOutcome.toneClass}>{requestOutcome.label}</span>
-                ) : (
-                  '—'
-                )
-              }
-              note={requestOutcome?.note}
             />
             {reconcile && (
               <Kv

@@ -7,23 +7,16 @@
 import { describe, expect, it } from 'vitest';
 import { requestFacetOf } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ConfirmTab';
 
-const base = { loaded: true, present: true, requestId: 7, selectedCount: 3 };
+const base = { loaded: true, present: true, selectedCount: 3 };
 
 describe('requestFacetOf — 계약 enum 전수', () => {
   it('계약이 대기라고 말한 것만 pending 이다', () => {
-    expect(requestFacetOf({ ...base, status: 'PENDING' })).toEqual({
-      kind: 'pending',
-      requestId: 7,
-    });
+    expect(requestFacetOf({ ...base, status: 'PENDING' })).toEqual({ kind: 'pending' });
   });
 
-  it('승인 두 종은 승인 번호와 건수를 들고 간다', () => {
+  it('승인 두 종은 건수를 들고 간다', () => {
     for (const status of ['APPROVED', 'AUTO_APPROVED']) {
-      expect(requestFacetOf({ ...base, status })).toEqual({
-        kind: 'approved',
-        requestId: 7,
-        count: 3,
-      });
+      expect(requestFacetOf({ ...base, status })).toEqual({ kind: 'approved', count: 3 });
     }
   });
 
