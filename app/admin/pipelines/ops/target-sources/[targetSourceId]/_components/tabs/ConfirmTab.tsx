@@ -79,6 +79,7 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import { ConfirmPane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import { ReconcilePane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ReconcilePane';
+import type { BadgeVariant } from '@/app/components/ui/Badge';
 import {
   buildReconcileTable,
   type ReconcileTable,
@@ -130,6 +131,14 @@ const styles = {
  * 채운 배지가 아니라 **글자**다: 이 결말은 카드 머리의 태그가 아니라 「결과」 kv 의 값으로
  * 한 번만 선다. 같은 낱말이 한 카드 안에 두 번 서면 어느 쪽이 사실인지 묻게 된다.
  */
+/** 요청 결말 칩의 톤 — `REQUEST_STATUS` 의 톤 이름을 Badge 의 것으로. */
+const OUTCOME_BADGE: Readonly<Record<keyof typeof TONE_TEXT, BadgeVariant>> = {
+  ok: 'success',
+  err: 'error',
+  warn: 'warning',
+  off: 'neutral',
+};
+
 const TONE_TEXT = {
   ok: 'text-[var(--pl-ok-text)]',
   err: 'text-[var(--pl-err-text)]',
@@ -174,19 +183,18 @@ export function requestFacetOf(input: {
   loaded: boolean;
   present: boolean;
   status: string | null;
-  requestId: number | null;
   selectedCount: number;
 }): RequestFacet {
-  const { loaded, present, status, requestId, selectedCount } = input;
+  const { loaded, present, status, selectedCount } = input;
   if (!loaded) return { kind: 'unknown' };
   if (!present) return { kind: 'none' };
   if (status === 'REJECTED') return { kind: 'rejected' };
   if (status != null && APPROVED_STATUSES.has(status)) {
-    return { kind: 'approved', requestId, count: selectedCount };
+    return { kind: 'approved', count: selectedCount };
   }
   const spec = status != null ? REQUEST_STATUS[status] : undefined;
   if (spec == null) return { kind: 'closed', label: null };
-  return spec.closed ? { kind: 'closed', label: spec.label } : { kind: 'pending', requestId };
+  return spec.closed ? { kind: 'closed', label: spec.label } : { kind: 'pending' };
 }
 
 export interface ConfirmTabProps {
@@ -353,7 +361,6 @@ export function ConfirmTab({
     loaded: request.state === 'ready',
     present: requestData != null,
     status: requestStatus,
-    requestId: requestData?.request.requestId ?? null,
     selectedCount,
   });
 
@@ -396,18 +403,14 @@ export function ConfirmTab({
    *
    * 승인일 때만 건수를 덧붙인다: 그때의 확정은 그 건수를 기준으로 만들어진다.
    */
-  const requestOutcome: { toneClass: string; label: string; note?: string } | null =
+  const requestOutcome: { tone: BadgeVariant; label: string } | null =
     request.state !== 'ready' ? null
-      : requestData == null ? { toneClass: TONE_TEXT.off, label: '요청 없음' }
+      : requestData == null ? { tone: 'neutral', label: '요청 없음' }
         : requestSpec != null
-          ? {
-              toneClass: TONE_TEXT[requestSpec.tone],
-              label: requestSpec.label,
-              ...(requestApproved ? { note: `${selectedCount}건` } : {}),
-            }
+          ? { tone: OUTCOME_BADGE[requestSpec.tone], label: requestSpec.label }
           // 계약에 있으나 어휘가 없는 값(`RESET`)은 상태 문자열을 그대로 중립 톤으로 —
           // 지어낸 라벨보다 원문이 정확하다.
-          : { toneClass: TONE_TEXT.off, label: requestStatus ?? '요청 없음' };
+          : { tone: 'neutral', label: requestStatus ?? '요청 없음' };
 
   /**
    * Both write doors hang on the approval, and the rule is three-way, not two-way (owner

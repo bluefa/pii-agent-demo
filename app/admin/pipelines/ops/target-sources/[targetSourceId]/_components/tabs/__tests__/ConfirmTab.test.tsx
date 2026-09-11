@@ -139,7 +139,7 @@ describe('ConfirmTab 두 기록 카드', () => {
     mount();
 
     // 고르는 화면이 아니다: 번갈아 보여 주는 tablist 는 걷혔다(B1).
-    expect(await screen.findByText('연동 요청 #12')).toBeTruthy();
+    expect(await screen.findByText('연동 요청')).toBeTruthy();
     expect(screen.getByText('확정 정보')).toBeTruthy();
     expect(screen.queryByRole('tablist')).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
@@ -148,12 +148,12 @@ describe('ConfirmTab 두 기록 카드', () => {
   it('결말은 어휘로, 카드 안에서 한 번만 말한다 — 계약 enum 원문은 없다', async () => {
     mount();
 
-    await screen.findByText('연동 요청 #12');
-    // 「결과」 줄 하나가 결말을 진다. 머리의 태그가 같은 낱말을 또 세우지 않는다.
+    await screen.findByText('연동 요청');
+    // 머리의 칩 하나가 결말을 진다 (owner 09-11). 「결과」 줄은 없고, 요청 번호도 없다.
     expect(screen.getAllByText('승인')).toHaveLength(1);
+    expect(screen.queryByText('결과')).toBeNull();
+    expect(screen.queryByText(/#\d+/)).toBeNull();
     expect(screen.queryByText('APPROVED')).toBeNull();
-    // 승인일 때만 건수가 붙는다 — 확정은 그 건수를 기준으로 만들어진다.
-    expect(screen.getByText('0건')).toBeTruthy();
   });
 
   it('요청 조회가 실패하면 머리가 그 사실을 진다 — 결말이 아니라 빈 값의 사유다', async () => {
@@ -167,7 +167,7 @@ describe('ConfirmTab 두 기록 카드', () => {
   it('Terraform 어휘가 화면 어디에도 없다', async () => {
     const { container } = mount();
 
-    await screen.findByText('연동 요청 #12');
+    await screen.findByText('연동 요청');
     // 응답에는 overall_state·task 가 실려 있는데도 — 그 축은 인프라 작업 탭이 소유한다.
     expect(container.textContent).not.toContain('Terraform');
     expect(screen.queryByText('vpc-peering')).toBeNull();
@@ -419,7 +419,7 @@ describe('ConfirmTab 대조', () => {
     });
     mount();
 
-    await screen.findByText('연동 요청 #12');
+    await screen.findByText('연동 요청');
     expect(screen.queryByRole('button', { name: '차이만' })).toBeNull();
     expect(screen.queryByText(/확정에 없음/)).toBeNull();
     // 두 카드가 각각 제 쪽에서 일치라고 말하고, 세 행이 저마다 같은 판정을 진다.

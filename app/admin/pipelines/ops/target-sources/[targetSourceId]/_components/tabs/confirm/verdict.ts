@@ -53,10 +53,10 @@ export type RequestFacet =
   | { kind: 'unknown' }
   | { kind: 'absent' }
   | { kind: 'none' }
-  | { kind: 'pending'; requestId: number | null }
+  | { kind: 'pending' }
   | { kind: 'rejected' }
   | { kind: 'closed'; label: string | null }
-  | { kind: 'approved'; requestId: number | null; count: number };
+  | { kind: 'approved'; count: number };
 
 /** 승인만 있으면 열리는 문 — 미등록 sub 의 둘째 문장은 거의 언제나 이 말이다. */
 const AFTER_APPROVAL = '관리자가 승인하면 확정 정보를 입력할 수 있습니다.';
@@ -150,10 +150,9 @@ export function deriveConfirmVerdict(input: {
     return {
       tag,
       head: '확정 정보를 입력해야 합니다',
-      sub:
-        request.requestId != null
-          ? `승인 #${request.requestId}에서 리소스 ${request.count}건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.`
-          : `연동 요청에서 리소스 ${request.count}건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.`,
+      // No request number (owner 2026-09-11): 「#0」 is a puzzle to the reader, and the
+      // 연동 요청 정보 tab is where the request itself lives.
+      sub: `연동 요청에서 리소스 ${request.count}건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.`,
     };
   }
 
@@ -171,9 +170,7 @@ export function deriveConfirmVerdict(input: {
     head: '연동 요청 승인이 필요합니다',
     sub:
       request.kind === 'pending'
-        ? request.requestId != null
-          ? `요청 #${request.requestId}이 승인 대기 중입니다. ${AFTER_APPROVAL}`
-          : `연동 요청이 승인 대기 중입니다. ${AFTER_APPROVAL}`
+        ? `연동 요청이 승인 대기 중입니다. ${AFTER_APPROVAL}`
         : request.kind === 'none'
           ? `연동 요청이 없습니다. 서비스가 연동 요청을 보내고 ${AFTER_APPROVAL}`
           : // 승인 없이 끝난 요청 — 어휘가 없으면 그 결말을 말하지 않고 다음 조건만 말한다.

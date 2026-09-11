@@ -38,25 +38,15 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
     expect(verdict.sub).toBe(`반려된 요청으로는 확정 정보를 입력할 수 없습니다. ${AFTER_RESEND}`);
   });
 
-  it('미등록 + 승인이면 승인 번호와 건수를 말하고 입력을 요구한다', () => {
-    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'approved', requestId: 12, count: 8 } });
+  it('미등록 + 승인이면 건수를 말하고 입력을 요구한다 — 요청 번호는 어디에도 없다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'approved', count: 8 } });
     expect(verdict.head).toBe('확정 정보를 입력해야 합니다');
-    expect(verdict.sub).toBe('승인 #12에서 리소스 8건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.');
-  });
-
-  it('승인됐지만 번호가 없으면 번호를 지어내지 않는다', () => {
-    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'approved', requestId: null, count: 8 } });
     expect(verdict.sub).toBe('연동 요청에서 리소스 8건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.');
   });
 
   it('미등록 + 처리 대기는 승인이 필요하다고 머리에 말한다', () => {
-    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'pending', requestId: 7 } });
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'pending' } });
     expect(verdict.head).toBe('연동 요청 승인이 필요합니다');
-    expect(verdict.sub).toBe(`요청 #7이 승인 대기 중입니다. ${AFTER_APPROVAL}`);
-  });
-
-  it('대기 + 요청 번호가 없으면 번호 없이 같은 말을 한다', () => {
-    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'pending', requestId: null } });
     expect(verdict.sub).toBe(`연동 요청이 승인 대기 중입니다. ${AFTER_APPROVAL}`);
   });
 
@@ -98,13 +88,11 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
       NONE,
       { kind: 'unknown' },
       { kind: 'absent' },
-      { kind: 'pending', requestId: 7 },
-      { kind: 'pending', requestId: null },
+      { kind: 'pending' },
       { kind: 'rejected' },
       { kind: 'closed', label: '요청 취소' },
       { kind: 'closed', label: null },
-      { kind: 'approved', requestId: 12, count: 8 },
-      { kind: 'approved', requestId: null, count: 8 },
+      { kind: 'approved', count: 8 },
     ];
     for (const request of requests) {
       for (const installed of [false, true]) {
@@ -117,6 +105,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
                 expect(text).not.toContain(' - ');
                 expect(text).not.toContain('직접 등록');
                 expect(text).not.toContain('기준으로');
+                expect(text).not.toContain('#');
               }
             }
           }
@@ -127,7 +116,7 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
 });
 
 describe('deriveConfirmVerdict — 재확정과 대조', () => {
-  const RECONFIRM = { installed: false, confirmedCount: 8, request: { kind: 'approved', requestId: 12, count: 8 } as RequestFacet };
+  const RECONFIRM = { installed: false, confirmedCount: 8, request: { kind: 'approved', count: 8 } as RequestFacet };
 
   it('차이가 없으면 일치한다는 사실과 함께 다시 입력하라고 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: 0 });
