@@ -97,6 +97,15 @@ const INSTALLED: ReadonlySet<string> = new Set<ProcessStatus>(['INSTALLED', 'CON
 
 const APPROVED_STATUSES: ReadonlySet<string> = new Set(['APPROVED', 'AUTO_APPROVED']);
 
+/**
+ * 승인이 없을 때 두 쓰기 문이 각자 대는 사유. 같은 사실을 말하지만 문장은 문마다 다르다 —
+ * 사유는 그 문이 무엇을 못 하게 됐는지를 말해야 한다.
+ */
+const APPROVAL_GATE = {
+  reconfirm: '연동 요청이 승인되어야 재확정할 수 있습니다',
+  edit: '연동 요청이 승인되어야 확정 정보를 입력할 수 있습니다',
+} as const;
+
 const styles = {
   verdict: 'flex items-start gap-2.5',
   verdictDot: 'mt-[9px] h-2 w-2 flex-none rounded-full',
@@ -403,16 +412,15 @@ export function ConfirmTab({
           : { toneClass: TONE_TEXT.off, label: requestStatus ?? '요청 없음' };
 
   /**
-   * The 재확정 door is three-way, not two-way (owner 2026-09-11): an approved request known to
-   * exist opens it, a request axis known to hold no approval (absent · PENDING · REJECTED ·
-   * CANCELLED …) blocks it with the reason below, and a FAILED fetch blocks nothing — we do not
-   * close a door on the strength of a value we could not read (same rule as startGate /
-   * pipelineTypeGate).
+   * Both write doors hang on the approval, and the rule is three-way, not two-way (owner
+   * 2026-09-11). An approved request known to exist opens them; a request axis known to hold no
+   * approval (absent · PENDING · REJECTED · CANCELLED …) closes them with their own reason; a
+   * FAILED fetch closes nothing — we do not lock a door on the strength of a value we could not
+   * read (same rule as startGate / pipelineTypeGate). One source, so the two doors cannot drift.
    */
-  const reconfirmBlocked: string | null =
-    request.state === 'ready' && !requestApproved
-      ? '승인된 연동 요청이 없어 재확정할 수 없습니다'
-      : null;
+  const approvalMissing = request.state === 'ready' && !requestApproved;
+  const reconfirmBlocked: string | null = approvalMissing ? APPROVAL_GATE.reconfirm : null;
+  const editBlocked: string | null = approvalMissing ? APPROVAL_GATE.edit : null;
 
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
   // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
@@ -466,6 +474,7 @@ export function ConfirmTab({
             // 여는 조건이 아니라 pane 이 따로 말하는 상태다.
             onReconfirm={writeProvider ? onOpenInfra : undefined}
             reconfirmBlocked={reconfirmBlocked}
+            editBlocked={editBlocked}
             onEdit={writeProvider ? editorModal.open : undefined}
             onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
           />

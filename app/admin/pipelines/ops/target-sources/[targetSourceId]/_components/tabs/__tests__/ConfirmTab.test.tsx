@@ -221,6 +221,25 @@ describe('ConfirmTab 두 기록 카드', () => {
     expect(screen.queryByRole('button', { name: '확정 정보 삭제' })).toBeNull();
   });
 
+  /**
+   * 입력도 같은 승인에 달려 있다(오너 2026-09-11) — 확정은 승인된 목록을 기준으로 만들어지므로
+   * 승인이 없으면 기준이 없다. 등록된 확정이 서 있으면 그쪽 사유가 이긴다: 사람이 먼저 부딪히는
+   * 장애물이고, 이 화면에서 손댈 수 있는 쪽도 그것이다.
+   */
+  it('승인이 없으면 입력 문도 막히고, 사유는 승인을 가리킨다', async () => {
+    getApprovalRequestLatest.mockResolvedValue(null);
+    getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
+    mount();
+
+    const input = await screen.findByRole('button', { name: '확정 정보 입력' });
+    expect(input.getAttribute('aria-disabled')).toBe('true');
+
+    fireEvent.mouseEnter(input.parentElement as HTMLElement);
+    expect(
+      await screen.findByText('연동 요청이 승인되어야 확정 정보를 입력할 수 있습니다'),
+    ).toBeTruthy();
+  });
+
   it('요청 조회가 실패하면 오류 배너를 올린다', async () => {
     getApprovalRequestLatest.mockRejectedValue(new Error('boom'));
     mount();
@@ -484,7 +503,7 @@ describe('ConfirmTab 대조', () => {
     expect(button.getAttribute('aria-disabled')).toBe('true');
 
     fireEvent.mouseEnter(button.parentElement as HTMLElement);
-    expect(await screen.findByText('승인된 연동 요청이 없어 재확정할 수 없습니다')).toBeTruthy();
+    expect(await screen.findByText('연동 요청이 승인되어야 재확정할 수 있습니다')).toBeTruthy();
     // 막힌 문에 툴팁은 하나다 — 동작 설명은 사유에 자리를 내준다.
     expect(screen.queryByText(/인프라는 다시 설치되지 않습니다/)).toBeNull();
   });
@@ -500,7 +519,7 @@ describe('ConfirmTab 대조', () => {
 
     const button = await screen.findByRole('button', { name: '재확정' });
     expect(button.getAttribute('aria-disabled')).toBeNull();
-    expect(screen.queryByText('승인된 연동 요청이 없어 재확정할 수 없습니다')).toBeNull();
+    expect(screen.queryByText('연동 요청이 승인되어야 재확정할 수 있습니다')).toBeNull();
   });
 
   /** 이 문이 무엇을 하는지는 hover 가 말한다 — 막힌 이유가 아니라 동작 설명이다. */

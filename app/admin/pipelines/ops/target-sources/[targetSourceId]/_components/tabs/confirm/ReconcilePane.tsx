@@ -80,6 +80,11 @@ export interface ReconcilePaneProps {
    */
   reconfirmBlocked?: string | null;
   onEdit?: () => void;
+  /**
+   * Why 확정 정보 입력 is closed on the approval axis, or `null`. A standing record closes the
+   * same door with its own reason and wins when both apply — it is the nearer obstacle.
+   */
+  editBlocked?: string | null;
   onDelete?: () => void;
 }
 
@@ -96,6 +101,7 @@ export function ReconcilePane({
   onReconfirm,
   reconfirmBlocked = null,
   onEdit,
+  editBlocked = null,
   onDelete,
 }: ReconcilePaneProps): ReactElement {
   // 차이가 있는 화면에서 먼저 답해야 하는 질문은 "무엇이 다른가"다 — 전체 목록은 한 번의
@@ -116,10 +122,13 @@ export function ReconcilePane({
       ? `리소스 ${confirmedRows.length}건 · 확정 시각 불러오지 못함`
       : `리소스 ${confirmedRows.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)}` : ''}`;
 
+  // Two things close this door, and the standing record wins: it is the obstacle the person hits
+  // first and the one they can act on here. 등록이 있는 동안 문은 자리를 지키되 잠긴다 — 고쳐
+  // 쓰는 길은 없고 지운 뒤 다시 넣는다(오너 2026-09-03). 승인이 없는 경우는 오너 2026-09-11.
+  // 사유가 있는 잠금은 `blocked` 다: 툴팁이 마우스로도 키보드로도 닿는다.
+  const editReason = !empty ? '확정 정보를 삭제한 뒤 입력할 수 있습니다' : editBlocked;
   const editDoor = onEdit ? (
-    // 등록이 있는 동안 문은 자리를 지키되 잠긴다 — 고쳐 쓰는 길은 없고 지운 뒤 다시 넣는다
-    // (오너 2026-09-03). 사유가 있는 잠금은 `blocked` 다: 툴팁이 마우스로도 키보드로도 닿는다.
-    <PlButton variant="primary" blocked={!empty} onClick={onEdit}>
+    <PlButton variant="primary" blocked={editReason != null} onClick={onEdit}>
       확정 정보 입력
     </PlButton>
   ) : null;
@@ -216,14 +225,10 @@ export function ReconcilePane({
                   </PlButton>
                 )}
                 {editDoor &&
-                  (empty ? (
+                  (editReason == null ? (
                     editDoor
                   ) : (
-                    <Tooltip
-                      content="확정 정보를 삭제한 뒤 입력할 수 있습니다"
-                      variant="value"
-                      triggerClassName="shrink-0"
-                    >
+                    <Tooltip content={editReason} variant="value" triggerClassName="shrink-0">
                       {editDoor}
                     </Tooltip>
                   ))}
