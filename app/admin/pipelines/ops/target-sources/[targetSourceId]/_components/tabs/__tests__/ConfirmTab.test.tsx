@@ -454,10 +454,10 @@ describe('ConfirmTab 대조', () => {
   it('재확정이 필요하면 그 말을 헤드라인·상태·문에서 함께 한다', async () => {
     mount(false, 'CONFIRMING');
 
-    expect(
-      await screen.findByText('확정 정보를 다시 입력해야 합니다 — 승인과 차이 1건'),
-    ).toBeTruthy();
-    expect(screen.getByText('다시 입력 필요')).toBeTruthy();
+    expect(await screen.findByText('확정 정보를 다시 입력해야 합니다')).toBeTruthy();
+    expect(screen.getByText(/승인 내용과 차이가 1건 있습니다/)).toBeTruthy();
+    // 헤드라인 태그와 확정 카드의 「상태」 kv — 같은 낱말이 두 자리에 선다.
+    expect(screen.getAllByText('다시 입력 필요')).toHaveLength(2);
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 
