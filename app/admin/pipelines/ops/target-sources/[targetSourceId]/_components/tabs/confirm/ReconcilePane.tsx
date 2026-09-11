@@ -123,9 +123,7 @@ export function ReconcilePane({
   const stateTag = deriveConfirmedStateTag({ confirmedCount: confirmedRows.length, reconfirmNeeded });
   const showDiffOnly = hasDiff && diffOnly;
 
-  const confirmedFact = empty
-    ? '—'
-    : confirmedAtFailed
+  const confirmedFact = confirmedAtFailed
       ? `리소스 ${confirmedRows.length}건 · 확정 시각 불러오지 못함`
       : `리소스 ${confirmedRows.length}건${confirmedAt ? ` · ${fmtDateTime(confirmedAt)}` : ''}`;
 
@@ -188,7 +186,8 @@ export function ReconcilePane({
             {(onReconfirm || onEdit || onDelete) && (
               /* 세 문은 같은 눈금(32px)이다 — 등급을 색으로만 가른다. */
               <div className={paneStyles.actions}>
-                {onReconfirm && (
+                {/* Nothing to re-confirm when nothing is registered (owner 09-11). */}
+                {onReconfirm && !empty && (
                   // The door always stands; what changes is whether it opens. It is closed only
                   // when the tab KNOWS there is no approved 연동 요청 to re-register from — a
                   // request fetch that failed leaves it open, because unknown is not a reason
@@ -231,14 +230,14 @@ export function ReconcilePane({
             )}
           </div>
 
+          {/* No record, no facts (owner 09-11): 「등록 —」 and a 「대조」 against nothing are
+              noise. The headline above already says what is missing. */}
+          {stateTag != null && (
           <div className={styles.kvGrid}>
-            {/* No record, no 상태 row: the headline already says what is missing (owner 09-11). */}
-            {stateTag != null && (
-              <Kv
-                label="상태"
-                value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
-              />
-            )}
+            <Kv
+              label="상태"
+              value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
+            />
             <Kv label="등록" value={confirmedFact} />
             {reconcile && (
               <Kv
@@ -253,6 +252,7 @@ export function ReconcilePane({
               />
             )}
           </div>
+          )}
         </section>
       </div>
 

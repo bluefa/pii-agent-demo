@@ -111,6 +111,7 @@ const mount = (isSdu = false, processStatus: 'CONNECTED' | 'CONFIRMING' = 'CONNE
       targetSourceId={1642}
       detail={isSdu ? SDU : CSP}
       processStatus={processStatus}
+      processLoaded
       isSdu={isSdu}
       onOpenInfra={() => {}}
     />,
@@ -354,6 +355,7 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
         targetSourceId={1642}
         detail={SDU}
         processStatus="CONNECTED"
+        processLoaded
         isSdu
         onOpenInfra={() => {}}
       />,
@@ -468,6 +470,7 @@ describe('ConfirmTab 대조', () => {
         targetSourceId={1642}
         detail={CSP}
         processStatus="CONFIRMING"
+        processLoaded
         isSdu={false}
         onOpenInfra={onOpenInfra}
       />,

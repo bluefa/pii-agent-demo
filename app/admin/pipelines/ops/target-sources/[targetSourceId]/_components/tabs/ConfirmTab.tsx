@@ -203,6 +203,12 @@ export interface ConfirmTabProps {
   /** 판정 문장의 두 입력 중 하나 (다른 하나는 "확정 데이터가 있는가"). */
   processStatus: ProcessStatus | null;
   /**
+   * Whether `processStatus` has settled (loaded or failed). Until it has, the tab stays on
+   * its skeleton: a verdict drawn with `null` and then redrawn when the status lands is the
+   * flicker the owner rejected (2026-09-11).
+   */
+  processLoaded: boolean;
+  /**
    * 요청 축이 있는가. 화면이 이미 내린 판정을 받는다 — 탭이 `detail` 에서 다시 세우면
    * 안 된다: `normalizeCloudProvider('SDU')` 는 'AWS' 라, provider 비교로는 SDU 가
    * 잡히지 않는다.
@@ -220,6 +226,7 @@ export function ConfirmTab({
   targetSourceId,
   detail,
   processStatus,
+  processLoaded,
   isSdu,
   onOpenInfra,
 }: ConfirmTabProps): ReactElement {
@@ -294,7 +301,10 @@ export function ConfirmTab({
   // 지나므로 이 게이트 하나로 덮인다. terraform 이 이 셋에 남아 있는 것도 같은 이유다 —
   // 확정 시각이 프레임이 정착한 뒤에 뒤늦게 튀어나오지 않게 한다.
   const booting =
-    request.state === 'loading' || confirmed.state === 'loading' || terraform.state === 'loading';
+    !processLoaded ||
+    request.state === 'loading' ||
+    confirmed.state === 'loading' ||
+    terraform.state === 'loading';
   if (booting) {
     // 스켈레톤은 정착 프레임의 컨테이너 클래스를 그대로 쓴다 — 판정 줄·밴드·pane 머리의
     // y 가 도착 시 움직이지 않게. 표 본문은 행 수가 데이터라 블록 하나로만 잡는다.

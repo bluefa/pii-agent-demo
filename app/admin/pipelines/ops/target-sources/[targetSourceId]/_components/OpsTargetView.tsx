@@ -653,6 +653,8 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               targetSourceId={targetSourceId}
               detail={detail}
               processStatus={processStatus}
+              // 상태가 아직 오지 않은 프레임은 판정이 아니다 — 탭은 그동안 스켈레톤이다.
+              processLoaded={processLoaded}
               // 워크벤치의 세 축 중 「연동 요청 확인」은 SDU 에 없다 — 승인이 없어(§0)
               // 요청이 만들어지지 않으므로. 판정은 여기서 내린 것을 그대로 받는다.
               isSdu={isSdu}
