@@ -73,6 +73,12 @@ export interface ReconcilePaneProps {
    * 아니다.
    */
   onReconfirm?: () => void;
+  /**
+   * Why the 재확정 door is closed, or `null` when it is open. The reason REPLACES the intro tip
+   * (a blocked button never carries two tooltips). `null` also covers the unknown case — a
+   * failed request fetch does not block.
+   */
+  reconfirmBlocked?: string | null;
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -88,6 +94,7 @@ export function ReconcilePane({
   reconcile,
   reconfirmNeeded,
   onReconfirm,
+  reconfirmBlocked = null,
   onEdit,
   onDelete,
 }: ReconcilePaneProps): ReactElement {
@@ -178,19 +185,27 @@ export function ReconcilePane({
               /* 세 문은 같은 눈금(32px)이다 — 등급을 색으로만 가른다. */
               <div className={paneStyles.actions}>
                 {onReconfirm && (
-                  // The active-pipeline lock ships with the run-line PR: while a pipeline runs on
-                  // this target the button becomes `blocked` with a hover tooltip. This tab does
-                  // not fetch pipeline data yet, so do not re-add the old `reconfirmNeeded` gate
-                  // as a stand-in — the owner (2026-09-11) wants the door always offered.
+                  // The door always stands; what changes is whether it opens. It is closed only
+                  // when the tab KNOWS there is no approved 연동 요청 to re-register from — a
+                  // request fetch that failed leaves it open, because unknown is not a reason
+                  // (owner 2026-09-11). Do not re-add the old `reconfirmNeeded` gate as a
+                  // stand-in for the active-pipeline lock; that one ships with the run-line PR.
                   //
-                  // The tip describes what the door does; it is not a blocked reason, so the
-                  // button stays enabled under it.
+                  // One tooltip either way: the blocked reason replaces the intro tip, which
+                  // describes the action and therefore cannot double as a reason.
                   <Tooltip
-                    content="확정 정보를 지우고 승인 내용으로 다시 등록합니다. 인프라는 다시 설치되지 않습니다."
+                    content={
+                      reconfirmBlocked ??
+                      '확정 정보를 지우고 승인 내용으로 다시 등록합니다. 인프라는 다시 설치되지 않습니다.'
+                    }
                     variant="value"
                     triggerClassName="shrink-0"
                   >
-                    <PlButton variant="warnSolid" onClick={onReconfirm}>
+                    <PlButton
+                      variant="warnSolid"
+                      blocked={reconfirmBlocked != null}
+                      onClick={onReconfirm}
+                    >
                       재확정
                     </PlButton>
                   </Tooltip>
