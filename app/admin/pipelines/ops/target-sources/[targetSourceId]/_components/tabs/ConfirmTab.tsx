@@ -18,11 +18,12 @@
  * 화면이 말하는 것은 계약이 주는 것뿐이다:
  *   - 확정이 어느 승인에 근거하는지는 계약에 없다 → "근거 승인"을 추정해 적지 않는다.
  *     대조도 **계보가 아니라 두 목록의 비교**다: 최신 승인과 현재 확정을 맞댈 뿐이다.
- *   - 상태 점: 초록 = 그 단계가 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것 ·
- *     주황 = 손댈 일이 남음(3단계인데 확정이 이미 있는 재확정 상태).
+ *   - 헤드라인의 상태는 **낱말**이다: 미등록 · 등록됨 · 다시 입력 필요. 색만으로 말하던
+ *     점은 사라졌다(오너 2026-09-11) — 같은 사실이 확정 카드의 「상태」 kv 에도 서 있어서
+ *     규칙은 `confirmedStateTag` 한 곳에 둔다.
  *
- * 판정 문장의 규칙은 verdict.ts 한 곳에 있다. 대조 건수는 그 문장의 입력이지만 점을
- * 물들이지는 않는다 — 차이는 결함이 아니다.
+ * 판정 문장의 규칙은 verdict.ts 한 곳에 있다. 대조 건수는 그 문장의 입력이지만 태그를
+ * 바꾸지는 않는다 — 차이는 결함이 아니다.
  *
  * 로드는 진입 3콜(요청·확정·terraform)이고 서로 독립이라 하나가 실패해도 나머지
  * 칸은 그대로 그린다. 이 탭이 Terraform 을 하나도 그리지 않는데 terraform-status 를
@@ -71,8 +72,11 @@ import { resolveWriteProvider } from '@/app/admin/pipelines/ops/target-sources/[
 import {
   deriveConfirmVerdict,
   type RequestFacet,
-  type VerdictDot,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/verdict';
+import {
+  CONFIRMED_STATE_TONE,
+  confirmTagStyles,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import { ConfirmPane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import { ReconcilePane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ReconcilePane';
 import {
@@ -107,24 +111,18 @@ const APPROVAL_GATE = {
 } as const;
 
 const styles = {
-  verdict: 'flex items-start gap-2.5',
-  verdictDot: 'mt-[9px] h-2 w-2 flex-none rounded-full',
+  verdict: 'flex items-start gap-2',
+  /** 20px 헤드라인의 첫 줄 한가운데에 태그를 맞춘다 — 머리가 두 줄이 되어도 첫 줄 기준. */
+  verdictTag: 'mt-[3px]',
   verdictHead: 'text-[20px] font-bold leading-[1.34] tracking-[-0.028em] text-[var(--pl-text-strong)]',
   /** 판정 아래 한 줄 — 카드가 아니라 바닥 위에 선다. 바닥(gray-200)에서 weak 는 4.01 로
-      AA 아래라 한 칸 내려간 gray-600(6.20)이 진다. */
-  verdictSub: 'ml-[18px] mt-1 max-w-[76ch] text-[14px] text-[var(--pl-gray-600)]',
+      AA 아래라 한 칸 내려간 gray-600(6.20)이 진다. 태그는 폭이 낱말마다 달라 머리 글자에
+      들여 맞출 수 없으므로, 이 줄은 태그와 같은 왼쪽 끝에서 시작한다. */
+  verdictSub: 'mt-1 max-w-[76ch] text-[14px] text-[var(--pl-gray-600)]',
   /** 화면에서 테두리를 가진 유일한 표면. */
   shell:
     'mt-5 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
 } as const;
-
-/** 초록 = 단계 끝남 · 회색 = 아직 · 빨강 = API 가 실패라고 말한 것 · 주황 = 손댈 일이 남음. */
-const DOT_FILL: Record<VerdictDot, string> = {
-  done: 'bg-[var(--pl-ok)]',
-  idle: 'bg-[var(--pl-gray-300)]',
-  failed: 'bg-[var(--pl-err)]',
-  warn: 'bg-[var(--pl-warn)]',
-};
 
 /**
  * 요청 축의 결말 색 — 반려만 빨강, 대기는 콘솔 관례대로 warn, 요청 없음은 무채색.
@@ -295,13 +293,13 @@ export function ConfirmTab({
     return (
       <div className="relative" aria-busy>
         <span className="sr-only">불러오는 중</span>
+        {/* 태그는 서지 않는다 — 상태를 모르는 동안 「미등록」을 보이면 그 프레임이 거짓이다. */}
         <p className={styles.verdict}>
-          <span className={cn(styles.verdictDot, DOT_FILL.idle)} />
           <span className={cn(opsStyles.skeletonWash, 'h-[27px] w-[340px]')} />
         </p>
         {/* 이 둘은 흰 `styles.shell` **앞**이라 바닥 위에 선다 — 카드 안의 `skeletonBar`
             (gray-100)가 아니라 바닥용 `skeletonWash` 가 진다. */}
-        <div className={cn(opsStyles.skeletonWash, 'ml-[18px] mt-1 h-[21px] w-[430px] max-w-[76ch]')} />
+        <div className={cn(opsStyles.skeletonWash, 'mt-1 h-[21px] w-[430px] max-w-[76ch]')} />
         <div className={styles.shell}>
           <div className="px-[22px] pb-6 pt-5">
             {/* 승인 축이 있는 대상은 카드 둘로 열린다. 축이 없는 대상(SDU)은 pane 머리
@@ -429,7 +427,15 @@ export function ConfirmTab({
   return (
     <div>
       <p className={styles.verdict}>
-        <span className={cn(styles.verdictDot, DOT_FILL[verdict.dot])} />
+        <span
+          className={cn(
+            confirmTagStyles.tag,
+            confirmTagStyles[CONFIRMED_STATE_TONE[verdict.tag]],
+            styles.verdictTag,
+          )}
+        >
+          {verdict.tag}
+        </span>
         <span className={styles.verdictHead}>{verdict.head}</span>
       </p>
       <p className={styles.verdictSub}>{verdict.sub}</p>

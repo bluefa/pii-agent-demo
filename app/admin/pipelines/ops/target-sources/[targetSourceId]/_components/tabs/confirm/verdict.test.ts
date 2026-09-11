@@ -5,229 +5,165 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/verdict';
 
 const NONE: RequestFacet = { kind: 'none' };
+const AFTER_APPROVAL = '관리자가 승인하면 확정 정보를 입력할 수 있습니다.';
+const AFTER_RESEND = '서비스가 연동 요청을 다시 보내고 관리자가 승인하면 확정 정보를 입력할 수 있습니다.';
 
-describe('deriveConfirmVerdict — 문구 전수표의 아홉 행', () => {
+const base = { installed: false, confirmedCount: 0, reconfirmNeeded: false, diffCount: null } as const;
+
+describe('deriveConfirmVerdict — 문구 전수표', () => {
   it('설치가 끝나면 다른 모든 입력을 무시하고 완료를 말한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: true,
-      confirmedCount: 8,
-      request: { kind: 'rejected' },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.dot).toBe('done');
+    const verdict = deriveConfirmVerdict({ ...base, installed: true, confirmedCount: 8, request: { kind: 'rejected' } });
+    expect(verdict.tag).toBe('등록됨');
     expect(verdict.head).toBe('확정과 설치가 끝났습니다');
     expect(verdict.sub).toContain('8건');
   });
 
   it('설치 끝 + 확정 0건이면 건수 없이 말한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: true,
-      confirmedCount: 0,
-      request: NONE,
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
+    const verdict = deriveConfirmVerdict({ ...base, installed: true, request: NONE });
+    expect(verdict.tag).toBe('미등록');
     expect(verdict.sub).toBe('확정한 리소스가 인프라에 반영되었습니다.');
   });
 
-  it('등록돼 있으면 그 사실과 다음 단계(설치)의 관계만 말한다 — 요청의 결말은 밴드가 말한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 8,
-      request: { kind: 'rejected' },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.dot).toBe('done');
+  it('등록돼 있고 대조할 수 없으면 등록 사실과 다음 단계만 말한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, confirmedCount: 8, request: { kind: 'rejected' } });
+    expect(verdict.tag).toBe('등록됨');
     expect(verdict.head).toBe('확정 정보 8건이 등록되어 있습니다');
-    expect(verdict.sub).toBe('설치(Terraform)는 이 확정 정보를 기준으로 진행됩니다.');
+    expect(verdict.sub).toBe('이 확정 정보로 설치(Terraform)를 진행합니다.');
   });
 
-  it('미등록 + 반려는 종합해서 말한다 — 사실(밴드)과 다음 행동(헤드라인)', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'rejected' },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.dot).toBe('failed');
-    expect(verdict.head).toBe('승인이 반려되어 확정할 기준이 없습니다');
-    expect(verdict.sub).toBe('재요청을 기다리거나, 필요하면 직접 등록할 수 있습니다.');
+  it('미등록 + 반려는 반려 사실과 다음에 누가 무엇을 해야 하는지를 말한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'rejected' } });
+    expect(verdict.tag).toBe('미등록');
+    expect(verdict.head).toBe('연동 요청이 반려되었습니다');
+    expect(verdict.sub).toBe(`반려된 요청으로는 확정 정보를 입력할 수 없습니다. ${AFTER_RESEND}`);
   });
 
-  it('미등록 + 승인이면 승인 번호와 건수를 기준으로 제시한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'approved', requestId: 12, count: 8 },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.head).toBe('확정 정보가 필요합니다');
-    expect(verdict.sub).toBe('승인 #12에 선택된 8건을 기준으로 확정 정보가 등록됩니다.');
+  it('미등록 + 승인이면 승인 번호와 건수를 말하고 입력을 요구한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'approved', requestId: 12, count: 8 } });
+    expect(verdict.head).toBe('확정 정보를 입력해야 합니다');
+    expect(verdict.sub).toBe('승인 #12에서 리소스 8건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.');
   });
 
   it('승인됐지만 번호가 없으면 번호를 지어내지 않는다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'approved', requestId: null, count: 8 },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.sub).toBe('승인된 리소스를 기준으로 확정 정보가 등록됩니다.');
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'approved', requestId: null, count: 8 } });
+    expect(verdict.sub).toBe('연동 요청에서 리소스 8건이 승인되었습니다. 관리자가 확정 정보를 입력하면 설치를 진행할 수 있습니다.');
   });
 
-  it('미등록 + 처리 대기는 요청 번호와 함께 전제를 말한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'pending', requestId: 7 },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.sub).toBe('요청 #7이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.');
+  it('미등록 + 처리 대기는 승인이 필요하다고 머리에 말한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'pending', requestId: 7 } });
+    expect(verdict.head).toBe('연동 요청 승인이 필요합니다');
+    expect(verdict.sub).toBe(`요청 #7이 승인 대기 중입니다. ${AFTER_APPROVAL}`);
   });
 
-  it('미등록 + 요청 없음은 그 사실을 sub에 병기한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: NONE,
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.head).toBe('확정 정보가 필요합니다');
-    expect(verdict.sub).toBe('아직 승인 요청이 없습니다 — 승인된 리소스를 기준으로 등록됩니다.');
+  it('대기 + 요청 번호가 없으면 번호 없이 같은 말을 한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'pending', requestId: null } });
+    expect(verdict.sub).toBe(`연동 요청이 승인 대기 중입니다. ${AFTER_APPROVAL}`);
   });
 
-  it('대기 + 요청 번호가 없으면 번호 없이 같은 전제를 말한다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'pending', requestId: null },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.sub).toBe('요청이 아직 처리되지 않았습니다 — 처리 결과를 기준으로 확정합니다.');
+  it('미등록 + 요청 없음은 서비스가 먼저 보내야 한다고 말한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: NONE });
+    expect(verdict.head).toBe('연동 요청 승인이 필요합니다');
+    expect(verdict.sub).toBe(`연동 요청이 없습니다. 서비스가 연동 요청을 보내고 ${AFTER_APPROVAL}`);
   });
 
   it('승인 없이 끝난 요청은 대기라고 말하지 않는다 — 취소·연동 불가', () => {
     for (const label of ['요청 취소', '연동 불가']) {
-      const verdict = deriveConfirmVerdict({
-        installed: false,
-        confirmedCount: 0,
-        request: { kind: 'closed', label },
-        reconfirmNeeded: false,
-        diffCount: null,
-      });
-      // 반려가 아니므로 빨강으로 올리지 않는다.
-      expect(verdict.dot).toBe('idle');
-      expect(verdict.sub).toBe(
-        `최신 요청이 ${label}로 처리되어 확정할 기준이 없습니다 — 재요청을 기다리거나 직접 등록할 수 있습니다.`,
-      );
-      expect(verdict.sub).not.toContain('처리되지 않았습니다');
+      const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'closed', label } });
+      expect(verdict.tag).toBe('미등록');
+      expect(verdict.sub).toBe(`최신 연동 요청이 ${label} 상태입니다. ${AFTER_RESEND}`);
+      expect(verdict.sub).not.toContain('대기');
     }
   });
 
-  it('끝난 요청의 어휘가 없으면 요청에 대해 아무 말도 하지 않는다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'closed', label: null },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.sub).toBe('승인된 리소스를 기준으로 확정 정보가 등록됩니다.');
+  it('끝난 요청의 어휘가 없으면 그 결말을 말하지 않고 다음 조건만 말한다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'closed', label: null } });
+    expect(verdict.sub).toBe(`아직 승인된 연동 요청이 없습니다. ${AFTER_RESEND}`);
   });
 
   it('요청 축이 없는 대상에서는 승인을 입에 담지 않는다', () => {
-    // 모름(`unknown`)도 없음(`none`)도 아니다 — SDU 에는 승인 단계가 없어서(계약 §0)
-    // 기준이 될 승인이 생길 수 없다. 두 어휘 중 어느 쪽을 써도 없는 것을 기다리게 만든다.
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'absent' },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.dot).toBe('idle');
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'absent' } });
+    expect(verdict.tag).toBe('미등록');
     expect(verdict.head).toBe('확정 정보가 필요합니다');
-    expect(verdict.sub).toBe('설치(Terraform)는 확정 정보를 기준으로 진행됩니다.');
     expect(verdict.sub).not.toContain('승인');
   });
 
-  it('요청을 아직 모르면 "요청 없음"이라고 말하지 않는다', () => {
-    const verdict = deriveConfirmVerdict({
-      installed: false,
-      confirmedCount: 0,
-      request: { kind: 'unknown' },
-      reconfirmNeeded: false,
-      diffCount: null,
-    });
-    expect(verdict.sub).toBe('승인된 리소스를 기준으로 확정 정보가 등록됩니다.');
-    expect(verdict.sub).not.toContain('없습니다');
+  it('요청을 아직 모르면 승인이 없다고도, 필요하다고도 단정하지 않는다', () => {
+    const verdict = deriveConfirmVerdict({ ...base, request: { kind: 'unknown' } });
+    expect(verdict.head).toBe('확정 정보가 필요합니다');
+    expect(verdict.sub).toBe('연동 요청 정보를 불러오지 못했습니다. 승인 여부를 확인한 뒤 확정 정보를 입력할 수 있습니다.');
+  });
+
+  it('어느 행도 대시로 두 절을 잇지 않고, 「직접 등록」을 말하지 않는다', () => {
+    const requests: RequestFacet[] = [
+      NONE,
+      { kind: 'unknown' },
+      { kind: 'absent' },
+      { kind: 'pending', requestId: 7 },
+      { kind: 'pending', requestId: null },
+      { kind: 'rejected' },
+      { kind: 'closed', label: '요청 취소' },
+      { kind: 'closed', label: null },
+      { kind: 'approved', requestId: 12, count: 8 },
+      { kind: 'approved', requestId: null, count: 8 },
+    ];
+    for (const request of requests) {
+      for (const installed of [false, true]) {
+        for (const confirmedCount of [0, 8]) {
+          for (const reconfirmNeeded of [false, true]) {
+            for (const diffCount of [null, 0, 3]) {
+              const verdict = deriveConfirmVerdict({ installed, confirmedCount, request, reconfirmNeeded, diffCount });
+              for (const text of [verdict.head, verdict.sub]) {
+                expect(text).not.toContain('—');
+                expect(text).not.toContain(' - ');
+                expect(text).not.toContain('직접 등록');
+                expect(text).not.toContain('기준으로');
+              }
+            }
+          }
+        }
+      }
+    }
   });
 });
 
-/**
- * 재확정 — 확정 정보는 등록돼 있는데 진행 상태가 아직 3단계(CONFIRMING)다. 등록됐다는
- * 사실만 말하면 화면은 끝난 것처럼 읽히지만, 그 확정으로는 다음 단계로 넘어가지 않는다.
- */
 describe('deriveConfirmVerdict — 재확정과 대조', () => {
   const RECONFIRM = { installed: false, confirmedCount: 8, request: { kind: 'approved', requestId: 12, count: 8 } as RequestFacet };
 
   it('차이가 없으면 일치한다는 사실과 함께 다시 입력하라고 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: 0 });
-
-    expect(verdict.dot).toBe('warn');
+    expect(verdict.tag).toBe('다시 입력 필요');
     expect(verdict.head).toBe('리소스 정보는 전부 일치하지만 확정 정보를 다시 입력해야 합니다');
-    expect(verdict.sub).toBe(
-      '진행 상태가 아직 3단계(반영 중)입니다. 현재 확정 정보로는 다음 단계로 넘어가지 않습니다.',
-    );
+    expect(verdict.sub).toBe('진행 상태가 아직 3단계(반영 중)입니다. 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.');
   });
 
   it('대조할 수 없으면 일치를 주장하지 않는다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: null });
-
-    expect(verdict.dot).toBe('warn');
+    expect(verdict.tag).toBe('다시 입력 필요');
     expect(verdict.head).toBe('확정 정보를 다시 입력해야 합니다');
     expect(verdict.head).not.toContain('일치');
   });
 
-  it('차이가 있으면 건수를 헤드라인에 싣고 그것부터 보라고 말한다', () => {
+  it('차이가 있으면 건수를 첫 문장에 싣고 그것부터 보라고 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: 3 });
-
-    expect(verdict.dot).toBe('warn');
-    expect(verdict.head).toBe('확정 정보를 다시 입력해야 합니다 — 승인과 차이 3건');
-    expect(verdict.sub).toBe('진행 상태가 아직 3단계(반영 중)입니다. 차이를 확인한 뒤 재확정하세요.');
+    expect(verdict.tag).toBe('다시 입력 필요');
+    expect(verdict.head).toBe('확정 정보를 다시 입력해야 합니다');
+    expect(verdict.sub).toBe('승인 내용과 차이가 3건 있습니다. 차이를 확인한 뒤 재확정하세요. 진행 상태는 아직 3단계(반영 중)입니다.');
   });
 
   it('설치가 끝났으면 재확정 입력을 이긴다', () => {
-    const verdict = deriveConfirmVerdict({
-      ...RECONFIRM,
-      installed: true,
-      reconfirmNeeded: true,
-      diffCount: 3,
-    });
-
-    expect(verdict.dot).toBe('done');
+    const verdict = deriveConfirmVerdict({ ...RECONFIRM, installed: true, reconfirmNeeded: true, diffCount: 3 });
     expect(verdict.head).toBe('확정과 설치가 끝났습니다');
   });
 
-  it('재확정이 아니면 차이는 점을 물들이지 않는다 — 사실만 문장에 붙는다', () => {
+  it('재확정이 아니면 차이는 태그를 바꾸지 않는다 — 사실만 문장에 붙는다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: false, diffCount: 2 });
-
-    expect(verdict.dot).toBe('done');
+    expect(verdict.tag).toBe('등록됨');
     expect(verdict.head).toBe('확정 정보 8건이 등록되어 있습니다');
-    expect(verdict.sub).toBe('승인 내용과 차이 2건이 있습니다.');
+    expect(verdict.sub).toBe('승인 내용과 차이가 2건 있습니다.');
   });
 
-  it('차이 0건이면 등록된 확정의 다음 단계만 말한다', () => {
+  it('차이 0건이면 일치한다고 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: false, diffCount: 0 });
-
-    expect(verdict.sub).toBe('설치(Terraform)는 이 확정 정보를 기준으로 진행됩니다.');
+    expect(verdict.sub).toBe('승인 내용과 일치합니다.');
   });
 });

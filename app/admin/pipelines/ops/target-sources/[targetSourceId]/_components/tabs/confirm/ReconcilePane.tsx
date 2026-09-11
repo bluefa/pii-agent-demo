@@ -27,6 +27,11 @@ import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[ta
 import { Kv, paneStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import type { ReconcileTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/reconcileRows';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
+import {
+  CONFIRMED_STATE_TONE,
+  confirmTagStyles,
+  deriveConfirmedStateTag,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
 
@@ -40,11 +45,12 @@ const styles = {
   cardHead: 'flex items-start justify-between gap-3',
   /** 카드가 좁아(패널 절반) kv 는 2열이다. */
   kvGrid: 'mt-3.5 grid grid-cols-2 gap-x-6 gap-y-3.5',
-  tag: 'inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[12px] font-semibold leading-[1.34]',
   chips: 'mt-5 flex items-center gap-2',
-  ok: 'text-[var(--pl-ok-text)]',
-  warn: 'text-[var(--pl-warn-text)]',
-  off: 'text-[var(--pl-text-weak)]',
+  /** 태그와 그 톤은 판정 줄과 공유한다 — 같은 사실이 두 자리에서 다른 낱말로 서지 않게. */
+  tag: confirmTagStyles.tag,
+  ok: confirmTagStyles.ok,
+  warn: confirmTagStyles.warn,
+  off: confirmTagStyles.off,
 } as const;
 
 export interface ReconcilePaneProps {
@@ -114,6 +120,7 @@ export function ReconcilePane({
   const verdict = request?.verdict ?? null;
   const requestId = request?.request.requestId ?? null;
   const hasDiff = reconcile != null && reconcile.diffCount > 0;
+  const stateTag = deriveConfirmedStateTag({ confirmedCount: confirmedRows.length, reconfirmNeeded });
   const showDiffOnly = hasDiff && diffOnly;
 
   const confirmedFact = empty
@@ -239,15 +246,7 @@ export function ReconcilePane({
           <div className={styles.kvGrid}>
             <Kv
               label="상태"
-              value={
-                empty ? (
-                  <span className={styles.off}>미등록</span>
-                ) : reconfirmNeeded ? (
-                  <span className={styles.warn}>다시 입력 필요</span>
-                ) : (
-                  <span className={styles.ok}>등록됨</span>
-                )
-              }
+              value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
             />
             <Kv label="등록" value={confirmedFact} />
             {reconcile && (
