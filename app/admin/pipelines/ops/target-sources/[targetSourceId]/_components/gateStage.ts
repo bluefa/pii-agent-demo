@@ -88,24 +88,24 @@ export function gateStage(
 // ---------------------------------------------------------------------------
 
 /**
- * `gateStage` 위쪽은 **작업 시작 자체**가 닫힌 이유를 말한다. 여기는 그 다음 질문이다:
- * 모달이 열렸을 때 **어느 유형 행**이 살아 있는가.
+ * `gateStage` above says why 작업 시작 itself is closed. This answers the next
+ * question: once the modal is open, which type row is live.
  *
- * 한 상태에서만 답이 달라진다 — 3단계(`CONFIRMING`)에 확정된 인프라가 이미 있는 대상.
- * 확정 정보가 다시 들어와야 하는데 그 자리에 지난 확정이 서 있으므로, 설치를 다시 돌려도
- * 그 확정을 바꾸지 못한다(ADR-023). 그래서 그 대상에서 열리는 것은 재확정이고, 설치는
- * 눌러도 될 것 같은 얼굴로 남겨 두지 않는다.
+ * The RECONFIRM row is always offered (owner, 09-11). The 재확정 door in the 확정
+ * 정보 tab is open whenever no pipeline is running on the target, so the modal that
+ * door leads to has to carry the row too — otherwise the door opens onto a modal
+ * without the move it promised.
  *
- * 재확정은 그 밖의 상태에서 **아예 그리지 않는다**. 비활성 행으로 남기면 「지금은 못
- * 한다」로 읽히지만 실제로는 이 대상에서 할 일이 아니고, 서버도 그 조합의 레시피를 갖고
- * 있지 않다.
+ * What is left for this gate is the one status where INSTALL lies: CONFIRMING with
+ * confirmed infra already standing. The confirmed data has to be entered again, but
+ * the previous confirmation still occupies that slot, so re-running 설치 cannot
+ * change it (ADR-023). INSTALL is blocked there and the sentence says why.
  *
- * ⛔ `hasConfirmedInfra === null` 은 「없다」가 아니다 — terraform-status 를 아직 못
- * 읽었다는 뜻이다. 못 읽은 것을 근거로 행을 지우거나 막지 않는다(`startGate` 와 같은 규칙).
+ * ⛔ `hasConfirmedInfra === null` is not "no" — it means terraform-status has not
+ * been read yet. Nothing is blocked on the strength of a value we failed to read
+ * (same rule as `startGate`).
  */
 export interface PipelineTypeGate {
-  /** RECONFIRM 행을 그리는가. false 면 렌더 자체를 하지 않는다. */
-  reconfirm: boolean;
   /** null 이 아니면 INSTALL 행이 막히고, 이 문장이 그 이유다. */
   installBlocked: string | null;
 }
@@ -120,7 +120,7 @@ export function pipelineTypeGate(
   hasConfirmedInfra: boolean | null,
 ): PipelineTypeGate {
   if (processStatus === 'CONFIRMING' && hasConfirmedInfra === true) {
-    return { reconfirm: true, installBlocked: INSTALL_BLOCKED_BY_RECONFIRM };
+    return { installBlocked: INSTALL_BLOCKED_BY_RECONFIRM };
   }
-  return { reconfirm: false, installBlocked: null };
+  return { installBlocked: null };
 }

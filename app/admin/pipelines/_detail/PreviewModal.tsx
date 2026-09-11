@@ -375,9 +375,9 @@ export function PreviewModal({
           </div>
           <div className="flex flex-col gap-2.5">
             {optionRow('INSTALL', typeGate.installBlocked)}
-            {/* 재확정은 막힌 설치의 **대안**이라 그 바로 아래 선다. 고를 수 없는
-                대상에서는 비활성 행조차 두지 않는다 — 이 대상에서 할 일이 아니다. */}
-            {typeGate.reconfirm && optionRow('RECONFIRM')}
+            {/* 재확정은 막힌 설치의 **대안**이라 그 바로 아래 선다. Always offered
+                (owner, 09-11): the 확정 정보 tab's 재확정 door opens on this modal. */}
+            {optionRow('RECONFIRM')}
             {optionRow('CUSTOM', provider ? null : '이 provider는 커스텀 실행을 지원하지 않습니다')}
             {optionRow('DELETE')}
           </div>
