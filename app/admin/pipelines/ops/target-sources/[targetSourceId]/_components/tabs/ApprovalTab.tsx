@@ -512,30 +512,16 @@ export function ApprovalTab({
   // 승인 조건 ③ — the checklist carries the "why", the CTA stays locked.
   // 근거 행은 모니터링 근거의 fold 그대로 빌린다 — 이 화면과 Airflow 확인 탭이 같은
   // 응답을 다른 낱말로 부르면 안 된다. 조건 ② 와 같은 라벨–값 문법이다.
+  //
+  // ③ 은 ①·② 를 기다리지 않는다 — §10 은 이 탭이 열리면 대상 종류와 무관하게 받으므로
+  // (OpsTargetView `needsDag`), 이 줄은 제 응답만 읽고 헬스를 판정한다. 세 조건을 함께
+  // 거는 것은 CTA 의 몫이다(`foldApprovalHead`).
   const healthRow = ((): {
     state: GateRowState;
     facts: readonly GateFact[];
     titleHint?: string;
   } => {
     const prose = (line: string | null): readonly GateFact[] => (line ? [{ value: line }] : []);
-    if (!tcLoaded) return { state: 'loading', facts: [] };
-    // §5 가 아직 안 왔다 — ① 의 입력이 도착하기 전이라 ③ 의 차례인지도 말할 수 없다.
-    if (handoff === 'loading') return { state: 'loading', facts: [] };
-    // 모름 — §10 dag-status 는 읽는 사람이 생겼을 때만 가져오므로 이 상태에서는 헬스를
-    // 아직 보지도 않았다. 미요청·기록 없음·진행 중이 `pending`(✗)을 입는 것은 그것들이
-    // 관측된 사실이기 때문이다(요청이 없었다, 실행이 없었다). 이 줄은 DAG 에 대한 사실이
-    // 아니라 우리가 아직 안 봤다는 말이라, ✗ 를 달면 마크는 "미충족"이라 하고 바로 옆
-    // 문장은 "아직 점검 전"이라 하며 서로를 부정한다.
-    //
-    // **무엇이 ① 인가**는 대상 종류가 정한다(§9.1) — 다른 대상은 담당자의 완료 승인
-    // 요청이고, SDU 는 2단계 확인 셋이다. SDU 에서 `tcCompleted` 를 기다리면 이 줄은
-    // 아무도 누를 수 없는 버튼을 가리킨 채 굳어, 머리가 「세 조건이 모두 충족됐어요」라고
-    // 말하는 순간에도 카드만 미점검이라고 우긴다.
-    if (isSdu ? handoff !== 'met' : !tcCompleted)
-      return {
-        state: 'warn',
-        facts: [{ value: isSdu ? '담당자 확인 후 점검합니다' : '완료 승인 후 점검합니다' }],
-      };
     switch (dag.phase) {
       case 'loading':
         return { state: 'loading', facts: [] };

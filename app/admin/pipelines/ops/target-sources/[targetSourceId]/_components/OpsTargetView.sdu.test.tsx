@@ -488,14 +488,13 @@ describe('OpsTargetView — SDU 관리자 승인 탭', () => {
   /**
    * 조건 ③ 도 ① 과 같은 막다른 길을 갖고 있었다.
    *
-   * §10 dag-status 는 응답이 MB 단위라 **읽을 사람이 생겼을 때만** 부른다. 그 "독자"의
-   * 조건이 `TEST_CONNECTION_COMPLETED` 하나였는데, 그것은 SDU 담당자가 누를 수 없는
-   * 버튼이다(§0) — 조회가 영영 돌지 않으니 헬스는 `loading` 에 멈추고, ①·② 를 통과한
-   * 대상에서도 머리는 「헬스 확인 중」, 연동 완료는 잠긴 채였다.
+   * §10 dag-status 의 "독자" 조건이 `TEST_CONNECTION_COMPLETED` 하나였는데, 그것은 SDU
+   * 담당자가 누를 수 없는 버튼이다(§0) — 조회가 영영 돌지 않으니 헬스는 `loading` 에
+   * 멈추고, ①·② 를 통과한 대상에서도 머리는 「헬스 확인 중」, 연동 완료는 잠긴 채였다.
    *
-   * 늦춤 자체는 옳아서 지킨다 — 바뀐 것은 독자를 알아보는 방법뿐이다. 그래서 이 축은
-   * 둘을 함께 잰다: SDU 에서는 **승인 탭을 연 것만으로** 조회가 돌고, SDU 가 아닌
-   * 대상에서는 여전히 돌지 않는다.
+   * 이제 독자는 대상 종류와 무관하게 **승인 탭이 열려 있다는 사실**이다 — ③ 은 ① 을
+   * 기다리지 않고 제 헬스를 판정한다. 그래서 이 축은 둘을 함께 잰다: SDU 든 아니든
+   * ① 이 미충족이어도 카드 ③ 은 헬스를 말하고, 연동 완료는 ① 때문에 잠긴 채다.
    */
   it('승인 탭을 열면 헬스를 조회한다 — Airflow 탭을 먼저 들르지 않아도', async () => {
     getRawTargetSourceDetail.mockResolvedValue(detail());
@@ -526,15 +525,17 @@ describe('OpsTargetView — SDU 관리자 승인 탭', () => {
     expect(gate3.queryByText('완료 승인 후 점검합니다')).toBeNull();
   });
 
-  it('조건 ① 이 아직이면 카드 ③ 은 담당자 확인을 가리킨다 — 완료 승인이 아니라', async () => {
-    // 기본 픽스처는 방화벽 「아니오」 — ① 미충족이다. 이 자리의 문장이 「완료 승인 후」면
-    // SDU 관리자는 아무도 누를 수 없는 버튼을 기다리게 된다.
+  it('조건 ① 이 아직이어도 카드 ③ 은 헬스를 판정한다 — 연동 완료는 잠긴 채다', async () => {
+    // 기본 픽스처는 방화벽 「아니오」 — ① 미충족이다. ③ 이 ① 을 기다리면 이 카드는
+    // 실제 DAG 상태와 무관하게 「점검 전」에 머문다.
+    getDagStatus.mockResolvedValue(DAG_HEALTHY);
     getRawTargetSourceDetail.mockResolvedValue(detail());
     render(<OpsTargetView targetSourceId={1099} initialTab="관리자 승인" statusSlot={<div data-testid="status-slot" />} />);
 
     const gate3 = within(await screen.findByRole('region', { name: '승인 조건 3' }));
-    expect(await gate3.findByText('담당자 확인 후 점검합니다')).toBeTruthy();
-    expect(gate3.queryByText('완료 승인 후 점검합니다')).toBeNull();
+    expect(await gate3.findByTitle('충족')).toBeTruthy();
+    expect(gate3.queryByText('담당자 확인 후 점검합니다')).toBeNull();
+    expect(screen.getByRole('button', { name: '연동 완료' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('SDU 가 아닌 대상의 조건 ① 은 그대로 완료 승인 요청이다', async () => {
@@ -559,16 +560,20 @@ describe('OpsTargetView — SDU 관리자 승인 탭', () => {
     expect(screen.queryByText(/연동 대상 정의는 남습니다/)).toBeNull();
   });
 
-  it('SDU 가 아닌 대상의 헬스 조회는 그대로 미뤄진다', async () => {
-    // 늦춤이 사라지면 안 된다 — §10 응답은 MB 단위라, 완료 승인 전의 대상에서 승인 탭을
-    // 여는 것만으로 받아 오면 이 화면이 그만큼 늦는다.
+  it('SDU 가 아닌 대상도 완료 승인 전에 헬스를 판정한다 — 연동 완료는 잠긴 채다', async () => {
+    // tcStatus 는 이 파일 내내 null 이다 — ① 미충족. 예전에는 이 상태에서 조회 자체가
+    // 돌지 않아 카드 ③ 이 실제 DAG 상태와 무관하게 「완료 승인 후 점검합니다」에 머물렀다.
+    getDagStatus.mockResolvedValue(DAG_HEALTHY);
     getRawTargetSourceDetail.mockResolvedValue(
       detail({ target_source_id: 1006, metadata: { is_sdu_type: false } }),
     );
     render(<OpsTargetView targetSourceId={1006} initialTab="관리자 승인" statusSlot={<div data-testid="status-slot" />} />);
 
     const gate3 = within(await screen.findByRole('region', { name: '승인 조건 3' }));
-    expect(await gate3.findByText('완료 승인 후 점검합니다')).toBeTruthy();
-    expect(getDagStatus).not.toHaveBeenCalled();
+    expect(await gate3.findByTitle('충족')).toBeTruthy();
+    expect(gate3.queryByText('완료 승인 후 점검합니다')).toBeNull();
+    expect(getDagStatus).toHaveBeenCalled();
+    // ① 이 서지 않았으므로 CTA 는 열리지 않는다 — ③ 의 판정이 잠금을 풀지 않는다.
+    expect(screen.getByRole('button', { name: '연동 완료' }).hasAttribute('disabled')).toBe(true);
   });
 });

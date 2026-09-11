@@ -370,16 +370,19 @@ hands the result to both tabs, so switching between them does not re-request §1
 A single target's response reaches MB scale (10k 논리 DB rows, BE open issue below).
 Two readers ask for it, on different rules:
 
-- **The client page** (`OpsTargetView`) still asks lazily — only once a reader exists:
-  the target is 완료 승인 (조건 ③ gates on it) or the Airflow 확인 tab is open. It hands
-  the one result to both tabs, so switching between them does not re-request.
+- **The client page** (`OpsTargetView`) asks when a tab that reads it is open — the
+  관리자 승인 tab (조건 ③ gates on it) or the Airflow 확인 tab — for every target type.
+  It used to wait for 완료 승인 (조건 ①) to keep an MB response nobody reads off the
+  wire; that premise expired with the card below, so 조건 ③ now judges health on its
+  own instead of waiting on ①. It hands the one result to both tabs, so switching
+  between them does not re-request.
 - **The 연동 현황 card** (`status/StatusCard.tsx`, Server Component) asks **on every
   render, at every step** — owner call 2026-08-30 ("6단계 상관없이 그냥 조회해"), which
   reversed the step gate that row used to sit behind. Its Airflow row prints whatever
   came back rather than a position in the process.
 
-So a 완료 승인 target fetches §10 **twice per page load** — once server-side for the
-card, once client-side for 조건 ③ — through different transports and with nothing
+So a page load on the 관리자 승인 or Airflow 확인 tab fetches §10 **twice** — once
+server-side for the card, once client-side for that tab — through different transports and with nothing
 deduping them. That is the accepted cost of the owner call. It collapses when the
 screen's `detail` moves to the server and the client stops fetching (see PR #832
 "Known follow-up"), or when BE bounds the response (open issue below).
