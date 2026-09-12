@@ -61,6 +61,12 @@ export type RequestFacet =
 /** 승인만 있으면 열리는 문 — 미등록 sub 의 둘째 문장은 거의 언제나 이 말이다. */
 const AFTER_APPROVAL = '관리자가 승인하면 확정 정보를 입력할 수 있습니다.';
 /** 요청 자체가 없거나 승인 없이 끝났다 — 서비스가 먼저 움직여야 한다. */
+/**
+ * Why a matching list can still need 재확정 — the reconcile joins by resource id, not by value,
+ * so a field mismatch or a different selected RDS cluster instance hides behind 「일치」.
+ */
+const LIST_MATCH_STILL_RECONFIRM =
+  '확정 정보와 승인 정보의 리소스 목록은 일치합니다. 목록이 완전히 일치해도 재확정이 필요할 수 있습니다. 일부 필드 값이 정확히 일치하지 않거나 RDS Cluster에서 선택된 인스턴스가 다르면 그렇습니다.';
 const AFTER_RESEND = '서비스가 연동 요청을 다시 보내고 관리자가 승인하면 확정 정보를 입력할 수 있습니다.';
 
 export function deriveConfirmVerdict(input: {
@@ -105,11 +111,14 @@ export function deriveConfirmVerdict(input: {
         }
       : {
           tag,
-          head:
+          // A matching list is not a finished confirmation (owner 2026-09-12): the join is by
+          // resource id only, so a field that differs or a different RDS cluster instance
+          // still calls for 재확정. The sub says so before it says what 재확정 does.
+          head: '3단계에서는 재확정이 필요할 수 있습니다',
+          sub:
             diffCount == null
-              ? '확정 정보를 다시 입력해야 합니다'
-              : '리소스 정보는 전부 일치하지만 확정 정보를 다시 입력해야 합니다',
-          sub: '진행 상태가 아직 3단계(반영 중)입니다. 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.',
+              ? '진행 상태가 아직 3단계(반영 중)입니다. 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.'
+              : `${LIST_MATCH_STILL_RECONFIRM} 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.`,
         };
   }
 
@@ -124,7 +133,7 @@ export function deriveConfirmVerdict(input: {
           ? '이 확정 정보로 설치(Terraform)를 진행합니다.'
           : diffCount > 0
             ? `승인 내용과 차이가 ${diffCount}건 있습니다.`
-            : '승인 내용과 일치합니다.',
+            : '승인 내용과 리소스 목록이 일치합니다.',
     };
   }
 

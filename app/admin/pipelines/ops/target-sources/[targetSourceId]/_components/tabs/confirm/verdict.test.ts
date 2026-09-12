@@ -118,18 +118,20 @@ describe('deriveConfirmVerdict — 문구 전수표', () => {
 describe('deriveConfirmVerdict — 재확정과 대조', () => {
   const RECONFIRM = { installed: false, confirmedCount: 8, request: { kind: 'approved', count: 8 } as RequestFacet };
 
-  it('차이가 없으면 일치한다는 사실과 함께 다시 입력하라고 말한다', () => {
+  it('차이가 없으면 목록이 일치해도 재확정이 필요할 수 있는 이유를 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: 0 });
     expect(verdict.tag).toBe('다시 입력 필요');
-    expect(verdict.head).toBe('리소스 정보는 전부 일치하지만 확정 정보를 다시 입력해야 합니다');
-    expect(verdict.sub).toBe('진행 상태가 아직 3단계(반영 중)입니다. 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.');
+    expect(verdict.head).toBe('3단계에서는 재확정이 필요할 수 있습니다');
+    expect(verdict.sub).toBe(
+      '확정 정보와 승인 정보의 리소스 목록은 일치합니다. 목록이 완전히 일치해도 재확정이 필요할 수 있습니다. 일부 필드 값이 정확히 일치하지 않거나 RDS Cluster에서 선택된 인스턴스가 다르면 그렇습니다. 재확정하면 확정 정보가 승인 내용으로 다시 등록됩니다.',
+    );
   });
 
   it('대조할 수 없으면 일치를 주장하지 않는다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: true, diffCount: null });
     expect(verdict.tag).toBe('다시 입력 필요');
-    expect(verdict.head).toBe('확정 정보를 다시 입력해야 합니다');
-    expect(verdict.head).not.toContain('일치');
+    expect(verdict.head).toBe('3단계에서는 재확정이 필요할 수 있습니다');
+    expect(verdict.sub).not.toContain('일치');
   });
 
   it('차이가 있으면 건수를 첫 문장에 싣고 그것부터 보라고 말한다', () => {
@@ -153,6 +155,6 @@ describe('deriveConfirmVerdict — 재확정과 대조', () => {
 
   it('차이 0건이면 일치한다고 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...RECONFIRM, reconfirmNeeded: false, diffCount: 0 });
-    expect(verdict.sub).toBe('승인 내용과 일치합니다.');
+    expect(verdict.sub).toBe('승인 내용과 리소스 목록이 일치합니다.');
   });
 });
