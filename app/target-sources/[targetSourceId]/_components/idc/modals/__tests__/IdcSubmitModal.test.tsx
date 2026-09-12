@@ -122,6 +122,15 @@ describe('IdcSubmitModal', () => {
     expect(screen.getByRole('button', { name: '다시 요청하기' })).toBeTruthy();
   });
 
+  // 스캔 목록이 바뀐 409 는 다시 누르면 같은 본문이 다시 나가 같은 409 다.
+  it('a stale target list says to refresh and withholds 다시 요청하기', () => {
+    render(<IdcSubmitModal {...baseProps} phase="error" errorCode="CONFLICT_STALE_TARGET_LIST" />);
+
+    expect(screen.getByText(/새로고침한 뒤 다시 선택/)).toBeTruthy();
+    expect(screen.queryByText('이미 진행 중인 승인 요청이 있어요.')).toBeNull();
+    expect(screen.queryByRole('button', { name: '다시 요청하기' })).toBeNull();
+  });
+
   it('phase=error offers 다시 요청하기 and 닫기', () => {
     const onRetry = vi.fn();
     const onClose = vi.fn();

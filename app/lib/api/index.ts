@@ -20,6 +20,7 @@ import type { SecretKey } from '@/lib/types';
 import { parseRdsInstanceCandidates, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TcScope } from '@/app/lib/api/tc-scope';
+import type { ApprovalSelection } from '@/lib/approval-selection';
 import type { TargetSourceRequestCloudType } from '@/lib/constants/provider-mapping';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 import { pickScanPrincipal } from '@/lib/target-source-response';
@@ -437,15 +438,27 @@ export const getConfirmResources = async (
     options?.signal ? { signal: options.signal } : undefined,
   );
   const items = Array.isArray(raw.resources) ? raw.resources as Record<string, unknown>[] : [];
+  // id 없는 와이어 행은 연동 대상이 될 수 없다(`ec2.ts` 의 검색 결과·승인 매퍼와 같은
+  // 규칙). 목록에 올리면 고를 수 있고, `selected: true` 로 오면 CTA 가 세는데, 매퍼는
+  // 그 행을 떨구므로 빈 본문이 나가 400 이 된다 — 사용자가 화면에서 고칠 방법이 없다.
+  // 어댑터는 모든 소비자가 공유하는 한 자리라 여기서 떨군다.
+  const resources = items.map(toConfirmResourceItem).filter((item) => item.id !== '');
   return {
-    resources: items.map(toConfirmResourceItem),
-    totalCount: typeof raw.total_count === 'number' ? raw.total_count : items.length,
+    resources,
+    // 개수는 목록에서 센다 — 와이어의 `total_count` 를 그대로 쓰면 화면이 그릴 수 없는
+    // 행까지 세어 목록과 개수가 어긋난다.
+    totalCount: resources.length,
   };
 };
 
+/**
+ * 승인 요청 생성. 보내는 것은 선택(`ApprovalSelectionInput`)이지 계약 본문이 아니다 —
+ * 라우트가 스캔 결과를 다시 읽어 `ApprovalRequestInputDto` 를 조립한다
+ * (`app/api/_lib/approval-input.ts`).
+ */
 export const createApprovalRequest = async (
   targetSourceId: number,
-  input: z.infer<typeof schemas.ApprovalRequestInputDto>,
+  input: ApprovalSelection,
 ): Promise<ApprovalRequestSummaryDto> =>
   fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,

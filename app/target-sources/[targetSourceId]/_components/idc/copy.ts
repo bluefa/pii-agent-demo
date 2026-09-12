@@ -158,6 +158,7 @@ const ko = {
   formDomainDesc: 'DB IP가 유동적으로 변경되는 경우에만 권장',
   formSection2: '접속 정보',
   formIpLabel: 'IP 주소',
+  formIpHint: 'IPv4만 등록할 수 있어요',
   formIpPlaceholder: '예: 10.20.30.40',
   formRemoveIp: 'IP 삭제',
   formIpMax: (max: number) => `IP는 최대 ${max}개까지 등록할 수 있어요`,
@@ -180,7 +181,7 @@ const ko = {
   formSidPlaceholder: '예: ORCL',
   formSidErr: 'Oracle 선택 시 SID는 필수예요',
   formPortPlaceholder: '예: 3306',
-  formPortErr: '1–65535 범위의 포트를 입력해주세요',
+  formPortErr: '1–65535 범위의 정수 포트를 입력해주세요',
 
   // --- step 1 -------------------------------------------------------------
   step1Title: '연동 대상 DB 입력',
@@ -397,6 +398,7 @@ const en: typeof ko = {
   formDomainDesc: 'Recommended only when the DB IP changes',
   formSection2: 'Connection details',
   formIpLabel: 'IP address',
+  formIpHint: 'IPv4 only',
   formIpPlaceholder: 'e.g. 10.20.30.40',
   formRemoveIp: 'Remove IP',
   formIpMax: (max: number) => `You can register up to ${max} IPs`,
@@ -420,7 +422,7 @@ const en: typeof ko = {
   formSidPlaceholder: 'e.g. ORCL',
   formSidErr: 'SID is required when Oracle is selected',
   formPortPlaceholder: 'e.g. 3306',
-  formPortErr: 'Enter a port between 1 and 65535',
+  formPortErr: 'Enter an integer port between 1 and 65535',
 
   // --- step 1 -------------------------------------------------------------
   step1Title: 'Enter the target DBs',

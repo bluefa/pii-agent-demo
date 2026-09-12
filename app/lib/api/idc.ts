@@ -202,7 +202,7 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   resourceId: `idc-row-${index}`,
   persisted: false,
   kind: deriveKind(wire),
-  hosts: wire.input_format === 'IP' ? (wire.ips ?? []).filter((ip): ip is string => ip != null) : wire.host ? [wire.host] : [],
+  hosts: wire.input_format === 'IP' ? (wire.ips ?? []).filter((ip): ip is string => !!ip) : wire.host ? [wire.host] : [],
   port: wire.port ?? 0,
   databaseTypeLabel: idcDbTypeByWire(toDbTypeWire(wire.database_type ?? undefined))?.label ?? wire.database_type ?? '',
   databaseTypeWire: toDbTypeWire(wire.database_type ?? undefined),

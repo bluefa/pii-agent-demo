@@ -187,6 +187,15 @@ describe('CloudReqApprovalModal', () => {
     expect(screen.getByRole('button', { name: /다시 요청하기/ })).toBeTruthy();
   });
 
+  // 다시 누르면 같은 본문이 다시 나가 같은 409 를 받는다 — 고치는 손짓은 새로고침이다.
+  it('a stale target list says to refresh and withholds 다시 요청하기', () => {
+    renderModal({ phase: 'error', errorCode: 'CONFLICT_STALE_TARGET_LIST' });
+
+    expect(screen.getByText(/새로고침한 뒤 다시 선택/)).toBeTruthy();
+    expect(screen.queryByText('이미 진행 중인 승인 요청이 있어요.')).toBeNull();
+    expect(screen.queryByRole('button', { name: /다시 요청하기/ })).toBeNull();
+  });
+
   // 같은 손으로 다시 눌러도 같은 실패인 것에는 버튼을 주지 않는다.
   it('withholds 다시 요청하기 on a failure retrying cannot fix', () => {
     renderModal({ phase: 'error', errorCode: 'FORBIDDEN' });

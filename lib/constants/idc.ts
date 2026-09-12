@@ -14,6 +14,14 @@ export const IDC_MAX_IPS = 6;
 /** Domain max length (결정 #56). */
 export const IDC_DOMAIN_MAXLEN = 100;
 
+/**
+ * Oracle SID / service name max length — the target form input's `maxLength` only. The
+ * approval-request server schema (`lib/approval-selection.ts`) deliberately puts no length
+ * cap on this field: a previous request can replay a value the form never typed, and the
+ * contract sets no maximum.
+ */
+export const IDC_SID_MAXLEN = 128;
+
 /** Free-text exclusion reason max length (결정 #28). */
 export const IDC_REASON_MAXLEN = 200;
 

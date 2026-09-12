@@ -1,8 +1,6 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import type { z } from 'zod';
-import type { schemas } from '@/lib/generated/install-v1';
 import { ProcessStatus, toWireDatabaseType } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import { useConfirmSubmit } from '@/app/hooks/useConfirmSubmit';
@@ -38,37 +36,34 @@ import {
 import { IdcLoadRequestModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcLoadRequestModal';
 import { IdcSubmitModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 import { IdcExclusionReasonModal } from '@/app/target-sources/[targetSourceId]/_components/idc/modals/IdcExclusionReasonModal';
+import type { ApprovalSelection } from '@/lib/approval-selection';
+
+type SelectionRow = ApprovalSelection['resources'][number];
 
 const toRow = (view: IdcResourceView): IdcStep1Row => ({
   ...view,
   exclusionCustom: view.excluded && !!view.exclusionReason && !IDC_EXCL_PRESETS.includes(view.exclusionReason as (typeof IDC_EXCL_PRESETS)[number]),
 });
 
-type IdcMetadata = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
-
 /**
- * A selected IDC row's manually-entered connection info → contract
- * `TargetSourceResourceMetadataDto`. IDC has no scan and no dedicated submit
- * endpoint, so this is the ONLY channel that carries host/port/format/etc. to the
- * backend. Mirrors the `IdcResourceInput` round-trip (previous-request read): kind→
- * idc_host_format, hosts→idc_ips/idc_host, service→oracle_service_id. `idc_source_ips`
- * is Step-2-assigned (absent from IdcResourceInput), so it is not sent here.
+ * IDC 한 행의 수기 입력 → 라우트의 `ApprovalSelectionInput`.
+ *
+ * IDC 는 스캔도 전용 제출 엔드포인트도 없어서, 이 경로가 host/port/format 을 백엔드로
+ * 나르는 유일한 통로다. 그래서 여기만은 값을 계속 보낸다 — 서버에 대조할 원본이 아예
+ * 없기 때문이다. 라우트는 이 값을 형식·범위로만 검증한다(`app/api/_lib/approval-input.ts`).
+ *
+ * `IdcResourceInput` 왕복(이전 요청 불러오기)과 같은 대응: kind→host_format,
+ * hosts→hosts, service→oracle_service_id. `idc_source_ips`/`nlb_index` 는 Step2 가
+ * 붙이므로 보내지 않는다.
  */
-const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
-  const isDomain = r.kind === 'DOMAIN';
-  // `database_type` is a plain-string contract field. Prefer the narrowed wire enum,
-  // but fall back to the raw label so a loaded previous-request row whose DB type is
-  // outside the known enum still round-trips (databaseTypeWire is undefined for those;
-  // toIdcResourceView keeps the raw wire value in databaseTypeLabel). New rows always
-  // have databaseTypeWire set, so the label is never a pretty/display-only value here.
+const toIdcInput = (r: IdcStep1Row): SelectionRow['idc'] => {
+  // `database_type` 은 계약상 평문 문자열이다. 좁힌 wire enum 을 먼저 쓰되, 이전 요청에서
+  // 불러온 enum 밖 DB 타입도 그대로 왕복하도록 raw 라벨로 물러선다.
   const databaseType = toWireDatabaseType(r.databaseTypeWire ?? r.databaseTypeLabel);
   return {
-    provider: 'IDC',
-    idc_host_format: isDomain ? 'HOST' : 'IP',
+    host_format: r.kind === 'DOMAIN' ? 'HOST' : 'IP',
+    hosts: r.hosts,
     ...(databaseType ? { database_type: databaseType } : {}),
-    ...(isDomain
-      ? (r.hosts[0] ? { idc_host: r.hosts[0] } : {})
-      : (r.hosts.length > 0 ? { idc_ips: r.hosts } : {})),
     ...(r.port ? { port: r.port } : {}),
     ...(r.oracleSid ? { oracle_service_id: r.oracleSid } : {}),
     ...(r.credentialId ? { credential_id: r.credentialId } : {}),
@@ -76,29 +71,20 @@ const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
 };
 
 /**
- * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. Every row
- * carries the manually-entered connection info under `metadata` (see
- * idcSelectedMetadata) so the backend and Step2/Step3 keep it — excluded rows too,
- * so they are identifiable beyond the bare resource_id.
+ * Input adapter: IDC 수기 행 → `ApprovalSelectionInput`. 제외된 행도 접속 정보를 싣는다 —
+ * Step2/Step3 와 백엔드가 `resource_id` 만으로는 그 행이 무엇이었는지 못 읽는다.
  */
 export const toIdcApprovalRequestInput = (
   rows: readonly IdcStep1Row[],
-): z.infer<typeof schemas.ApprovalRequestInputDto> => ({
-  resources: rows.map((r) =>
-    r.excluded
-      ? {
-          resource_id: r.resourceId,
-          selected: false as const,
-          ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
-          metadata: idcSelectedMetadata(r),
-        }
-      : {
-          resource_id: r.resourceId,
-          selected: true as const,
-          metadata: idcSelectedMetadata(r),
-        },
-  ),
+): ApprovalSelection => ({
+  resources: rows.map((r): SelectionRow => ({
+    resource_id: r.resourceId,
+    selected: !r.excluded,
+    ...(r.excluded && r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
+    idc: toIdcInput(r),
+  })),
 });
+
 
 const defaultSourceIps = (kind: IdcResourceView['kind']): string[] =>
   kind === 'MULTIPLE_IP' ? ['172.16.0.11', '172.16.0.12'] : ['172.16.0.11'];

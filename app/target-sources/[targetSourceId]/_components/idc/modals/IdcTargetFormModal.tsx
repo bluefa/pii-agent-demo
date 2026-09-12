@@ -8,6 +8,7 @@ import {
   IDC_DOMAIN_MAXLEN,
   IDC_DOMAIN_RE,
   IDC_MAX_IPS,
+  IDC_SID_MAXLEN,
   IDC_TRAILING_WS_RE,
   idcDbTypeByLabel,
   isValidIdcIp,
@@ -123,7 +124,9 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
   // --- validation (v15 validateIdcTargetForm) ---
   const portNum = Number(port);
-  const portOk = port !== '' && Number.isFinite(portNum) && portNum >= 1 && portNum <= 65535;
+  // 정수만 — 서버(lib/approval-selection.ts 의 .int())·EC2 추가 모달(Ec2AddModal portOk)과
+  // 같은 판정. type=number 입력은 80.5 를 그대로 넘긴다.
+  const portOk = port !== '' && Number.isInteger(portNum) && portNum >= 1 && portNum <= 65535;
 
   const ipTrailingSpace = ips.some((ip) => IDC_TRAILING_WS_RE.test(ip.value));
   const filledIps = ips.map((s) => s.value.trim()).filter((s) => s !== '');
@@ -242,8 +245,12 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
             {mode === 'ip' ? (
               <div>
-                <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>
+                <label className={cn('mb-1.5 flex items-baseline gap-1.5 text-[12.5px] font-medium', textColors.secondary)}>
                   {t.formIpLabel}
+                  {/* 규칙을 틀린 뒤가 아니라 치기 전에 말한다 — 아래 FieldError 는 같은
+                      규칙의 사후 통보이고, 이 줄은 사전 고지다. 서버도 같은 판정을 쓴다
+                      (`isValidIdcIp`, lib/constants/idc.ts). */}
+                  <span className={cn('font-normal', textColors.tertiary)}>{t.formIpHint}</span>
                 </label>
                 <div className="space-y-2">
                   {ips.map((ip, index) => (
@@ -349,6 +356,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   <input
                     value={oracleSid}
                     placeholder={t.formSidPlaceholder}
+                    maxLength={IDC_SID_MAXLEN}
                     onChange={(e) => {
                       setOracleSid(e.target.value);
                       setSidTouched(true);

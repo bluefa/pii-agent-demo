@@ -1,15 +1,14 @@
-import type { z } from 'zod';
-import type { schemas } from '@/lib/generated/install-v1';
 import type { ApprovalRequestResource } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type {
   CandidateDraftState,
   CandidateResource,
 } from '@/lib/types/resources';
-import { cloudProviderToWireProvider, toWireDatabaseType } from '@/lib/types';
+import type { ApprovalSelection } from '@/lib/approval-selection';
+import { toWireDatabaseType } from '@/lib/types';
 import { getCandidateBehavior } from '@/app/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { isManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 
-type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
-type ApprovalRequestInput = z.infer<typeof schemas.ApprovalRequestInputDto>;
+type SelectionRow = ApprovalSelection['resources'][number];
 
 export const toModalResources = (
   candidates: readonly CandidateResource[],
@@ -58,87 +57,79 @@ export const listMissingExclusionReasons = (
   );
 
 /**
- * Input adapter: UI selection (candidates + selected set + endpoint drafts +
- * per-resource exclusion reasons) → contract `ApprovalRequestInputDto`
- * ({ resources: TargetSourceResourceItemDto[] }). Every item carries its identity
- * (resource_name, resource_type, integration_category) and the candidate's intrinsic metadata
- * (provider/region/database_type); selected items additionally carry the behavior's
- * endpoint fields (VM db_type/host/port) from user drafts; excluded items carry the
- * reason the user picked. This is the ONLY shape sent on the wire.
+ * 수기 추가 EC2 행이 싣는 전부. 이름은 검색 와이어가 private DNS 없이 돌아오면 빈 문자열이라
+ * (`app/lib/api/ec2.ts`), 없는 값을 보내는 대신 키를 생략한다.
+ *
+ * 접속 정보는 **고른 행에만** 붙인다. 제외된 행은 표시만 남기면 되고(갈래를 고르는 것이
+ * 그 키의 일이다), 좁히기 전 본문도 제외된 행에는 host·port 를 싣지 않았다.
+ */
+const manualEc2Input = (
+  candidate: CandidateResource,
+  selected: boolean,
+): SelectionRow['manual_ec2'] => {
+  const endpoint = selected ? candidate.endpointConfig : undefined;
+  return {
+    ...(candidate.resourceName ? { resource_name: candidate.resourceName } : {}),
+    ...(endpoint?.host ? { host: endpoint.host } : {}),
+    ...(endpoint ? { port: endpoint.port } : {}),
+    // 요청은 소문자 정규형으로 나간다(lib/types.ts) — 옛 behavior 경로와 같은 변환이다.
+    ...(endpoint?.databaseType
+      ? { database_type: toWireDatabaseType(endpoint.databaseType) }
+      : {}),
+    ...(endpoint?.oracleServiceId ? { oracle_service_id: endpoint.oracleServiceId } : {}),
+  };
+};
+
+/**
+ * Input adapter: UI selection → the route's `ApprovalSelectionInput`.
+ *
+ * Sends the CHOICES only — which resource, selected or not, the reason the user typed, and
+ * the RDS member they picked. Identity and intrinsic metadata (resource_name/resource_type/
+ * integration_category/provider/region/database_type/rds_instance_candidates) are NO LONGER
+ * sent: the route re-reads them from the scan and assembles the contract body itself, so a
+ * crafted payload cannot describe a resource the scan never saw. See
+ * `app/api/_lib/approval-input.ts`.
+ *
+ * A scanned row sends no connection info — the shape has no key for it. Connection info
+ * rides only inside `manual_ec2`, filled by the add modal. The `endpoint` behavior's draft
+ * is no longer sent: that editor opens only for rows spelled `EC2`/`AZURE_VM`, which the
+ * wire enum (`AWS_EC2_INSTANCE`/`AZURE_VIRTUAL_MACHINE`) never produces (#342).
  */
 export const toApprovalRequestInput = (
   candidates: readonly CandidateResource[],
   selectedIds: ReadonlySet<string>,
   drafts: CandidateDraftState,
   exclusionReasons: Readonly<Record<string, string>>,
-): ApprovalRequestInput => ({
-  resources: buildResourceInputs(candidates, selectedIds, drafts, exclusionReasons),
-});
-
-const buildResourceInputs = (
-  candidates: readonly CandidateResource[],
-  selectedIds: ReadonlySet<string>,
-  drafts: CandidateDraftState,
-  exclusionReasons: Readonly<Record<string, string>>,
-): ResourceItem[] =>
-  candidates.map((candidate): ResourceItem => {
-    // Contract: provider/region/database_type live under metadata
-    // (TargetSourceResourceMetadataDto). Carry them from the candidate so a
-    // backend echoing the payload keeps them through Step2/Step3.
-    const intrinsicMetadata: ResourceItem['metadata'] = {
-      ...(candidate.metadata.provider
-        ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
-        : {}),
-      ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
-      ...(candidate.databaseType ? { database_type: toWireDatabaseType(candidate.databaseType) } : {}),
-      // An RDS cluster's member list travels with the resource whether or not it was
-      // selected: it describes what the cluster IS, and the backend joins the echoed
-      // array. Only the CHOICE (selected_rds_instance_resource_id) is selection-scoped, and the
-      // behavior adds that on the selected branch.
-      ...(candidate.rdsInstanceCandidates ? { rds_instance_candidates: candidate.rdsInstanceCandidates } : {}),
-    };
-
-    // `candidate.type` is 'UNKNOWN' when the upstream row omitted resource_type — a local
-    // sentinel, not one of the contract's enum values. Omitting the key (yesterday's shape)
-    // is valid; sending the sentinel could make a strict BFF reject the whole request.
-    const resourceTypeField =
-      candidate.type && candidate.type !== 'UNKNOWN'
-        ? { resource_type: candidate.type }
-        : {};
-
-    if (selectedIds.has(candidate.id)) {
-      const behavior = getCandidateBehavior(candidate);
+): ApprovalSelection => ({
+  // id 없는 후보는 연동 대상이 될 수 없다(`ec2.ts` 와 같은 규칙). 실어 보내 봐야 라우트가
+  // 교집합에서 못 찾아 요청 전체가 막힌다.
+  resources: candidates.filter((candidate) => candidate.id !== '').map((candidate): SelectionRow => {
+    if (!selectedIds.has(candidate.id)) {
+      // The scan's own verdict is NOT sent: the route reads `recommend_fail_reason` from
+      // the authoritative row and falls back to it when the user typed nothing.
+      const userReason = exclusionReasons[candidate.id]?.trim();
       return {
         resource_id: candidate.id,
-        resource_name: candidate.resourceName,
-        ...resourceTypeField,
-        selected: true,
-        integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-        // The behavior's endpoint fields (VM db_type/host/port) override on top.
-        metadata: {
-          ...intrinsicMetadata,
-          ...behavior.buildMetadataFields(candidate, drafts),
-        },
+        selected: false,
+        ...(userReason ? { exclusion_reason: userReason } : {}),
+        // 제외된 행도 스캔 목록에는 없다. 표시가 빠지면 오래된 화면으로 읽혀 409 가 된다.
+        ...(isManualEc2Candidate(candidate)
+          ? { manual_ec2: manualEc2Input(candidate, false) }
+          : {}),
       };
     }
-    // An install-ineligible row has no user reason — its checkbox is disabled, so nobody
-    // could have typed one. Send the scan's verdict as the reason instead: every consumer
-    // downstream (steps 2·3, the admin request queue, the ops request tab) reads
-    // `exclusion_reason` and would otherwise render a blank cell, indistinguishable from a
-    // reason the user forgot. `recommend_fail_reason` rides along as itself so the fact
-    // stays machine-readable and is not inferred back out of free text.
-    const userReason = exclusionReasons[candidate.id];
-    const reason = userReason || candidate.recommendFailReason || undefined;
+    const fields = getCandidateBehavior(candidate).buildMetadataFields(candidate, drafts);
     return {
       resource_id: candidate.id,
-      resource_name: candidate.resourceName,
-      ...resourceTypeField,
-      selected: false,
-      integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-      ...(candidate.recommendFailReason
-        ? { recommend_fail_reason: candidate.recommendFailReason }
+      selected: true,
+      // 스캔 목록에 없는 id 가 "방금 추가한 인스턴스"인지 "오래된 화면"인지는 서버가
+      // 구별할 수 없다 — 이 표시가 그 갈래를 고른다.
+      ...(isManualEc2Candidate(candidate)
+        ? { manual_ec2: manualEc2Input(candidate, true) }
         : {}),
-      ...(reason ? { exclusion_reason: reason } : {}),
-      metadata: intrinsicMetadata,
+      ...(fields.selected_rds_instance_resource_id
+        ? { selected_rds_instance_resource_id: fields.selected_rds_instance_resource_id }
+        : {}),
     };
-  });
+  }),
+});

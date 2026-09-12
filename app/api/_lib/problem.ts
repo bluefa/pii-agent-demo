@@ -16,6 +16,7 @@ export type KnownErrorCode =
   | 'CONFLICT_IN_PROGRESS'
   | 'CONFLICT_APPLYING_IN_PROGRESS'
   | 'CONFLICT_REQUEST_PENDING'
+  | 'CONFLICT_STALE_TARGET_LIST'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   | 'GUIDE_NOT_FOUND'
@@ -53,6 +54,9 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   CONFLICT_IN_PROGRESS: { status: 409, title: 'Conflict', retriable: true },
   CONFLICT_APPLYING_IN_PROGRESS: { status: 409, title: 'Applying In Progress', retriable: true },
   CONFLICT_REQUEST_PENDING: { status: 409, title: 'Request Pending', retriable: false },
+  // BFF 가 아니라 우리 승인 요청 라우트가 낸다 — 화면의 선택이 방금 다시 읽은
+  // `/resources` 와 어긋났을 때다. 새로고침이 고치고, 다시 누르기는 고치지 못한다.
+  CONFLICT_STALE_TARGET_LIST: { status: 409, title: 'Target List Changed', retriable: false },
   RATE_LIMITED: { status: 429, title: 'Rate Limited', retriable: true },
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
   GUIDE_NOT_FOUND: { status: 404, title: 'Guide Not Found', retriable: false },

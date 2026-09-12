@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { schemas } from '@/lib/generated/install-v1';
+import { ApprovalSelectionInput } from '@/lib/approval-selection';
 import { toApprovalRequestInput } from '@/app/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import { toManualEc2Candidate } from '@/app/target-sources/[targetSourceId]/_components/candidate/manual-ec2';
 import type { CandidateDraftState } from '@/lib/types/resources';
@@ -15,34 +15,52 @@ const instance = {
 };
 
 /**
- * A manually added EC2 instance reaches the backend through the SAME approval request as every
- * scanned candidate. The connection info the user typed is the only channel that carries this
- * host at all, so these assertions pin the whole mapping: the wire resource type, and the four
- * metadata fields the row was created to supply.
+ * 수기 추가 EC2 행이 승인 요청에 실리는 모양. 클라이언트가 보내는 것은 선택과 사용자가 친
+ * 접속 정보뿐이고, 그 접속 정보는 `manual_ec2` 안에만 있다 — 스캔 행에는 실을 자리가 없다.
+ * resource_type·integration_category 는 이 흐름의 상수라 라우트가 붙인다
+ * (`app/api/v1/__tests__/approval-input.test.ts`).
  */
-describe('manual EC2 → approval request', () => {
-  it('sends the instance id, AWS_EC2_INSTANCE and the typed connection info', () => {
+describe('manual EC2 → approval selection', () => {
+  it('사용자가 친 접속 정보를 manual_ec2 안에 담아 보낸다', () => {
     const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
-    const input = toApprovalRequestInput(
-      [candidate],
-      new Set([instance.instanceId]),
-      drafts,
-      {},
-    );
-    const item = (input.resources ?? [])[0];
+    const input = toApprovalRequestInput([candidate], new Set([instance.instanceId]), drafts, {});
+    const [item] = input.resources;
 
     expect(item.resource_id).toBe(instance.instanceId);
-    expect(item.resource_type).toBe('AWS_EC2_INSTANCE');
     expect(item.selected).toBe(true);
-    // host is the Private IP the scan reported — the address field is read-only for this reason.
-    expect(item.metadata?.host).toBe('10.10.1.24');
-    expect(item.metadata?.database_type).toBe('mysql');
-    expect(item.metadata?.port).toBe(3306);
-    expect(item.metadata?.oracle_service_id).toBeUndefined();
-    expect(() => schemas.TargetSourceResourceItemDto.parse(item)).not.toThrow();
+    expect(item.manual_ec2?.database_type).toBe('mysql');
+    expect(item.manual_ec2?.port).toBe(3306);
+    expect(item.manual_ec2?.oracle_service_id).toBeUndefined();
+    expect(() => ApprovalSelectionInput.parse(input)).not.toThrow();
   });
 
-  it('carries the SID for the engines that require one, and only those', () => {
+  it('수기 추가 표시를 달아 보낸다 — 스캔 목록에 없는 id 의 갈래를 고르는 키다', () => {
+    const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
+    const input = toApprovalRequestInput([candidate], new Set([instance.instanceId]), drafts, {});
+    const [item] = input.resources;
+
+    expect(item.manual_ec2).toMatchObject({
+      resource_name: instance.privateDnsName,
+      host: instance.privateIpAddress,
+      port: 3306,
+      database_type: 'mysql',
+    });
+    // 접속 정보는 이 키 안에만 있다 — 행에는 그 자리가 없다.
+    expect(item).not.toHaveProperty('endpoint');
+    // 타입과 카테고리는 이 흐름의 상수라 라우트가 붙인다.
+    expect(item).not.toHaveProperty('resource_type');
+    expect(item).not.toHaveProperty('integration_category');
+    expect(item).not.toHaveProperty('metadata');
+  });
+
+  it('체크를 푼 행에도 표시가 남는다 — 빠지면 오래된 화면으로 읽혀 409 가 된다', () => {
+    const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
+    const input = toApprovalRequestInput([candidate], new Set<string>(), drafts, {});
+
+    expect(input.resources[0].manual_ec2).toEqual({ resource_name: instance.privateDnsName });
+  });
+
+  it('SID 가 필요한 엔진에서만 SID 를 싣는다', () => {
     const oracle = toManualEc2Candidate(instance, {
       databaseType: 'TIBERO',
       port: 8629,
@@ -50,16 +68,15 @@ describe('manual EC2 → approval request', () => {
     });
     const input = toApprovalRequestInput([oracle], new Set([instance.instanceId]), drafts, {});
 
-    expect((input.resources ?? [])[0].metadata?.oracle_service_id).toBe('ORCL');
+    expect(input.resources[0].manual_ec2?.oracle_service_id).toBe('ORCL');
   });
 
-  it('needs no exclusion reason when unchecked — the row is the user’s own addition', () => {
+  it('체크를 풀어도 제외 사유가 필요 없다 — 사용자가 자기 추가를 되돌리는 것이다', () => {
     const candidate = toManualEc2Candidate(instance, { databaseType: 'MYSQL', port: 3306 });
     const input = toApprovalRequestInput([candidate], new Set<string>(), drafts, {});
-    const item = (input.resources ?? [])[0];
+    const [item] = input.resources;
 
     expect(item.selected).toBe(false);
-    expect(item.integration_category).toBe('NO_INSTALL_NEEDED');
     expect(item.exclusion_reason).toBeUndefined();
   });
 });
