@@ -684,7 +684,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               results={tcResults}
               statusLoaded={tcLoaded}
               latestFailed={tcLatestFailed}
-              // 5단계 종료 조건 두 행이 읽는다 — 승인 탭 조건 ①·② 와 같은 값.
+              // 5단계 종료 조건 한 행이 읽는다 — 승인 탭 조건 ①·② 와 같은 값.
               processStatus={processStatus}
               tcStatus={tcStatus}
               tcStatusFailed={tcStatusFailed}
