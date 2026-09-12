@@ -85,6 +85,9 @@ describe('TcTab — 진행률 분모', () => {
         results={[]}
         statusLoaded
         latestFailed={false}
+        processStatus={null}
+        tcStatus={null}
+        tcStatusFailed={false}
         onStatusReload={vi.fn()}
       />,
     );

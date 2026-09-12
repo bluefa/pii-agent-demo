@@ -38,12 +38,16 @@ import {
 } from '@/app/lib/api';
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
+import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
+import { StepHoldGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/StepHoldGate';
+import { stepHoldView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/stepHold';
 import {
   bandBuckets,
   bandUnitIds,
@@ -81,6 +85,14 @@ export interface TcTabProps {
   statusLoaded: boolean;
   /** latest_version 조회가 404 가 아닌 이유로 실패했다. */
   latestFailed: boolean;
+  /**
+   * 5단계 종료 조건이 읽는 둘 — 단계와 서비스의 승인 요청 상태. 승인 탭 조건 ①·② 와
+   * 같은 값이라 페이지가 한 번 받아 두 탭에 내려보낸다. 단계가 5가 아니면 아무것도 서지 않는다.
+   */
+  processStatus: ProcessStatus | null;
+  tcStatus: TestConnectionStatusRow | null;
+  /** status 조회가 404 가 아닌 이유로 거절됐다 — 조회 실패 ≠ 미요청. */
+  tcStatusFailed: boolean;
   /** Reload the page-level TC fetch (status + latest + results). */
   onStatusReload: () => void;
 }
@@ -94,6 +106,9 @@ export function TcTab({
   results,
   statusLoaded,
   latestFailed,
+  processStatus,
+  tcStatus,
+  tcStatusFailed,
   onStatusReload,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
@@ -160,6 +175,18 @@ export function TcTab({
   const credentialMissing = settled ? credentialMissingCount(units) : 0;
 
   const running = isRunOpen(latest);
+
+  // 「왜 아직 5단계인가」 — 두 행의 판정. 입력은 전부 이 탭이 이미 받는 값이다.
+  const holdView = stepHoldView({
+    processStatus,
+    isSdu: provider === 'sdu',
+    statusLoaded,
+    tcStatus,
+    tcStatusFailed,
+    latest,
+    latestFailed,
+    buckets,
+  });
 
   // Poll only while the run is unsettled; the interval clears itself the moment
   // connection_status reaches SUCCESS/FAIL, so an idle tab makes no requests.
@@ -269,6 +296,7 @@ export function TcTab({
         installPendingSlot={
           <InstallPendingNotice data={installPendingNotice} className="mt-4" />
         }
+        stepHoldSlot={<StepHoldGate view={holdView} className="mt-4" />}
       >
         <ConfirmedInfoCard
           targetSourceId={targetSourceId}
