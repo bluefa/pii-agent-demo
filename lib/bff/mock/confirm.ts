@@ -1397,7 +1397,8 @@ export const mockConfirm = {
 
     const bffStatus = toBffStatus(approvalStatus);
     const requestId = latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0;
-    const processedAt = latestRequest?.timestamp ?? new Date().toISOString();
+    // A synthesised verdict is dated by the seed, not by the poll that asked for it.
+    const processedAt = latestRequest?.timestamp ?? project.updatedAt;
 
     const resources = toApprovalResourceItems(project);
 
