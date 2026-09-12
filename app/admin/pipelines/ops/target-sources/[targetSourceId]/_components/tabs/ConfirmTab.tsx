@@ -460,7 +460,12 @@ export function ConfirmTab({
   const deleteBlocked: string | null = latest.live ? RUN_LOCK : null;
   const run = latest.run;
   const runLine = run ? (
-    <RunLine run={run} onOpen={() => router.push(passRoutes.pipelines.pipeline(run.pipeline_id))} />
+    // Same 14px the kv grid keeps from the card head — the line sits in that rhythm.
+    <RunLine
+      run={run}
+      className="mt-3.5"
+      onOpen={() => router.push(passRoutes.pipelines.pipeline(run.pipeline_id))}
+    />
   ) : null;
 
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
