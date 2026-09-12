@@ -14,6 +14,10 @@ import { TcTab } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]
 vi.mock('next/navigation', () => ({ usePathname: () => '/admin/pipelines/ops/target-sources/1010' }));
 
 const updateTestConnectionConfirmation = vi.fn().mockResolvedValue({ target_source_id: 1010 });
+// 서비스 Step 5 의 게이트 그대로 — completion-status 가 열어 줘야 버튼이 열린다.
+const getTestConnectionCompletionStatus = vi
+  .fn()
+  .mockResolvedValue({ test_connection_status: 'LATEST_TEST_CONNECTION_SUCCESS' });
 
 vi.mock('@/app/lib/api', () => ({
   getConfirmedIntegration: vi.fn(async () => ({
@@ -30,6 +34,7 @@ vi.mock('@/app/lib/api', () => ({
   getSecrets: vi.fn().mockResolvedValue([]),
   triggerTestConnection: vi.fn(),
   updateTestConnectionConfirmation: (...args: unknown[]) => updateTestConnectionConfirmation(...args),
+  getTestConnectionCompletionStatus: (...args: unknown[]) => getTestConnectionCompletionStatus(...args),
 }));
 
 vi.mock('@/app/lib/api/task-queue-requests', () => ({
@@ -84,9 +89,10 @@ describe('TcTab — 관리자의 승인 요청', () => {
       />,
     );
 
-    // 성공 + 미요청 → 버튼이 열려 있다. 확정 조회가 정착하기 전엔 분모가 실행의 것이라
-    // 같은 답이다.
+    // 성공 + 전부 연결 + completion OK + 미요청 → 버튼이 열린다(completion 이 오기 전엔 잠시 닫힘).
+    await waitFor(() => expect(getTestConnectionCompletionStatus).toHaveBeenCalledWith(1010));
     const open = await screen.findByRole('button', { name: '승인 요청' });
+    await waitFor(() => expect(open.hasAttribute('disabled')).toBe(false));
     fireEvent.click(open);
     expect(updateTestConnectionConfirmation).not.toHaveBeenCalled();
 

@@ -38,6 +38,7 @@ import {
   type TestConnectionVersionResult,
 } from '@/app/lib/api';
 import { useApiAction } from '@/app/hooks/useApiMutation';
+import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
 import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
@@ -185,7 +186,15 @@ export function TcTab({
 
   const running = isRunOpen(latest);
 
-  // 「왜 아직 5단계인가」 — 두 행의 판정. 입력은 전부 이 탭이 이미 받는 값이다.
+  // 「왜 아직 5단계인가」 — 한 행의 판정과 관리자 「승인 요청」의 게이트. 게이트는 서비스
+  // Step 5 의 그것 그대로라 completion-status 도 같은 훅으로 읽는다(성공한 실행에서만 묻고,
+  // 새 회차가 지난 회차의 판정을 잠시라도 물려받지 않는다). 5단계가 아니면 안 묻는다.
+  const holdActive = processStatus === 'INSTALLED' && provider !== 'sdu';
+  const completionRead = useTcCompletionStatus(
+    targetSourceId,
+    holdActive && latest?.connection_status === 'SUCCESS' ? 'SUCCESS' : 'IDLE',
+    latest?.test_connection_version ?? null,
+  );
   const holdView = stepHoldView({
     processStatus,
     isSdu: provider === 'sdu',
@@ -195,6 +204,11 @@ export function TcTab({
     latest,
     latestFailed,
     buckets,
+    completion: completionRead.failed
+      ? { kind: 'failed' }
+      : completionRead.completion === null
+        ? { kind: 'loading' }
+        : { kind: 'loaded', value: completionRead.completion },
   });
 
   // Poll only while the run is unsettled; the interval clears itself the moment
