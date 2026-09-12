@@ -11,6 +11,16 @@ const AFTER_RESEND = '서비스가 연동 요청을 다시 보내고 관리자�
 const base = { installed: false, confirmedCount: 0, reconfirmNeeded: false, diffCount: null } as const;
 
 describe('deriveConfirmVerdict — 문구 전수표', () => {
+  it('재확정이 도는 동안은 「다시 입력」 대신 진행 중을 말한다 (설치 끝만 이긴다)', () => {
+    const running = deriveConfirmVerdict({
+      ...base, confirmedCount: 3, reconfirmNeeded: true, diffCount: 2, reconfirmRunning: true, request: { kind: 'approved', count: 3 },
+    });
+    expect(running.head).toBe('재확정이 진행 중입니다');
+    expect(running.tag).toBe('다시 입력 필요');
+    const installed = deriveConfirmVerdict({ ...base, installed: true, confirmedCount: 3, reconfirmRunning: true, request: NONE });
+    expect(installed.head).toBe('확정과 설치가 끝났습니다');
+  });
+
   it('설치가 끝나면 다른 모든 입력을 무시하고 완료를 말한다', () => {
     const verdict = deriveConfirmVerdict({ ...base, installed: true, confirmedCount: 8, request: { kind: 'rejected' } });
     expect(verdict.tag).toBe('등록됨');

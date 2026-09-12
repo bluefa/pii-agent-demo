@@ -86,6 +86,15 @@ import {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/reconcileRows';
 import { ConfirmEditorModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmEditorModal';
 import { ConfirmDeleteModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ConfirmDeleteModal';
+import { RunLine } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/RunLine';
+import { useLatestRun } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/useLatestRun';
+import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
+import { wireProvider } from '@/app/admin/pipelines/_detail/customBuilder';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import { pipelineTypeGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
+import { pipelineProviderKey } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/PipelineTab';
+import { passRoutes } from '@/lib/routes';
+import { useRouter } from 'next/navigation';
 
 /** `data: null` = 스냅샷이 아직 없다(404). 실패가 아니다. */
 type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { state: 'failed' };
@@ -110,6 +119,13 @@ const APPROVAL_GATE = {
   reconfirm: '연동 요청이 승인되어야 재확정할 수 있습니다',
   edit: '연동 요청이 승인되어야 확정 정보를 입력할 수 있습니다',
 } as const;
+
+/**
+ * A run in progress — of ANY type — closes all three write doors (owner 2026-09-12): the
+ * orchestrator answers 409 to a second run, and a record being rewritten must not be edited
+ * or deleted underneath it. Nearer than the approval gate, so it wins.
+ */
+const RUN_LOCK = '진행 중인 작업이 끝나야 실행할 수 있습니다';
 
 const styles = {
   verdict: 'flex items-start gap-2',
@@ -239,6 +255,12 @@ export function ConfirmTab({
   // 요청 본문·응답 칸)을 쓸 일이 없고, 이 콘솔의 다른 파괴적 동작과 같은 문법으로 묻는다.
   const editorModal = useModal();
   const deleteModal = useModal();
+  // 재확정 opens the 작업 시작 modal right here, on its preview step (owner 2026-09-12).
+  const reconfirmModal = useModal();
+  const toast = usePlToast();
+  const router = useRouter();
+  // The run that rewrites this record. When it ends, re-read everything (`retry`).
+  const latest = useLatestRun(targetSourceId, retry);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -405,6 +427,7 @@ export function ConfirmTab({
     request: requestFacet,
     reconfirmNeeded,
     diffCount: reconcile?.diffCount ?? null,
+    reconfirmRunning: latest.live && latest.run?.type === 'RECONFIRM',
   });
 
   /**
@@ -430,8 +453,15 @@ export function ConfirmTab({
    * read (same rule as startGate / pipelineTypeGate). One source, so the two doors cannot drift.
    */
   const approvalMissing = request.state === 'ready' && !requestApproved;
-  const reconfirmBlocked: string | null = approvalMissing ? APPROVAL_GATE.reconfirm : null;
-  const editBlocked: string | null = approvalMissing ? APPROVAL_GATE.edit : null;
+  const reconfirmBlocked: string | null =
+    latest.live ? RUN_LOCK : approvalMissing ? APPROVAL_GATE.reconfirm : null;
+  const editBlocked: string | null =
+    latest.live ? RUN_LOCK : approvalMissing ? APPROVAL_GATE.edit : null;
+  const deleteBlocked: string | null = latest.live ? RUN_LOCK : null;
+  const run = latest.run;
+  const runLine = run ? (
+    <RunLine run={run} onOpen={() => router.push(passRoutes.pipelines.pipeline(run.pipeline_id))} />
+  ) : null;
 
   // terraform 은 빠진다 — 이 화면이 그리는 것 중 그 응답에 달린 것은 확정 시각 한 칸뿐이라
   // 조회 실패가 탭 전체의 오류 배너를 올릴 값이 아니다.
@@ -490,14 +520,16 @@ export function ConfirmTab({
             isIdc={isIdc}
             reconcile={reconcile}
             reconfirmNeeded={reconfirmNeeded}
-            // 재확정의 자리는 인프라 작업 탭이다 — 이 탭은 그리로 가는 길만 준다. 쓰기
-            // 경로가 있으면 언제나 준다(오너 2026-09-11): 「다시 입력 필요」는 이 문을
-            // 여는 조건이 아니라 pane 이 따로 말하는 상태다.
-            onReconfirm={writeProvider ? onOpenInfra : undefined}
+            // 재확정 opens the run modal here (owner 2026-09-12). Offered whenever a write
+            // path exists (owner 2026-09-11): 「다시 입력 필요」 is a state the pane states
+            // on its own, not the condition for this door.
+            onReconfirm={writeProvider ? reconfirmModal.open : undefined}
             reconfirmBlocked={reconfirmBlocked}
             editBlocked={editBlocked}
             onEdit={writeProvider ? editorModal.open : undefined}
             onDelete={writeProvider && hasConfirmed ? deleteModal.open : undefined}
+            deleteBlocked={deleteBlocked}
+            runLine={runLine}
           />
         )}
       </div>
@@ -509,6 +541,19 @@ export function ConfirmTab({
           targetSourceId={targetSourceId}
           provider={writeProvider}
           onDone={retry}
+        />
+      )}
+
+      {writeProvider && reconfirmModal.isOpen && (
+        <PreviewModal
+          open
+          onClose={reconfirmModal.close}
+          targetSourceId={String(targetSourceId)}
+          provider={wireProvider(pipelineProviderKey(detail))}
+          typeGate={pipelineTypeGate(processStatus, terraformData?.has_confirmed_infra ?? null)}
+          initialType="RECONFIRM"
+          showToast={toast.show}
+          onStarted={latest.reload}
         />
       )}
 

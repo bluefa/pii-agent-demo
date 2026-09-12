@@ -108,7 +108,8 @@ const TYPE_NOTES: Record<PipelineType, ReactNode> = {
   RECONFIRM: (
     <>
       확정 정보와 설치된 인프라를 먼저 제거한 뒤, 승인된 추천값을 조회해 확정 정보로 다시
-      등록합니다. 완료돼도 <b>인프라는 다시 설치되지 않습니다</b> — 설치는 별도 작업이에요.
+      등록합니다. 완료돼도 <b>인프라는 다시 설치되지 않습니다</b> — 설치는 별도 작업이에요. 진행은
+      확정 정보 탭의 작업 줄과 인프라 작업 탭에서 볼 수 있어요.
     </>
   ),
   CUSTOM: null,
@@ -192,6 +193,11 @@ export interface PreviewModalProps {
    *  used to navigate to its 현황 page, which threw the operator off the tab they
    *  were working in (owner). */
   onStarted: () => void;
+  /**
+   * Open on this type's preview step, skipping the type choice — for a door that already
+   * named the type (the 확정 정보 tab's 재확정). No 「이전」 then: there is nothing to go back to.
+   */
+  initialType?: Exclude<PipelineType, 'CUSTOM'>;
 }
 
 export function PreviewModal({
@@ -202,6 +208,7 @@ export function PreviewModal({
   typeGate,
   showToast,
   onStarted,
+  initialType,
 }: PreviewModalProps): ReactElement | null {
   const { modal } = pipelineStyles;
 
@@ -230,6 +237,12 @@ export function PreviewModal({
       setChosen([]);
     })();
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !initialType) return;
+    setType(initialType);
+    setStep('preview');
+  }, [open, initialType]);
 
   // Recipe preview (#9) — fetched once a type is chosen.
   useEffect(() => {
@@ -520,15 +533,21 @@ export function PreviewModal({
 
           <div className="flex-1" aria-hidden="true" />
           <div className={modal.foot}>
-            <PlButton
-              variant="ghost"
-              onClick={() => {
-                setStep('choose');
-                setType(null);
-              }}
-            >
-              이전
-            </PlButton>
+            {initialType ? (
+              <PlButton variant="ghost" onClick={onClose}>
+                취소
+              </PlButton>
+            ) : (
+              <PlButton
+                variant="ghost"
+                onClick={() => {
+                  setStep('choose');
+                  setType(null);
+                }}
+              >
+                이전
+              </PlButton>
+            )}
             <PlButton
               variant="primary"
               disabled={loading || !preview || !!loadError || run.loading}

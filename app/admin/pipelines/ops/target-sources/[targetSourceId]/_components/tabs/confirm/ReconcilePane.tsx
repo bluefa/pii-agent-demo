@@ -93,6 +93,10 @@ export interface ReconcilePaneProps {
    */
   editBlocked?: string | null;
   onDelete?: () => void;
+  /** Why 확정 정보 삭제 is closed (a run in progress), or `null`. */
+  deleteBlocked?: string | null;
+  /** The 작업 줄 — the tab owns the run; the pane only gives it the slot under the card head. */
+  runLine?: ReactNode;
 }
 
 export function ReconcilePane({
@@ -110,6 +114,8 @@ export function ReconcilePane({
   onEdit,
   editBlocked = null,
   onDelete,
+  deleteBlocked = null,
+  runLine,
 }: ReconcilePaneProps): ReactElement {
   // 차이가 있는 화면에서 먼저 답해야 하는 질문은 "무엇이 다른가"다 — 전체 목록은 한 번의
   // 클릭 뒤에 있다. 차이가 없으면 이 칩 줄 자체가 서지 않으므로 기본값이 목록을 숨기는
@@ -214,9 +220,17 @@ export function ReconcilePane({
                   </Tooltip>
                 )}
                 {!empty && onDelete && (
-                  <PlButton variant="dangerSolid" onClick={onDelete}>
-                    확정 정보 삭제
-                  </PlButton>
+                  deleteBlocked == null ? (
+                    <PlButton variant="dangerSolid" onClick={onDelete}>
+                      확정 정보 삭제
+                    </PlButton>
+                  ) : (
+                    <Tooltip content={deleteBlocked} variant="value" triggerClassName="shrink-0">
+                      <PlButton variant="dangerSolid" blocked onClick={onDelete}>
+                        확정 정보 삭제
+                      </PlButton>
+                    </Tooltip>
+                  )
                 )}
                 {editDoor &&
                   (editReason == null ? (
@@ -230,10 +244,12 @@ export function ReconcilePane({
             )}
           </div>
 
+          {runLine}
+
           {/* No record, no facts (owner 09-11): 「등록 —」 and a 「대조」 against nothing are
               noise. The headline above already says what is missing. */}
           {stateTag != null && (
-          <div className={styles.kvGrid}>
+          <div className={cn(styles.kvGrid, runLine != null && 'mt-3')}>
             <Kv
               label="상태"
               value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
