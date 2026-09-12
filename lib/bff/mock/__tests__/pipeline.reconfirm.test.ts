@@ -110,19 +110,20 @@ describe('mockPipeline — 재확정 (ADR-023)', () => {
   });
 
   /**
-   * ponytail 의 관측 가능한 면 — 공통 Task 둘은 레시피 안에서만 살고 카탈로그에는
-   * 나오지 않는다. 이 검사가 깨지는 날은 `TaskCatalogEntry` 가 nullable provider 를
-   * 받도록 넓어진 날이고, 그때 CUSTOM 빌더도 함께 열린다.
+   * 공통 Task 둘은 CSP 를 지정한 조회에 그 CSP 의 이름으로 실린다 — 상세 화면의 이름·설명이
+   * 이 응답에서 오므로, 빠지면 카드가 enum 원문(DELETE_CONFIRMED_RESOURCES)을 그린다.
+   * 필터 없는 조회에는 붙일 CSP 가 없어 빠진다.
    */
-  it('공통 Task 는 아직 CUSTOM 카탈로그에 없다', () => {
+  it('공통 Task 는 CSP 를 지정한 카탈로그에 그 CSP 이름으로 실린다', () => {
     for (const provider of ['AWS', 'GCP', 'AZURE', 'IDC'] as const) {
       const body = mockPipeline.taskDefinitions(provider).body as TaskCatalogResponse;
       const names = body.task_definitions.map((d) => d.name);
 
-      for (const common of COMMON_TAIL) expect(names).not.toContain(common);
-      // 그 CSP 의 Task 는 그대로 나온다 — 빠진 것은 공통 둘뿐이다.
-      expect(names.length).toBeGreaterThan(0);
+      for (const common of COMMON_TAIL) expect(names).toContain(common);
       expect(body.task_definitions.every((d) => d.provider === provider)).toBe(true);
+      expect(body.task_definitions.find((d) => d.name === COMMON_TAIL[0])?.display_name).toBe('확정 정보 삭제');
     }
+    const all = mockPipeline.taskDefinitions(undefined).body as TaskCatalogResponse;
+    for (const common of COMMON_TAIL) expect(all.task_definitions.map((d) => d.name)).not.toContain(common);
   });
 });

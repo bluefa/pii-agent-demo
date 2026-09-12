@@ -324,6 +324,23 @@ export const RECIPE_LABELS: Record<string, RecipeLabel> = {
     displayName: 'IDC 인프라 삭제',
     desc: 'IDC BDP와 CX 인프라를 Terraform destroy로 제거한다(BDP destroy는 pod 삭제 동반, 순서는 설치의 역순 가정).',
   },
+  // ADR-023 재확정 — 삭제 레시피 뒤에 공통 Task 둘(확정 정보 삭제 → 추천 기반 확정 정보 입력)이 붙는다.
+  AWS_RECONFIRM_V1: {
+    displayName: 'AWS 재확정',
+    desc: 'AWS 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  GCP_RECONFIRM_V1: {
+    displayName: 'GCP 재확정',
+    desc: 'GCP 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  AZURE_RECONFIRM_V1: {
+    displayName: 'Azure 재확정',
+    desc: 'Azure 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  IDC_RECONFIRM_V1: {
+    displayName: 'IDC 재확정',
+    desc: 'IDC 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
 };
 
 /** Recipe code → catalog entry; unknown/CUSTOM (null) → null. */

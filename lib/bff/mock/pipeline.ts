@@ -2065,19 +2065,17 @@ export const mockPipeline = {
     if (provider !== undefined && provider !== '' && !isCloudProvider(provider)) {
       return err(400, 'INVALID_PARAMETER', 'invalid or missing request parameter', PATH.taskDefinitions);
     }
+    const scope = provider && isCloudProvider(provider) ? provider : null;
     const entries: TaskCatalogEntry[] = CATALOG_DEFS
-      // ponytail: ALL_CSP 공통 Task 둘은 카탈로그에서 빠지므로 CUSTOM 빌더로 담을 수 없다 —
-      // `TaskCatalogEntry.provider` 가 non-null 이라 null provider 를 실을 자리가 없다. 재확정
-      // 레시피는 이 응답이 아니라 RECIPES 를 읽으므로 preview·생성 경로는 온전하다. 올리는 길:
-      // TaskCatalogEntry 를 nullable provider + provider_scope + execution_available 로 넓히고,
-      // customBuilder 의 중복 제거를 정의 이름 기준에서 행 기준으로 바꾼다(같은 Task 반복 구성).
-      .filter((def): def is CatalogDef & { provider: CloudProvider } => def.provider !== null)
-      .filter((def) => (provider && isCloudProvider(provider) ? def.provider === provider : true))
+      // ponytail: `TaskCatalogEntry.provider` 는 non-null 이라 ALL_CSP 공통 Task 둘은 조회한 CSP 의
+      // 이름으로 실린다 — 그 CSP 의 재확정 레시피가 그 둘을 쓰므로 거짓은 아니다. 필터 없는
+      // 조회에는 붙일 CSP 가 없어 빠진다. 올리는 길: nullable provider + provider_scope 로 넓히기.
+      .filter((def) => (scope ? def.provider === scope || def.provider === null : def.provider !== null))
       .map((def) => ({
         name: def.name,
         display_name: def.displayName,
         description: def.description,
-        provider: def.provider,
+        provider: def.provider ?? (scope as CloudProvider),
         kind: def.kind,
         terraform_action: terraformActionOf(def.name),
         consumes_terraform_slot: consumesSlot(def),
