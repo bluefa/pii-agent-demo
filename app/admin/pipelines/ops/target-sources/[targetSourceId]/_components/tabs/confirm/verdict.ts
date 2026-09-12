@@ -85,9 +85,21 @@ export function deriveConfirmVerdict(input: {
    * `null` is not 0: "nothing differs" is a claim this screen must have earned.
    */
   diffCount: number | null;
+  /** A RECONFIRM run is live on this target — the record on screen is about to be rewritten. */
+  reconfirmRunning?: boolean;
 }): ConfirmVerdict {
-  const { installed, confirmedCount, request, reconfirmNeeded, diffCount } = input;
+  const { installed, confirmedCount, request, reconfirmNeeded, diffCount, reconfirmRunning } = input;
   const tag = deriveConfirmedStateTag({ confirmedCount, reconfirmNeeded });
+
+  // Ahead of everything but 설치 끝: while 재확정 runs, 「다시 입력해야 합니다」 asks for what
+  // is already happening.
+  if (!installed && reconfirmRunning) {
+    return {
+      tag,
+      head: '재확정이 진행 중입니다',
+      sub: '끝나면 확정 정보가 승인 내용으로 다시 등록됩니다. 아래 표는 실행 전 확정 정보입니다.',
+    };
+  }
 
   if (installed) {
     return {

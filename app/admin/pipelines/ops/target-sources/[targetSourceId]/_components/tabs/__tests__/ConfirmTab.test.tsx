@@ -30,6 +30,15 @@ vi.mock('@/app/lib/api/task-queue-requests', async (importOriginal) => {
     getNlbIndexMappings: async () => [],
   };
 });
+const getLatestPipelineByTarget = vi.fn();
+vi.mock('@/app/lib/api/pipeline', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/app/lib/api/pipeline')>();
+  return { ...mod, getLatestPipelineByTarget: (...args: unknown[]) => getLatestPipelineByTarget(...args) };
+});
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/admin/pipelines/ops/target-sources/1642',
+}));
 vi.mock('@/app/lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('@/app/lib/api')>();
   return {
@@ -134,6 +143,38 @@ describe('ConfirmTab 두 기록 카드', () => {
       resource_infos: [confirmedRow(0), confirmedRow(1)],
     });
     getTerraformStatus.mockResolvedValue(terraformStatus());
+    getLatestPipelineByTarget.mockResolvedValue(null);
+  });
+
+  it('작업이 돌고 있으면 유형을 가리지 않고 세 문이 잠기고, 작업 줄이 상세로 이어진다', async () => {
+    getLatestPipelineByTarget.mockResolvedValue({
+      pipeline_id: 135,
+      type: 'INSTALL',
+      target_source_id: '1642',
+      service_code: 'bil',
+      service_name: 'Billing',
+      cloud_provider: 'AWS',
+      recipe_definition: 'AWS_INSTALL_V1',
+      status: 'RUNNING',
+      done_task_count: 2,
+      total_task_count: 7,
+      created_at: '2026-09-12T10:58:00Z',
+      last_activity_at: '2026-09-12T10:59:00Z',
+    });
+    mount(false, 'CONFIRMING');
+    const line = await screen.findByTestId('run-line');
+    expect(line.textContent).toContain('AWS 인프라 설치 #135');
+    expect(line.textContent).toContain('Task 2/7');
+    expect(screen.getByRole('button', { name: '상세 보기' })).toBeTruthy();
+    for (const name of ['재확정', '확정 정보 삭제', '확정 정보 입력']) {
+      expect(screen.getByRole('button', { name }).getAttribute('aria-disabled')).toBe('true');
+    }
+  });
+
+  it('실행 이력이 없으면 작업 줄이 서지 않는다', async () => {
+    mount();
+    await screen.findByText('확정 정보');
+    expect(screen.queryByTestId('run-line')).toBeNull();
   });
 
   it('두 기록이 동시에 선다 — 설치 (Terraform) 카드는 없다', async () => {
@@ -463,7 +504,7 @@ describe('ConfirmTab 대조', () => {
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 
-  it('재확정은 인프라 작업 탭으로 보낸다', async () => {
+  it('재확정은 이 탭에서 바로 실행 모달을 연다 — 유형 선택 없이 재확정 미리보기로 (owner 09-12)', async () => {
     const onOpenInfra = vi.fn();
     render(
       <ConfirmTab
@@ -477,7 +518,9 @@ describe('ConfirmTab 대조', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '재확정' }));
-    expect(onOpenInfra).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('heading', { name: '재확정 작업 시작' })).toBeTruthy();
+    expect(screen.queryByText('실행할 작업 유형을 선택하세요')).toBeNull();
+    expect(onOpenInfra).not.toHaveBeenCalled();
   });
 
   /**
