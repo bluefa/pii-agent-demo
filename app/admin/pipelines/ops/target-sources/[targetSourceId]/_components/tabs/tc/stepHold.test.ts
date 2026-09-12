@@ -62,6 +62,8 @@ const REJECTED_1583 = statusRow({
   rejectReason: '대상 3건 중 1건 접속 실패(10.20.4.18:1521 timeout)',
 });
 
+const labels = (view: ReturnType<typeof stepHoldView>) => view?.facts.map((f) => f.label ?? '');
+
 describe('stepHoldView — 언제 서는가', () => {
   it('5단계가 아니면 null', () => {
     expect(stepHoldView(input({ processStatus: 'CONNECTED' }))).toBeNull();
@@ -72,105 +74,114 @@ describe('stepHoldView — 언제 서는가', () => {
     expect(stepHoldView(input({ isSdu: true }))).toBeNull();
   });
 
-  it('조회 전에는 두 행이 loading 이고 차례를 말하지 않는다', () => {
+  it('조회 전에는 loading 이고 차례도 버튼도 없다', () => {
     const view = stepHoldView(input({ statusLoaded: false }));
-    expect(view?.run.state).toBe('loading');
-    expect(view?.ack.state).toBe('loading');
+    expect(view?.state).toBe('loading');
     expect(view?.turn).toBeNull();
+    expect(view?.canRequest).toBe(false);
   });
 });
 
 describe('stepHoldView — 목 1583: 성공 + 재실행 요청됨', () => {
   const view = stepHoldView(input({ tcStatus: REJECTED_1583 }));
 
-  it('① 은 충족, 근거에 완료 시각과 결과', () => {
-    expect(view?.run.state).toBe('ok');
-    expect(view?.run.facts).toEqual([
-      { label: '완료', value: '26.06.01 09:04' },
-      { label: '결과', value: '성공 1 · 실패 0' },
-    ]);
+  it('미충족 「재실행 요청됨」 — 실행 결과, 반려 시각·사유, 다음 행동이 각자 한 줄', () => {
+    expect(view?.state).toBe('unmet');
+    expect(view?.tag).toEqual({ tone: 'warn', label: '재실행 요청됨' });
+    expect(labels(view)).toEqual(['완료', '결과', '재실행 요청', '사유', '']);
+    expect(view?.facts[0].value).toBe('26.06.01 09:04');
+    expect(view?.facts[1].value).toBe('성공 1 · 실패 0');
+    expect(view?.facts[2].value).toBe('26.07.19 14:52');
+    expect(view?.facts[3].value).toContain('10.20.4.18:1521');
+    expect(view?.facts[4].value).toContain('다시 실행하고 승인 요청을 누르면 6단계');
   });
 
-  it('② 는 미충족 「재실행 요청됨」에 시각·사유·다음 행동', () => {
-    expect(view?.ack.state).toBe('unmet');
-    expect(view?.ack.tag).toEqual({ tone: 'warn', label: '재실행 요청됨' });
-    expect(view?.ack.facts.map((f) => f.label ?? '')).toEqual(['재실행 요청', '사유', '']);
-    expect(view?.ack.facts[0].value).toBe('26.07.19 14:52');
-    expect(view?.ack.facts[1].value).toContain('10.20.4.18:1521');
-    expect(view?.ack.facts[2].value).toContain('다시 실행하고 승인 요청을 누르면 6단계');
-  });
-
-  it('차례는 서비스 담당자', () => {
+  it('차례는 서비스 담당자, 관리자가 대신 누를 수 있다', () => {
     expect(view?.turn).toBe('지금은 서비스 담당자 차례입니다.');
+    expect(view?.canRequest).toBe(true);
   });
 });
 
-describe('stepHoldView — ② 승인 요청', () => {
-  it('성공 + 미요청(404) → 「승인 요청 대기」', () => {
+describe('stepHoldView — 승인 요청 쪽', () => {
+  it('성공 + 미요청(404) → 「승인 요청 대기」, 버튼 열림', () => {
     const view = stepHoldView(input({ tcStatus: null }));
-    expect(view?.ack.state).toBe('unmet');
-    expect(view?.ack.tag?.label).toBe('승인 요청 대기');
-    expect(view?.ack.facts).toEqual([
-      { value: '서비스 담당자가 5단계에서 승인 요청을 누르면 6단계로 넘어갑니다.' },
-    ]);
+    expect(view?.state).toBe('unmet');
+    expect(view?.tag?.label).toBe('승인 요청 대기');
+    expect(labels(view)).toEqual(['완료', '결과', '']);
+    expect(view?.facts.at(-1)?.value).toBe('서비스 담당자가 5단계에서 승인 요청을 누르면 6단계로 넘어갑니다.');
+    expect(view?.canRequest).toBe(true);
   });
 
   it('반려 뒤 새 실행이 성공했으면 반려는 지난 기록 — 「승인 요청 대기」 + 이전 실행 기준', () => {
     const view = stepHoldView(
-      input({ tcStatus: REJECTED_1583, latest: run('SUCCESS', { requested_at: '2026-08-01T00:00:00Z', completed_at: '2026-08-01T00:01:00Z' }) }),
+      input({
+        tcStatus: REJECTED_1583,
+        latest: run('SUCCESS', { requested_at: '2026-08-01T00:00:00Z', completed_at: '2026-08-01T00:01:00Z' }),
+      }),
     );
-    expect(view?.ack.tag?.label).toBe('승인 요청 대기');
-    expect(view?.ack.facts[0]).toEqual({ label: '재실행 요청', value: '26.07.19 14:52 · 이전 실행 기준' });
+    expect(view?.tag?.label).toBe('승인 요청 대기');
+    expect(view?.facts[2]).toEqual({ label: '재실행 요청', value: '26.07.19 14:52 · 이전 실행 기준' });
   });
 
-  it('요청됨 → 충족 + 요청 시각, 차례는 단계 반영 대기', () => {
+  it('요청됨 → 충족 + 요청 시각, 차례는 단계 반영 대기, 버튼 없음', () => {
     const view = stepHoldView(
       input({ tcStatus: statusRow({ status: 'TEST_CONNECTION_COMPLETED', completedAt: '2026-06-01T01:00:00Z' }) }),
     );
-    expect(view?.ack.state).toBe('ok');
-    expect(view?.ack.tag?.label).toBe('승인 요청됨');
-    expect(view?.ack.facts[0]).toEqual({ label: '요청', value: '26.06.01 10:00' });
+    expect(view?.state).toBe('ok');
+    expect(view?.tag?.label).toBe('승인 요청됨');
+    expect(view?.facts[0]).toEqual({ label: '요청', value: '26.06.01 10:00' });
     expect(view?.turn).toBe('단계 반영을 기다리고 있습니다.');
+    expect(view?.canRequest).toBe(false);
   });
 
-  it('① 이 안 섰으면 ② 는 아직 물을 수 없는 행(na)', () => {
-    expect(stepHoldView(input({ latest: null }))?.ack.state).toBe('na');
-    expect(stepHoldView(input({ latest: run('FAIL') }))?.ack.state).toBe('na');
+  it('요청됨은 실행 판정보다 앞선다 — 실행 조회가 실패해도 충족', () => {
+    const view = stepHoldView(
+      input({
+        tcStatus: statusRow({ status: 'TEST_CONNECTION_COMPLETED' }),
+        latest: null,
+        latestFailed: true,
+      }),
+    );
+    expect(view?.state).toBe('ok');
   });
 
-  it('status 조회 실패는 모름 — 미요청이라 부르지 않고 차례도 말하지 않는다', () => {
+  it('status 조회 실패는 모름 — 미요청이라 부르지 않고 차례도 버튼도 없다', () => {
     const view = stepHoldView(input({ tcStatusFailed: true }));
-    expect(view?.ack.state).toBe('unknown');
-    expect(view?.ack.tag).toBeUndefined();
+    expect(view?.state).toBe('unknown');
+    expect(view?.tag).toBeUndefined();
     expect(view?.turn).toBeNull();
+    expect(view?.canRequest).toBe(false);
   });
 });
 
-describe('stepHoldView — ① 최신 실행', () => {
-  it('실행 없음(404) → 미충족 「실행 없음」', () => {
+describe('stepHoldView — 실행 쪽이 막을 때', () => {
+  it('실행 없음(404) → 미충족 「실행 없음」, 버튼 잠김', () => {
     const view = stepHoldView(input({ latest: null }));
-    expect(view?.run.state).toBe('unmet');
-    expect(view?.run.tag?.label).toBe('실행 없음');
+    expect(view?.state).toBe('unmet');
+    expect(view?.tag?.label).toBe('실행 없음');
     expect(view?.turn).toBe('지금은 서비스 담당자 차례입니다.');
+    expect(view?.canRequest).toBe(false);
   });
 
-  it('실패 → 미충족 「실패」 + 다시 실행 안내', () => {
+  it('실패 → 미충족 「연결 테스트 실패」 + 다시 실행 안내, 버튼 잠김', () => {
     const view = stepHoldView(input({ latest: run('FAIL') }));
-    expect(view?.run.state).toBe('unmet');
-    expect(view?.run.tag?.label).toBe('실패');
-    expect(view?.run.facts.at(-1)?.value).toContain('다시 실행');
+    expect(view?.state).toBe('unmet');
+    expect(view?.tag?.label).toBe('연결 테스트 실패');
+    expect(view?.facts.at(-1)?.value).toContain('다시 실행한 뒤 승인 요청');
+    expect(view?.canRequest).toBe(false);
   });
 
   it('진행 중 → 판정 보류 「진행 중」, 차례는 실행 종료 대기', () => {
     const view = stepHoldView(input({ latest: run('RUNNING') }));
-    expect(view?.run.state).toBe('loading');
-    expect(view?.run.tag?.label).toBe('진행 중');
+    expect(view?.state).toBe('loading');
+    expect(view?.tag?.label).toBe('진행 중');
     expect(view?.turn).toBe('연결 테스트가 끝나기를 기다리고 있습니다.');
+    expect(view?.canRequest).toBe(false);
   });
 
   it('최신 실행 조회 실패는 모름', () => {
     const view = stepHoldView(input({ latest: null, latestFailed: true }));
-    expect(view?.run.state).toBe('unknown');
+    expect(view?.state).toBe('unknown');
     expect(view?.turn).toBeNull();
   });
 });

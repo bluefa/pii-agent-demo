@@ -1,6 +1,9 @@
 /**
  * Test Connection action modal (design-spec §6):
  *  - TcApproveModal 연동 승인 — am-stats 3 tiles (리소스/연동 대상/연동 제외) → POST confirm.
+ *  - TcRequestApprovalModal 승인 요청 — 관리자가 서비스 담당자를 대신해 5단계 승인 요청을
+ *    보낸다 (PUT …/test-connection-acknowledgment, confirmed:true). 단계가 넘어가는 쓰기라
+ *    한 겹 확인을 둔다.
  * It owns only its form chrome; the parent owns the mutation + refetch.
  */
 'use client';
@@ -67,6 +70,48 @@ export function TcApproveModal({
           </div>
         ))}
       </div>
+    </TqModal>
+  );
+}
+
+export interface TcRequestApprovalModalProps {
+  open: boolean;
+  onClose: () => void;
+  targetSourceId: number;
+  onSubmit: () => void;
+  submitting: boolean;
+}
+
+export function TcRequestApprovalModal({
+  open,
+  onClose,
+  targetSourceId,
+  onSubmit,
+  submitting,
+}: TcRequestApprovalModalProps): ReactElement {
+  return (
+    <TqModal
+      open={open}
+      onClose={onClose}
+      eyebrowCtx="연결 테스트"
+      eyebrowId={`#${targetSourceId}`}
+      title="승인 요청"
+      sub="서비스 담당자를 대신해 완료 승인을 요청합니다. 요청하면 이 대상은 6단계(관리자 승인 대기)로 넘어갑니다."
+      footer={
+        <>
+          <PlButton variant="secondary" onClick={onClose} disabled={submitting}>
+            취소
+          </PlButton>
+          <PlButton variant="primary" onClick={onSubmit} disabled={submitting}>
+            요청
+          </PlButton>
+        </>
+      }
+    >
+      <p className="text-[14px] leading-[1.6] text-[var(--pl-text-medium)]">
+        승인 요청은 서비스 담당자가 5단계에서 누르는 버튼과 같은 동작입니다. 서비스 담당자가
+        직접 누를 수 없을 때만 대신 보내세요.
+      </p>
     </TqModal>
   );
 }

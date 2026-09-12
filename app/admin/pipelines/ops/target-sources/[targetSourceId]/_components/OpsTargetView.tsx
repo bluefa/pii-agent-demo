@@ -689,6 +689,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               tcStatus={tcStatus}
               tcStatusFailed={tcStatusFailed}
               onStatusReload={reloadTc}
+              onAcknowledged={retry}
             />
           )}
           {currentTab === '관리자 승인' && (
