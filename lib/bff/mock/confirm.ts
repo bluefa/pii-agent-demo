@@ -38,6 +38,18 @@ const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 // 변경 요청 승인 → installation.status=PENDING 리셋 → 기존 확정 데이터 유실 방지
 const confirmedIntegrationSnapshotStore = new Map<string, BffConfirmedIntegration>();
 
+/**
+ * Owner demo: two seeded 3단계(CONFIRMING) targets that already carry a confirmed record, so the
+ * 확정 정보 tab can show 재확정 next to an approved request. 1861 keeps the approved list as is
+ * (the list matches, 재확정 may still be needed); 1388 confirmed a different instance of the
+ * same RDS cluster, so the join reports one row on each side.
+ * ponytail: demo-only; delete once the BE can seed a real 3단계 confirmation.
+ */
+const RECONFIRM_DEMO_CONFIRMED: Record<number, (r: MockResource) => MockResource> = {
+  1861: (r) => r,
+  1388: (r) => ({ ...r, resourceId: `${r.resourceId}-reader` }),
+};
+
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
 // Mock: APPLYING 상태를 일정 시간 유지 후 INSTALLING으로 전이
@@ -915,6 +927,16 @@ export const mockConfirm = {
       return NextResponse.json(snapshot);
     }
 
+    // 1b. 재확정 데모 — 3단계에 확정 기록이 이미 있는 대상. 실제 등록(스냅샷)이 있으면 그것이 이긴다.
+    const demoRow = RECONFIRM_DEMO_CONFIRMED[project.targetSourceId];
+    if (demoRow) {
+      return NextResponse.json({
+        resource_infos: project.resources
+          .filter((r) => r.isSelected)
+          .map((r) => toConfirmedIntegrationResourceInfo(demoRow(r), project)),
+      } satisfies BffConfirmedIntegration);
+    }
+
     // 2. installation 미진행 상태(PENDING) 면 확정 정보 없음
     if (project.status.installation.status === 'PENDING') {
       return NextResponse.json({ resource_infos: [] } satisfies BffConfirmedIntegration);
@@ -1339,8 +1361,13 @@ export const mockConfirm = {
       h.type === 'TARGET_CONFIRMED' || h.type === 'APPROVAL' || h.type === 'AUTO_APPROVED' || h.type === 'REJECTION' || h.type === 'APPROVAL_CANCELLED',
     );
 
-    // 이력이 없고 WAITING_APPROVAL 상태이면 현재 상태로 합성
-    if (!latestRequest && project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+    // 이력이 없어도 2·3단계(승인 대기·승인 반영 중)면 현재 상태로 합성 — 그 단계에 있다는 것이
+    // 곧 요청이 있다는 뜻이다.
+    if (
+      !latestRequest &&
+      project.processStatus !== ProcessStatus.WAITING_APPROVAL &&
+      project.processStatus !== ProcessStatus.APPLYING_APPROVED
+    ) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '승인 요청 이력이 없습니다.' },
         { status: 404 },
