@@ -249,7 +249,7 @@ export function ReconcilePane({
           {/* No record, no facts (owner 09-11): 「등록 —」 and a 「대조」 against nothing are
               noise. The headline above already says what is missing. */}
           {stateTag != null && (
-          <div className={cn(styles.kvGrid, runLine != null && 'mt-3')}>
+          <div className={styles.kvGrid}>
             <Kv
               label="상태"
               value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
