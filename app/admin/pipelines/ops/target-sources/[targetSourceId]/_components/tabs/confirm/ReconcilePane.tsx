@@ -273,7 +273,11 @@ export function ReconcilePane({
                 // 켠 칩은 base 를 **대체한다** — `cn` 은 이어 붙이기만 하므로 두 벌의
                 // 바탕·테두리를 겹치면 어느 쪽이 이길지 스타일시트 순서가 정한다.
                 className={cn(
-                  on ? pipelineStyles.filterChip.scope : pipelineStyles.filterChip.base,
+                  on
+                    ? pipelineStyles.filterChip.scope
+                    : // `base` carries no text colour of its own (its key/value spans do), so the
+                      // off chip states one; same weight as the on chip so the pill does not resize.
+                      cn(pipelineStyles.filterChip.base, 'font-semibold text-[var(--pl-text-medium)]'),
                   'cursor-pointer',
                 )}
               >
