@@ -95,6 +95,10 @@ const renderTab = (): void => {
       results={[]}
       statusLoaded
       latestFailed={false}
+      processStatus={null}
+      tcStatus={null}
+      tcStatusFailed={false}
+      onAcknowledged={vi.fn()}
       onStatusReload={vi.fn()}
     />,
   );

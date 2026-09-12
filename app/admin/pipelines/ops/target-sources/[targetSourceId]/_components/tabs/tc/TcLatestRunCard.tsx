@@ -110,6 +110,12 @@ export interface TcLatestRunCardProps {
    * 잠그는 사유이고, 이것은 실행은 되지만 결과가 정해진다는 예보다.
    */
   installPendingSlot?: ReactNode;
+  /**
+   * 5단계 종료 조건 한 행 — 알림 상자들 아래·밴드 바로 위. 5단계가 아니면 상자가 스스로
+   * 비운다(`StepHoldGate`). 밴드가 "최신 실행이 어땠나"를 말한다면 이 프레임은 "이 단계가
+   * 끝나려면 무엇이 더 있어야 하나"를 말한다 — 둘은 다른 질문이라 자리가 다르다.
+   */
+  stepHoldSlot?: ReactNode;
   /** 확정 정보 표 — 밴드·승인 요청 줄 아래, 같은 카드 안. */
   children: ReactNode;
 }
@@ -206,6 +212,7 @@ export function TcLatestRunCard({
   onOpenDecisionHistory,
   onOpenCredentials,
   installPendingSlot,
+  stepHoldSlot,
   children,
 }: TcLatestRunCardProps): ReactElement {
   const b = opsStyles.tcBand;
@@ -367,6 +374,8 @@ export function TcLatestRunCard({
       />
 
       {installPendingSlot}
+
+      {stepHoldSlot}
 
       {loading && !latest ? (
         <BandSkeleton />

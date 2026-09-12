@@ -33,17 +33,25 @@ import {
   getConfirmedIntegration,
   getSecrets,
   triggerTestConnection,
+  updateTestConnectionConfirmation,
   type ConfirmedIntegrationResourceItem,
   type TestConnectionVersionResult,
 } from '@/app/lib/api';
+import { useApiAction } from '@/app/hooks/useApiMutation';
+import { useTcCompletionStatus } from '@/app/hooks/useTcCompletionStatus';
 import type { SecretKey } from '@/lib/types';
 import type { TcResultRow } from '@/app/lib/api/task-queue-tc';
+import type { TestConnectionStatusRow } from '@/lib/types/task-queue';
+import type { ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { TcLatestRunCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcLatestRunCard';
 import { TcRunHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcRunHistoryModal';
 import { ConfirmedInfoCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/ConfirmedInfoCard';
 import { TcHistoryModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcHistoryModal';
 import { TcCredentialModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcCredentialModal';
+import { StepHoldGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/StepHoldGate';
+import { TcRequestApprovalModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/TcActionModals';
+import { stepHoldView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/stepHold';
 import {
   bandBuckets,
   bandUnitIds,
@@ -81,8 +89,21 @@ export interface TcTabProps {
   statusLoaded: boolean;
   /** latest_version 조회가 404 가 아닌 이유로 실패했다. */
   latestFailed: boolean;
+  /**
+   * 5단계 종료 조건이 읽는 둘 — 단계와 서비스의 승인 요청 상태. 승인 탭 조건 ①·② 와
+   * 같은 값이라 페이지가 한 번 받아 두 탭에 내려보낸다. 단계가 5가 아니면 아무것도 서지 않는다.
+   */
+  processStatus: ProcessStatus | null;
+  tcStatus: TestConnectionStatusRow | null;
+  /** status 조회가 404 가 아닌 이유로 거절됐다 — 조회 실패 ≠ 미요청. */
+  tcStatusFailed: boolean;
   /** Reload the page-level TC fetch (status + latest + results). */
   onStatusReload: () => void;
+  /**
+   * 관리자가 대신 보낸 승인 요청이 성공했다 — 단계가 5→6 으로 넘어가므로 페이지가 상세와
+   * 단계를 다시 읽는다(승인 탭의 `onDecided` 와 같은 자리).
+   */
+  onAcknowledged: () => void;
 }
 
 export function TcTab({
@@ -94,7 +115,11 @@ export function TcTab({
   results,
   statusLoaded,
   latestFailed,
+  processStatus,
+  tcStatus,
+  tcStatusFailed,
   onStatusReload,
+  onAcknowledged,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
@@ -160,6 +185,31 @@ export function TcTab({
   const credentialMissing = settled ? credentialMissingCount(units) : 0;
 
   const running = isRunOpen(latest);
+
+  // 「왜 아직 5단계인가」 — 한 행의 판정과 관리자 「승인 요청」의 게이트. 게이트는 서비스
+  // Step 5 의 그것 그대로라 completion-status 도 같은 훅으로 읽는다(성공한 실행에서만 묻고,
+  // 새 회차가 지난 회차의 판정을 잠시라도 물려받지 않는다). 5단계가 아니면 안 묻는다.
+  const holdActive = processStatus === 'INSTALLED' && provider !== 'sdu';
+  const completionRead = useTcCompletionStatus(
+    targetSourceId,
+    holdActive && latest?.connection_status === 'SUCCESS' ? 'SUCCESS' : 'IDLE',
+    latest?.test_connection_version ?? null,
+  );
+  const holdView = stepHoldView({
+    processStatus,
+    isSdu: provider === 'sdu',
+    statusLoaded,
+    tcStatus,
+    tcStatusFailed,
+    latest,
+    latestFailed,
+    buckets,
+    completion: completionRead.failed
+      ? { kind: 'failed' }
+      : completionRead.completion === null
+        ? { kind: 'loading' }
+        : { kind: 'loaded', value: completionRead.completion },
+  });
 
   // Poll only while the run is unsettled; the interval clears itself the moment
   // connection_status reaches SUCCESS/FAIL, so an idle tab makes no requests.
@@ -236,6 +286,19 @@ export function TcTab({
    * `unknown`·`done` 은 아무것도 세우지 않는다: 못 읽은 것을 근거로 한 겹을 더 두면 그
    * 확인은 곧 의미 없는 관문이 되고, 진짜 예보일 때의 무게까지 같이 깎는다.
    */
+  // 관리자가 서비스 담당자를 대신해 승인 요청을 보낸다 — 서비스 화면의 같은 PUT. 성공하면
+  // 단계가 넘어가므로 TC 상태와 페이지 단계를 함께 다시 읽는다.
+  const [requestOpen, setRequestOpen] = useState(false);
+  const requestApproval = useApiAction(() => updateTestConnectionConfirmation(targetSourceId, true), {
+    onSuccess: () => {
+      setRequestOpen(false);
+      toast.show('승인 요청을 보냈습니다.');
+      onStatusReload();
+      onAcknowledged();
+    },
+    onError: () => toast.show('승인 요청을 보내지 못했습니다.'),
+  });
+
   const runTest = useCallback((): void => {
     if (credentialMissing > 0) return;
     if (installPending?.kind === 'needed') {
@@ -269,6 +332,14 @@ export function TcTab({
         installPendingSlot={
           <InstallPendingNotice data={installPendingNotice} className="mt-4" />
         }
+        stepHoldSlot={
+          <StepHoldGate
+            view={holdView}
+            onRequestApproval={() => setRequestOpen(true)}
+            requesting={requestApproval.loading}
+            className="mt-4"
+          />
+        }
       >
         <ConfirmedInfoCard
           targetSourceId={targetSourceId}
@@ -293,6 +364,16 @@ export function TcTab({
             void startRun().finally(() => setPendingConfirmOpen(false));
           }}
           onClose={() => setPendingConfirmOpen(false)}
+        />
+      )}
+
+      {requestOpen && (
+        <TcRequestApprovalModal
+          open
+          targetSourceId={targetSourceId}
+          onSubmit={() => void requestApproval.execute()}
+          submitting={requestApproval.loading}
+          onClose={() => setRequestOpen(false)}
         />
       )}
 
