@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { OpsTargetView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsTargetView';
 import { STEP } from '@/app/admin/pipelines/queue/_components/StepStack';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 
 const STEP_LABEL = '현재 단계';
 
@@ -80,6 +81,9 @@ describe('OpsTargetView — 「현재 단계」 탭 태그', () => {
     const labelled = screen.getByRole('tab', { name: `${tab} ${STEP_LABEL}` });
     expect(labelled.getAttribute('title')).toBeNull();
     expect(labelled.querySelector('.sr-only')).toBeNull();
+    // The cell wears the same wash as the lozenge — label and tag read as one unit (오너 09-13).
+    expect(labelled.className).toContain(opsStyles.tabStep);
+    expect(screen.getByRole('tab', { name: '진행 상태' }).className).not.toContain(opsStyles.tabStep);
   });
 
   it('COMPLETED 는 어느 탭에도 서지 않는다', async () => {
