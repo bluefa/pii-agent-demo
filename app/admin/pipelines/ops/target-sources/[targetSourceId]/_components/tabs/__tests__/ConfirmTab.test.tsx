@@ -346,7 +346,7 @@ describe('ConfirmTab — SDU 에는 밴드가 없다', () => {
     getConfirmedIntegration.mockResolvedValue({ resource_infos: [] });
     mount(true, 'CONFIRMING');
 
-    expect(await screen.findByText('확정 정보가 필요합니다')).toBeTruthy();
+    expect(await screen.findByText('확정 필요')).toBeTruthy();
     // 기본 문장(「승인된 리소스를 기준으로…」)도, 빈 pane 의 안내도 이 대상에서는 거짓이다.
     expect(screen.queryByText(/승인된 리소스를 기준으로/)).toBeNull();
     expect(screen.queryByText(/아직 승인 요청이 없습니다/)).toBeNull();
@@ -443,20 +443,17 @@ describe('ConfirmTab 대조', () => {
     expect(screen.getAllByText('일치').length).toBeGreaterThan(0);
   });
 
-  it('한 표에 판정 열이 서고, 기본은 차이만 본다', async () => {
+  it('한 표에 판정 열이 서고, 행은 전부 보인다 — 범위 칩은 없다 (owner 09-13)', async () => {
     mount();
 
     expect(await screen.findByText('판정')).toBeTruthy();
-    // 차이만(기본) — 승인에만 있는 한 행이다.
     expect(screen.getByText('확정 없음')).toBeTruthy();
-    expect(screen.queryByText('confirmed-0')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: '전체' }));
     expect(screen.getByText('confirmed-0')).toBeTruthy();
     expect(screen.getByText('confirmed-9')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '전체' })).toBeNull();
   });
 
-  it('차이가 없으면 범위 칩도 서지 않는다', async () => {
+  it('차이가 없으면 두 카드와 모든 행이 일치라 말한다', async () => {
     getConfirmedIntegration.mockResolvedValue({
       resource_infos: [confirmedRow(0), confirmedRow(1), confirmedRow(9)],
     });
@@ -494,13 +491,11 @@ describe('ConfirmTab 대조', () => {
    * 3단계(반영 중)인데 확정이 이미 있다 — 등록됐다는 사실만 말하면 끝난 것처럼 읽히지만,
    * 그 확정으로는 다음 단계로 넘어가지 않는다.
    */
-  it('재확정이 필요하면 그 말을 헤드라인·상태·문에서 함께 한다', async () => {
+  it('재확정이 필요하면 헤드라인이 그 말을 하고 문이 선다', async () => {
     mount(false, 'CONFIRMING');
 
-    expect(await screen.findByText('확정 정보를 다시 입력해야 합니다')).toBeTruthy();
+    expect(await screen.findByText('재확정 필요')).toBeTruthy();
     expect(screen.getByText(/승인 내용과 차이가 1건 있습니다/)).toBeTruthy();
-    // 헤드라인 태그와 확정 카드의 「상태」 kv — 같은 낱말이 두 자리에 선다.
-    expect(screen.getAllByText('다시 입력 필요')).toHaveLength(2);
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 
@@ -532,7 +527,7 @@ describe('ConfirmTab 대조', () => {
   it('설치가 끝난 대상에도 재확정 문은 선다', async () => {
     mount(false, 'CONNECTED');
 
-    await screen.findByText('확정과 설치가 끝났습니다');
+    await screen.findByText('확정됨');
     expect(screen.getByRole('button', { name: '재확정' })).toBeTruthy();
   });
 
