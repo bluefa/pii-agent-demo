@@ -522,12 +522,19 @@ export const opsStyles = {
    * 바닥 + 위 막대는 너무 셌다.
    *
    * 면은 옅게, 색은 글자와 테두리가 진다: 채운 주황은 재확정 CTA(`warnSolid`)로 읽힌다.
-   * 탭 셀은 칠하지 않는다 — 칠한 셀은 열린 탭(파랑 밑줄)과 다툰다(이 줄의 띠·카드 기각
-   * 전례). 12px 은 디자인 가이드의 하한이고, 16px 줄 + 테두리 2px = 18px 이라 탭 줄
+   * 12px 은 디자인 가이드의 하한이고, 16px 줄 + 테두리 2px = 18px 이라 탭 줄
    * 높이가 그대로다. 보이는 낱말이라 탭의 접근명에 그대로 실린다.
    */
   tabStepLabel:
     'inline-flex flex-none items-center whitespace-nowrap rounded border border-[var(--pl-warn-text)] bg-[var(--pl-warn-bg)] px-1.5 text-[12px] font-semibold leading-4 text-[var(--pl-warn-text)]',
+  /**
+   * 로젠지가 붙는 탭의 셀은 같은 옅은 주황으로 칠한다 (오너 2026-09-13: "tag 가 오른쪽에
+   * 있으면 어떤 사람은 헷갈릴 수 있다 — 색상으로 탭과 묶자"). 09-11 의 「칸 칠하기 기각」은
+   * 채운 칩 + 워시 + 3px 막대를 한꺼번에 얹은 안에 대한 것이라 전제가 다르다. 워시 위에서
+   * 로젠지 면은 바닥과 같은 값이 되어 테두리 칩으로 읽히고, 열린 탭의 파랑 잉크·밑줄은
+   * 그대로다 — 「주황 면 = 현재 단계」·「파랑 밑줄 = 열린 탭」 두 사실이 채널로 갈린다.
+   */
+  tabStep: 'rounded-t-[6px] bg-[var(--pl-warn-bg)]',
 
   /** Body — 콘텐츠 한 열. 236px 메타 레일은 FrontMeta 의 「상세 정보」로 접혀 들어갔고,
       그 폭은 탭 7개 전부에서 본문으로 돌아간다 (1020 → 1280px). */
