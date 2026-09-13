@@ -287,6 +287,8 @@ describe('ConfirmTab 두 기록 카드', () => {
     mount();
 
     expect(await screen.findByText('일부 정보를 불러오지 못했습니다.')).toBeTruthy();
+    // 못 읽은 승인을 「필요」라 부르지 않는다 — 기록의 사실만 말한다.
+    expect(screen.queryByText('승인 필요')).toBeNull();
   });
 });
 

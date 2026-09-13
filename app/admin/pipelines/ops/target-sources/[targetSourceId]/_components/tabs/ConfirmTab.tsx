@@ -372,8 +372,9 @@ export function ConfirmTab({
   const verdict = deriveConfirmVerdict({
     confirmedCount: confirmedRows.length,
     reconfirmNeeded,
-    // SDU has no approval axis: nothing gates the record there.
-    approved: isSdu || requestApproved,
+    // SDU has no approval axis: nothing gates the record there. A failed request fetch
+    // asserts nothing either — 「승인 필요」 is a claim about a value we could not read.
+    approved: isSdu || requestApproved || request.state === 'failed',
     diffCount: reconcile?.diffCount ?? null,
   });
 
