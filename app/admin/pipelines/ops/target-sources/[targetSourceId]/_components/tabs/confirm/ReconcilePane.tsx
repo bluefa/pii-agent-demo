@@ -39,6 +39,8 @@ const styles = {
   /** 오른쪽(확정)은 지금 쓰는 기록이라 흰 바닥이다 — 액션이 서는 쪽도 여기다. */
   cardLive: 'rounded-[8px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-4',
   cardHead: 'flex items-start justify-between gap-3',
+  /** 카드가 무엇인지 — 누가 만드는 기록인지 한 줄 (owner 2026-09-13). */
+  cardDesc: 'mt-1 text-[12px] leading-[1.5] text-[var(--pl-text-medium)]',
   /** 카드가 좁아(패널 절반) kv 는 2열이다. */
   kvGrid: 'mt-3.5 grid grid-cols-2 gap-x-6 gap-y-3.5',
   /** 태그와 그 톤은 판정 줄과 공유한다 — 같은 사실이 두 자리에서 다른 낱말로 서지 않게. */
@@ -140,6 +142,7 @@ export function ReconcilePane({
             {requestOutcome && <Badge variant={requestOutcome.tone}>{requestOutcome.label}</Badge>}
             {requestFailed && <span className={cn(styles.tag, styles.off)}>불러오지 못함</span>}
           </div>
+          <p className={styles.cardDesc}>서비스 담당자가 보낸 연동 요청과 그 처리 결과입니다.</p>
 
           <div className={styles.kvGrid}>
             <Kv
@@ -226,6 +229,8 @@ export function ReconcilePane({
               </div>
             )}
           </div>
+
+          <p className={styles.cardDesc}>승인된 연동 요청을 바탕으로 입력된 값입니다.</p>
 
           {runLine}
 
