@@ -374,26 +374,6 @@ describe('OpsTargetView — SDU 확정 정보 탭', () => {
   });
 });
 
-describe('OpsTargetView — SDU 인프라 작업 탭', () => {
-  /**
-   * 작업 시작 게이트의 마지막 갈래. 다른 대상에서 그 문장은 「확정 정보 탭에서 확정하면」
-   * 이라는 **지시**인데, SDU 에는 확정 정보를 넣는 쓰기 경로가 계약에 없어 그 탭이 읽기
-   * 전용이다 — 보내 봐야 누를 것이 없다. 문장 자체는 `gateStage.test.ts` 가 재고, 여기서는
-   * 판정이 실제로 그 탭까지 내려가는지를 본다.
-   */
-  it('확정 대기는 지시가 아니라 기다림으로 말하고, 갈 곳을 주지 않는다', async () => {
-    getRawTargetSourceDetail.mockResolvedValue(detail());
-    render(<OpsTargetView targetSourceId={1099} initialTab="인프라 작업" statusSlot={<div data-testid="status-slot" />} />);
-
-    // `GateSentence` 가 「작업 시작」을 굵게 하려고 문장을 쪼갠다 — 이어 붙인 텍스트로 잰다.
-    await waitFor(() =>
-      expect(document.body.textContent).toContain('확정되면 여기서 작업 시작이 열립니다'),
-    );
-    expect(document.body.textContent).not.toContain('확정 정보 탭에서 확정하면');
-    expect(screen.queryByRole('button', { name: /확정 정보 탭으로/ })).toBeNull();
-  });
-});
-
 describe('OpsTargetView — SDU 연동 초기화 탭', () => {
   /**
    * 되돌릴 수 없는 동작의 마지막 확인이라, **무엇이 사라지는가**를 대상 종류가 정한다

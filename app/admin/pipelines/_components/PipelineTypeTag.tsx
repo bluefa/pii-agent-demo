@@ -26,6 +26,8 @@ import type { PipelineType } from '@/lib/pipeline/types';
 const TYPE_ICON: Record<PipelineType, IconName> = {
   INSTALL: 'package-plus',
   DELETE: 'trash',
+  // 재확정은 같은 자리를 한 번 더 쓰는 일이라 순환 화살표가 그 뜻 그대로다.
+  RECONFIRM: 'refresh',
   CUSTOM: 'blocks',
 };
 

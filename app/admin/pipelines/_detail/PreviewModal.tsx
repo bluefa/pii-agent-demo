@@ -44,6 +44,7 @@ import {
   TypeTile,
 } from '@/app/admin/pipelines/_detail/r24Task';
 import { taskInfraSide, typeKo, type InfraSide } from '@/lib/pipeline/format';
+import type { PipelineTypeGate } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import {
   createCustomPipeline,
   createPipeline,
@@ -84,6 +85,10 @@ const TYPE_DESCS: Record<PipelineType, string> = {
   // so that promise is dropped from the CUSTOM description.
   CUSTOM: 'Task 순서를 직접 구성해 실행합니다.',
   DELETE: '설치된 인프라를 destroy 합니다. 대상의 리소스가 제거됩니다.',
+  // 재확정도 같은 규칙을 지킨다 — Task 개수는 CSP 마다 다르므로(AWS 5 · GCP 4 ·
+  // AZURE 3 · IDC 4) 유형만 아는 이 자리에서는 말할 수 없다. 다음 스텝의 preview 가
+  // 이 대상의 실제 개수를 세어 보여준다.
+  RECONFIRM: '확정 정보를 지우고 승인된 추천값으로 다시 등록합니다. 인프라도 함께 제거됩니다.',
 };
 
 /** Run-consequence note under the confirmation canvas (design `.m-note`). */
@@ -98,6 +103,12 @@ const TYPE_NOTES: Record<PipelineType, ReactNode> = {
     <>
       삭제는 설치된 리소스를 destroy 하며 되돌릴 수 없어요. 시작 후에는 <b>현재 작업</b> 카드에서
       진행을 볼 수 있어요.
+    </>
+  ),
+  RECONFIRM: (
+    <>
+      확정 정보와 설치된 인프라를 먼저 제거한 뒤, 승인된 추천값을 조회해 확정 정보로 다시
+      등록합니다. 완료돼도 <b>인프라는 다시 설치되지 않습니다</b> — 설치는 별도 작업이에요.
     </>
   ),
   CUSTOM: null,
@@ -171,6 +182,11 @@ export interface PreviewModalProps {
   targetSourceId: string;
   /** Orchestrator wire provider; null = custom execution unsupported (e.g. SDU). */
   provider: CloudProvider | null;
+  /**
+   * 어느 유형 행이 살아 있는가 — 판정은 대상의 process_status·has_confirmed_infra 를
+   * 가진 쪽에서 내린다(`pipelineTypeGate`). 모달은 그 결과만 그린다.
+   */
+  typeGate: PipelineTypeGate;
   showToast: (message: string) => void;
   /** Called once a run exists — the caller refetches in place. Starting a job
    *  used to navigate to its 현황 page, which threw the operator off the tab they
@@ -183,6 +199,7 @@ export function PreviewModal({
   onClose,
   targetSourceId,
   provider,
+  typeGate,
   showToast,
   onStarted,
 }: PreviewModalProps): ReactElement | null {
@@ -304,12 +321,13 @@ export function PreviewModal({
     setStep(next === 'CUSTOM' ? 'custom-build' : 'preview');
   };
 
-  const optionRow = (t: PipelineType, disabled = false): ReactElement => (
+  /** `blocked` = 이 대상에서 그 유형을 지금 고를 수 없는 이유. null 이면 살아 있는 행이다. */
+  const optionRow = (t: PipelineType, blocked: string | null = null): ReactElement => (
     <button
       type="button"
       className="flex w-full items-center gap-3.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-[15px] text-left cursor-pointer transition-[border-color,box-shadow] duration-150 hover:border-[var(--pl-primary)] hover:shadow-[0_0_0_3px_var(--pl-primary-ring)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-[var(--pl-border)] disabled:hover:shadow-none"
-      disabled={disabled}
-      title={disabled ? '이 provider는 커스텀 실행을 지원하지 않습니다' : undefined}
+      disabled={blocked !== null}
+      title={blocked ?? undefined}
       onClick={() => pick(t)}
     >
       <TypeTile type={t} />
@@ -356,8 +374,11 @@ export function PreviewModal({
             실행할 작업 유형을 선택하세요
           </div>
           <div className="flex flex-col gap-2.5">
-            {optionRow('INSTALL')}
-            {optionRow('CUSTOM', !provider)}
+            {optionRow('INSTALL', typeGate.installBlocked)}
+            {/* 재확정은 막힌 설치의 **대안**이라 그 바로 아래 선다. Always offered
+                (owner, 09-11): the 확정 정보 tab's 재확정 door opens on this modal. */}
+            {optionRow('RECONFIRM')}
+            {optionRow('CUSTOM', provider ? null : '이 provider는 커스텀 실행을 지원하지 않습니다')}
             {optionRow('DELETE')}
           </div>
           <p className="mt-2 text-[11.5px] leading-[1.6] text-[var(--pl-text-faint)]">

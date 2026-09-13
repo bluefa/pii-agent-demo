@@ -324,6 +324,23 @@ export const RECIPE_LABELS: Record<string, RecipeLabel> = {
     displayName: 'IDC 인프라 삭제',
     desc: 'IDC BDP와 CX 인프라를 Terraform destroy로 제거한다(BDP destroy는 pod 삭제 동반, 순서는 설치의 역순 가정).',
   },
+  // ADR-023 재확정 — 삭제 레시피 뒤에 공통 Task 둘(확정 정보 삭제 → 추천 기반 확정 정보 입력)이 붙는다.
+  AWS_RECONFIRM_V1: {
+    displayName: 'AWS 재확정',
+    desc: 'AWS 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  GCP_RECONFIRM_V1: {
+    displayName: 'GCP 재확정',
+    desc: 'GCP 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  AZURE_RECONFIRM_V1: {
+    displayName: 'Azure 재확정',
+    desc: 'Azure 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
+  IDC_RECONFIRM_V1: {
+    displayName: 'IDC 재확정',
+    desc: 'IDC 인프라를 삭제한 뒤 확정 정보를 지우고, 승인된 추천값으로 확정 정보를 다시 등록한다.',
+  },
 };
 
 /** Recipe code → catalog entry; unknown/CUSTOM (null) → null. */
@@ -386,6 +403,8 @@ export const KIND_POLICY: Record<TaskKind, string> = {
     '디스패치한 모든 job을 polling 간격으로 폴링 — 전부 COMPLETED면 성공, 하나라도 FAILED면 JOB_FAILED, 타임아웃 도달 시 EXECUTION_TIMEOUT. 실패·호출 오류는 fail_count로 누적되고 max까지 멱등 재디스패치로 재시도한다.',
   CONDITION_CHECK:
     '디스패치 없이 조건 확인 API를 polling 간격으로 호출 — 충족이 관측되면 성공. 미충족·호출 오류는 fail_count로 누적돼 max에 도달하면 실패한다(타임아웃 대신 재시도 예산으로 경계).',
+  HTTP_REQUEST:
+    '설치 API를 직접 호출 — 계약이 정한 status(삭제 200 · 추천 조회 200 · 등록 201)를 받으면 성공. 401·403과 계약 위반 응답은 그 자리에서 실패하고, 429·5xx·타임아웃만 재시도 예산 안에서 다시 호출한다.',
 };
 
 // ---------------------------------------------------------------------------
@@ -585,6 +604,9 @@ export function taskRunLine(
 const TYPE_KO: Record<PipelineType, string> = {
   INSTALL: '설치',
   DELETE: '삭제',
+  // 재확정 — 확정정보를 지우고 추천값으로 다시 등록하는 업무. '재확인'이 아니다:
+  // 이 작업은 확인하는 것이 아니라 확정을 다시 **쓴다**.
+  RECONFIRM: '재확정',
   CUSTOM: '커스텀',
 };
 

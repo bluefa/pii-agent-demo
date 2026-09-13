@@ -335,7 +335,7 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       const all = mockPipeline.taskDefinitions(undefined).body as TaskCatalogResponse;
       expect(all.task_definitions).toHaveLength(25);
       const aws = mockPipeline.taskDefinitions('AWS').body as TaskCatalogResponse;
-      expect(aws.task_definitions).toHaveLength(10); // 9 terraform + NETWORK_READY_V1
+      expect(aws.task_definitions).toHaveLength(12); // 9 terraform + NETWORK_READY_V1 + 2 common (ADR-023)
       expect(aws.task_definitions.every((d) => d.provider === 'AWS')).toBe(true);
     });
 

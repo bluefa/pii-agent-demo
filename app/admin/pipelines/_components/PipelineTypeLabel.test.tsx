@@ -17,6 +17,7 @@ import type { PipelineType } from '@/lib/pipeline/types';
 const EXPECTED: Record<PipelineType, string> = {
   INSTALL: '설치',
   DELETE: '삭제',
+  RECONFIRM: '재확정',
   CUSTOM: '커스텀',
 };
 const TYPES = Object.keys(EXPECTED) as PipelineType[];
@@ -52,7 +53,7 @@ describe('PipelineTypeTag', () => {
     expect(withoutGlyph).toContain(EXPECTED[type]); // 라벨은 그대로 남아 있다
   });
 
-  it('keeps the three tints distinct', () => {
+  it('유형마다 다른 tint 를 쓴다 — 두 유형이 같은 색을 입으면 글리프 채널이 무너진다', () => {
     const tints = TYPES.map((type) => {
       const html = renderToStaticMarkup(<PipelineTypeTag type={type} />);
       return /--pl-type-[a-z]+/.exec(html)?.[0];

@@ -18,7 +18,15 @@
 
 export type PipelineStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED';
 
-export type PipelineType = 'INSTALL' | 'DELETE' | 'CUSTOM';
+/**
+ * `RECONFIRM` is the ADR-023 business type (pipeline-orchestrator PR #56/#57):
+ * drop the confirmed resources, read the approved recommendation, register it
+ * again. It is NOT declared in docs/swagger/orchestrator-v1.yaml yet — that
+ * document still enumerates INSTALL|DELETE|CUSTOM — so this hand-written union
+ * runs ahead of the published contract on purpose, because the backend already
+ * merged it. Fold the swagger enum in when the next BE drop lands.
+ */
+export type PipelineType = 'INSTALL' | 'DELETE' | 'RECONFIRM' | 'CUSTOM';
 
 export type TaskStatus =
   | 'BLOCKED'
@@ -38,8 +46,15 @@ export type ErrorCode =
   | 'CALL_TIMEOUT'
   | 'UNKNOWN_TASK';
 
-/** Task execution mechanism = task type name (`kind`). */
-export type TaskKind = 'TERRAFORM_JOB' | 'CONDITION_CHECK';
+/**
+ * Task execution mechanism = task type name (`kind`).
+ *
+ * `HTTP_REQUEST` is ADR-023's third mechanism — the task calls the installation
+ * API directly (확정정보 삭제 · 추천 조회 후 등록) instead of dispatching a
+ * terraform job or polling a condition. Same swagger caveat as `PipelineType`:
+ * the published enum still lists only the first two.
+ */
+export type TaskKind = 'TERRAFORM_JOB' | 'CONDITION_CHECK' | 'HTTP_REQUEST';
 
 /** Statistics window token (wire value of StatisticsPeriod via @JsonValue). */
 export type StatisticsPeriodToken = '1h' | '1d' | '7d';
@@ -73,7 +88,12 @@ export type TaskOperation =
   | 'IDC_BDP_TF_PLAN'
   | 'IDC_BDP_TF_APPLY'
   | 'IDC_BDP_TF_DESTROY'
-  | 'NETWORK_READY';
+  | 'NETWORK_READY'
+  // ADR-023 의 두 공통 operation. 위 24 개와 달리 CSP 별 복제본이 없다 — 하나의
+  // 정의가 네 CSP 를 모두 실행하고, 대상의 provider 는 파이프라인 생성 시 저장된
+  // 값에서 온다(TaskDefinition 의 provider 가 아니다).
+  | 'DELETE_CONFIRMED_RESOURCES'
+  | 'CONFIRM_RESOURCES_FROM_RECOMMENDATION';
 
 /**
  * Terraform job action, derived server-side from the operation (backend

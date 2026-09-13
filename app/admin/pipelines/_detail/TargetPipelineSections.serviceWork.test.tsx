@@ -50,7 +50,6 @@ describe('TargetPipelineSections — serviceWork 는 카드까지 간다', () =>
         provider="AWS"
         onStart={vi.fn()}
         serviceWork={NEEDED}
-        onSelectTab={vi.fn()}
       />,
     );
 
@@ -66,7 +65,6 @@ describe('TargetPipelineSections — serviceWork 는 카드까지 간다', () =>
         targetSourceId="1006"
         provider="AWS"
         onStart={vi.fn()}
-        onSelectTab={vi.fn()}
       />,
     );
 
@@ -107,7 +105,6 @@ describe('TargetPipelineSections — 작업 이력 행은 요청자를 그린다
         targetSourceId="1006"
         provider="AWS"
         onStart={vi.fn()}
-        onSelectTab={vi.fn()}
       />,
     );
 

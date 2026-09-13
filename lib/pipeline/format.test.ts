@@ -201,8 +201,9 @@ describe('requesterLabel', () => {
 });
 
 describe('RECIPE_LABELS', () => {
-  it('has all 8 RecipeDefinition entries', () => {
-    expect(Object.keys(RECIPE_LABELS)).toHaveLength(8);
+  it('has all 12 RecipeDefinition entries', () => {
+    expect(Object.keys(RECIPE_LABELS)).toHaveLength(12);
+    expect(recipeDisplayName('AWS_RECONFIRM_V1')).toBe('AWS 재확정');
   });
   it('mirrors the upstream displayName verbatim', () => {
     expect(RECIPE_LABELS.AWS_INSTALL_V1.displayName).toBe('AWS 인프라 설치');

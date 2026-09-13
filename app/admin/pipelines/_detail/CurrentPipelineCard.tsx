@@ -22,7 +22,8 @@
  * does the destroying.
  *
  * EmptyPipelineCard is the same shell with a centered empty state and the start
- * CTA — that branch is now only "no run has ever been created" and the gate.
+ * CTA — that branch is only "no run has ever been created". There is no start
+ * gate (owner 2026-09-11).
  *
  * The section NAME (현재 작업 / 최근 작업) is the card's own first line, and a blue
  * TAG rather than a heading — owner call, so the pair of cards in the 2:1 row
@@ -33,19 +34,16 @@
  * this file is presentation only.
  */
 import { Fragment, useEffect, useRef, type ReactElement } from 'react';
-import Link from 'next/link';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { GateAction, GateStage } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/gateStage';
 import {
   ServiceWorkNotice,
   type ServiceWorkNoticeData,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
-import type { OpsTargetTabLabel } from '@/lib/routes';
 import {
   canCancel,
   elapsedMs,
@@ -102,8 +100,6 @@ export interface CurrentPipelineCardProps {
   onRestart: () => void;
   /** Opens the start-pipeline modal (terminal). */
   onStartNew: () => void;
-  /** Disables the terminal CTAs and states why. */
-  blockedReason?: string | null;
   /**
    * 서비스 측 작업 조회 결과. 설치 작업을 시작하기 전에 서비스가 끝내야 할 단계가 남았다면
    * 그 사실이 시작 동작 바로 위에 한 상자로 선다 — 잠그지는 않는다(주의이지 게이트가 아니다).
@@ -123,7 +119,6 @@ export function CurrentPipelineCard({
   onCancel,
   onRestart,
   onStartNew,
-  blockedReason = null,
   serviceWork = null,
   onOpenTask,
 }: CurrentPipelineCardProps): ReactElement {
@@ -279,7 +274,6 @@ export function CurrentPipelineCard({
                       variant="primary"
                       size="sm"
                       onClick={onRestart}
-                      disabled={blockedReason != null}
                     >
                       <Icon name="play" size="sm" />
                       {/* Just the verb: the flow below names the task it resumes
@@ -291,14 +285,12 @@ export function CurrentPipelineCard({
                     variant={resumable ? 'ghost' : 'primary'}
                     size="sm"
                     onClick={onStartNew}
-                    disabled={blockedReason != null}
                   >
                     새 작업 시작
                   </PlButton>
                 </>
               )}
             </div>
-            {!live && blockedReason && <BlockedReason reason={blockedReason} />}
           </div>
         </div>
         {/* The stage phrase labels the flow it counts, so it rides the flow's own
@@ -341,106 +333,23 @@ export function CurrentPipelineCard({
 }
 
 /** Why a start CTA is dead — stated next to the button that would not respond. */
-function BlockedReason({ reason }: { reason: string }): ReactElement {
-  return (
-    <p className="inline-flex items-center gap-1.5 text-right text-[12px] font-semibold text-[var(--pl-warn-text)]">
-      <Icon name="ban" size="sm" />
-      {reason}
-    </p>
-  );
-}
 
 export interface EmptyPipelineCardProps {
   /** 현재 작업 — the section name, rendered inside the card. */
   sectionTitle: string;
   onStart: () => void;
-  /**
-   * Set only while 작업 시작 is closed: the one sentence that says why, and the
-   * one move that opens it (see ops `gateStage`). Null = the run can start.
-   */
-  gate?: GateStage | null;
-  /** 서비스 측 작업 경고 — `작업 시작` 바로 위. 게이트 문장과 함께 설 때는 그 아래에 쌓인다:
-   *  게이트는 이 버튼이 왜 안 눌리는지를 말하고, 이것은 눌러도 될지를 말한다. */
+  /** 서비스 측 작업 경고 — `작업 시작` 바로 위: 눌러도 될지를 말한다(잠그지 않는다). */
   serviceWork?: ServiceWorkNoticeData | null;
-  /** Performs the gate's tab jump, when its action is one. */
-  onSelectTab: (tab: OpsTargetTabLabel) => void;
-}
-
-/** The verb the gate is talking about — emphasised where it appears. */
-const START_VERB = '작업 시작';
-
-/** The gate sentence, with 작업 시작 picked out of it. */
-function GateSentence({ sentence }: { sentence: string }): ReactElement {
-  const parts = sentence.split(START_VERB);
-  return (
-    <p className="break-keep text-[14px] leading-[1.6] text-[var(--pl-text-medium)]">
-      {parts.map((part, index) => (
-        <Fragment key={index}>
-          {index > 0 && <b className="font-semibold">{START_VERB}</b>}
-          {part}
-        </Fragment>
-      ))}
-    </p>
-  );
 }
 
 /**
- * The gate's ONE move. Secondary or a link, never primary and never disabled:
- * the operator did not come here to change tabs, and a control that refuses to
- * respond is what this branch exists to remove.
- */
-function GateActionControl({
-  action,
-  onSelectTab,
-}: {
-  action: GateAction;
-  onSelectTab: (tab: OpsTargetTabLabel) => void;
-}): ReactElement {
-  if (action.kind === 'href') {
-    return (
-      <Link href={action.href} className={opsStyles.detailLink}>
-        {action.label}
-        <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-      </Link>
-    );
-  }
-  return (
-    <PlButton variant="secondary" onClick={() => onSelectTab(action.tab)}>
-      {action.label}
-      <Icon name="arrow-right" size="sm" />
-    </PlButton>
-  );
-}
-
-/**
- * Idle state — the same card shell, and one of two bodies.
- *
- * BLOCKED: the info block in the 「이 탭에서 하는 일」 grammar, and under it a row
- * of two — a DISABLED 작업 시작 beside the gate's own move.
- *
- * The button is back by owner instruction (2026-08-27 2차: "연동 정보 미확정
- * 상태면 파이프라인 시작은 불가능하게 만들어줘. 버튼 비활성화 오케이?"), which
- * SUPERSEDES the 08-27 1차 call that removed it ("차단된 「현재 작업」은 안내 블록
- * 하나. 비활성 버튼·사유줄·아이콘 삭제"). Do not re-argue it from the older doc.
- *
- * What did NOT come back is the reason line: the sentence stands once, in the
- * block directly above, and the dead button carries it in `title` for whoever
- * hovers it. Saying it twice is the duplication P1 of the benchmark fixed, and
- * that fix stays. Nothing here ever made a start possible — the gate branch has
- * offered no working entrance since it existed; this round only changes the FORM
- * the impossibility takes, from an absent control to a disabled one.
- *
- * IDLE: the headline, one sentence about what the button does, and the button.
- * The 52px inbox circle is gone (it decorated an ordinary state), and the two
- * paragraphs — a 15px description and an info-blue pre-warning — are one 14px
- * line, because only the Terraform consequence was worth reading twice.
+ * Idle state — the same card shell with a centred empty state and the start CTA.
+ * There is no start gate (owner 2026-09-11).
  */
 export function EmptyPipelineCard({
   sectionTitle,
   onStart,
-  gate = null,
   serviceWork = null,
-  onSelectTab,
 }: EmptyPipelineCardProps): ReactElement {
   return (
     <div className={cn(CARD_SHELL, detailStyles.sectionCard.fill)}>
@@ -448,52 +357,21 @@ export function EmptyPipelineCard({
       {/* justify-center: the row's height is set by whichever card is taller, so
           the body centres in whatever space it is given. */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-9 text-center">
-        {gate ? (
-          <div className="flex max-w-[480px] flex-col gap-4">
-            <div className="flex items-start gap-3 rounded-[10px] border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] px-5 py-4 text-left">
-              <span className="mt-px flex-none text-[var(--pl-info-text)]">
-                <Icon name="info" size="md" strokeWidth={2} />
-              </span>
-              <div className="min-w-0">
-                <GateSentence sentence={gate.sentence} />
-              </div>
-            </div>
-            {/* 게이트 문장은 제자리를 지킨다 — 이 상자는 그 아래, 버튼 바로 위에 쌓인다. */}
-            <ServiceWorkNotice data={serviceWork} />
-            {/* The same control the open card offers, in its other condition —
-                same variant, same glyph, same words — so the two states read as
-                one button rather than two designs. The gate's move keeps its own
-                appearance beside it: exactly one control on this card responds,
-                and it is the one that opens the gate. */}
-            <div className="flex items-center justify-center gap-2.5">
-              <PlButton variant="primary" disabled title={gate.sentence}>
-                <Icon name="play" size="sm" />
-                작업 시작
-              </PlButton>
-              {/* 내놓을 수가 없으면 자리도 비운다 — 게이트가 지시가 아니라 기다림을
-                  말할 때는 옆에 설 버튼이 없다(SDU 의 확정 대기, gateStage.ts). */}
-              {gate.action && <GateActionControl action={gate.action} onSelectTab={onSelectTab} />}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* 16px/600 against the section title's 16px/700 primary blue — the
-                same size, two ranks apart by weight and colour. */}
-            <div className="text-[16px] font-semibold tracking-[-0.01em] text-[var(--pl-text-strong)]">
-              실행 중인 작업 없음
-            </div>
-            <p className="mt-2 max-w-[468px] text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
-              작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
-            </p>
-            {/* 가운데 정렬된 빈 상태 안에서도 상자는 글 상자다 — 폭을 위 문단에 맞추고
-                본문은 왼쪽으로 읽힌다. */}
-            <ServiceWorkNotice data={serviceWork} className="mt-5 w-full max-w-[468px]" />
-            <PlButton variant="primary" className="mt-5" onClick={onStart}>
-              <Icon name="play" size="sm" />
-              작업 시작
-            </PlButton>
-          </>
-        )}
+        {/* 16px/600 against the section title's 16px/700 primary blue — the
+            same size, two ranks apart by weight and colour. */}
+        <div className="text-[16px] font-semibold tracking-[-0.01em] text-[var(--pl-text-strong)]">
+          실행 중인 작업 없음
+        </div>
+        <p className="mt-2 max-w-[468px] text-[14px] leading-[1.6] text-[var(--pl-text-weak)]">
+          작업을 시작하면 Terraform이 실행되어 실제 인프라가 생성되거나 삭제됩니다.
+        </p>
+        {/* 가운데 정렬된 빈 상태 안에서도 상자는 글 상자다 — 폭을 위 문단에 맞추고
+            본문은 왼쪽으로 읽힌다. */}
+        <ServiceWorkNotice data={serviceWork} className="mt-5 w-full max-w-[468px]" />
+        <PlButton variant="primary" className="mt-5" onClick={onStart}>
+          <Icon name="play" size="sm" />
+          작업 시작
+        </PlButton>
       </div>
     </div>
   );

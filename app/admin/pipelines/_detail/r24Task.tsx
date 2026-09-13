@@ -74,6 +74,11 @@ const TYPE_TONE: Record<PipelineType, { tile: string; ink: string; icon: IconNam
     ink: 'text-[var(--pl-type-delete)]',
     icon: 'trash',
   },
+  RECONFIRM: {
+    tile: 'bg-[color-mix(in_srgb,var(--pl-type-reconfirm)_10%,transparent)]',
+    ink: 'text-[var(--pl-type-reconfirm)]',
+    icon: 'refresh',
+  },
   CUSTOM: {
     tile: 'bg-[color-mix(in_srgb,var(--pl-type-custom)_10%,transparent)]',
     ink: 'text-[var(--pl-type-custom)]',
@@ -171,6 +176,16 @@ export function KindMark({ kind }: { kind: TaskKind }): ReactElement {
     return (
       <span className="r24-ticon cond" title="조건 확인(폴링)">
         <Icon name="clock" strokeWidth={2} />
+      </span>
+    );
+  }
+  // HTTP_REQUEST (ADR-023) — Terraform 을 돌리지 않는 유일한 kind 다. 분기가 없으면
+  // 설치 API 를 부르는 Task 가 Terraform 로고를 달고 서서, 이 노드가 무엇을 실행하는지
+  // 화면이 틀리게 말한다.
+  if (kind === 'HTTP_REQUEST') {
+    return (
+      <span className="r24-ticon" title="HTTP 요청">
+        <Icon name="link" strokeWidth={2} />
       </span>
     );
   }

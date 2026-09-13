@@ -3916,7 +3916,7 @@ const pipelineText = {
 
 /** 유형 키 — theme 은 도메인 타입을 import 하지 않는다(PipelineStatusToneKey 와 같은
  *  규칙). PipelineType 과 어긋나면 PipelineTypeTag 의 인덱싱에서 컴파일이 깨진다. */
-type PipelineTypeToneKey = 'INSTALL' | 'DELETE' | 'CUSTOM';
+type PipelineTypeToneKey = 'INSTALL' | 'DELETE' | 'RECONFIRM' | 'CUSTOM';
 
 /** Semantic status → the four status tokens (bg tint, text, solid dot, border). */
 type PipelineStatusToneKey =
@@ -4077,6 +4077,7 @@ export const pipelineStyles = {
     glyphTone: {
       INSTALL: 'text-[var(--pl-type-install)]',
       DELETE: 'text-[var(--pl-type-delete)]',
+      RECONFIRM: 'text-[var(--pl-type-reconfirm)]',
       CUSTOM: 'text-[var(--pl-type-custom)]',
     } satisfies Record<PipelineTypeToneKey, string>,
   },

@@ -17,12 +17,14 @@ const GEOMETRY = {
   'package-plus': 'M19 14v6', // + 의 세로획
   blocks: '<rect x="14" y="2"', // 떨어져 있는 작은 사각형
   trash: 'M4.5 7h15', // 뚜껑 선
+  refresh: 'M20.5 4.5V10H15', // 화살촉이 되는 꺾인 획
   install: 'M12 3.5V13', // 옛 INSTALL — 받침대로 내려오던 화살표
 } as const;
 
 const EXPECTED: Record<PipelineType, keyof typeof GEOMETRY> = {
   INSTALL: 'package-plus',
   DELETE: 'trash',
+  RECONFIRM: 'refresh',
   CUSTOM: 'blocks',
 };
 
