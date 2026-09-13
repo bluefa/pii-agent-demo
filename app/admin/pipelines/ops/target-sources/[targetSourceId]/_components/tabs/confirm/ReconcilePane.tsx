@@ -16,8 +16,8 @@
  * 두 목록 중 하나가 없는 것이고, 그때 「일치」는 화면이 벌지 않은 주장이다 — 그 경우 표는
  * 예전 그대로 확정 행만, 판정 열 없이 싣는다.
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
-import { cn, pipelineStyles } from '@/lib/theme';
+import type { ReactElement, ReactNode } from 'react';
+import { cn } from '@/lib/theme';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { Tooltip } from '@/app/components/ui/Tooltip';
@@ -27,11 +27,6 @@ import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[ta
 import { Kv, paneStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import type { ReconcileTable } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/reconcileRows';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
-import {
-  CONFIRMED_STATE_TONE,
-  confirmTagStyles,
-  deriveConfirmedStateTag,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import type { ApprovalRequestDetail } from '@/app/lib/api/task-queue-requests';
 import { Badge, type BadgeVariant } from '@/app/components/ui/Badge';
@@ -46,12 +41,11 @@ const styles = {
   cardHead: 'flex items-start justify-between gap-3',
   /** 카드가 좁아(패널 절반) kv 는 2열이다. */
   kvGrid: 'mt-3.5 grid grid-cols-2 gap-x-6 gap-y-3.5',
-  chips: 'mt-5 flex items-center gap-2',
   /** 태그와 그 톤은 판정 줄과 공유한다 — 같은 사실이 두 자리에서 다른 낱말로 서지 않게. */
-  tag: confirmTagStyles.tag,
-  ok: confirmTagStyles.ok,
-  warn: confirmTagStyles.warn,
-  off: confirmTagStyles.off,
+  tag: 'inline-flex flex-none items-center rounded-[6px] px-1.5 py-0.5 text-[12px] font-semibold leading-[1.34]',
+  ok: 'text-[var(--pl-ok-text)]',
+  warn: 'text-[var(--pl-warn-text)]',
+  off: 'text-[var(--pl-text-weak)]',
 } as const;
 
 export interface ReconcilePaneProps {
@@ -72,8 +66,6 @@ export interface ReconcilePaneProps {
   isIdc: boolean;
   /** 조인 결과. `null` 이면 대조가 불가능한 상태다 — 판정 열도 「대조」도 서지 않는다. */
   reconcile: ReconcileTable | null;
-  /** 3단계인데 확정이 이미 있다 — 그 확정으로는 다음 단계로 넘어가지 않는다. */
-  reconfirmNeeded: boolean;
   /**
    * 재확정 — 철거·재설치는 인프라 작업 탭이 소유하므로 그리로 보낸다. 쓰기 경로가 있는
    * 대상에는 **언제나** 선다(오너 2026-09-11): 다시 입력이 필요한 상태에서만 열리던 문이
@@ -108,7 +100,6 @@ export function ReconcilePane({
   confirmedAtFailed,
   isIdc,
   reconcile,
-  reconfirmNeeded,
   onReconfirm,
   reconfirmBlocked = null,
   onEdit,
@@ -117,17 +108,9 @@ export function ReconcilePane({
   deleteBlocked = null,
   runLine,
 }: ReconcilePaneProps): ReactElement {
-  // 차이가 있는 화면에서 먼저 답해야 하는 질문은 "무엇이 다른가"다 — 전체 목록은 한 번의
-  // 클릭 뒤에 있다. 차이가 없으면 이 칩 줄 자체가 서지 않으므로 기본값이 목록을 숨기는
-  // 일은 없다.
-  const [diffOnly, setDiffOnly] = useState(true);
-
   const confirmedRows = confirmed?.resource_infos ?? [];
   const empty = confirmedRows.length === 0;
   const verdict = request?.verdict ?? null;
-  const hasDiff = reconcile != null && reconcile.diffCount > 0;
-  const stateTag = deriveConfirmedStateTag({ confirmedCount: confirmedRows.length, reconfirmNeeded });
-  const showDiffOnly = hasDiff && diffOnly;
 
   const confirmedFact = confirmedAtFailed
       ? `리소스 ${confirmedRows.length}건 · 확정 시각 불러오지 못함`
@@ -248,12 +231,8 @@ export function ReconcilePane({
 
           {/* No record, no facts (owner 09-11): 「등록 —」 and a 「대조」 against nothing are
               noise. The headline above already says what is missing. */}
-          {stateTag != null && (
+          {!empty && (
           <div className={styles.kvGrid}>
-            <Kv
-              label="상태"
-              value={<span className={styles[CONFIRMED_STATE_TONE[stateTag]]}>{stateTag}</span>}
-            />
             <Kv label="등록" value={confirmedFact} />
             {reconcile && (
               <Kv
@@ -272,38 +251,6 @@ export function ReconcilePane({
         </section>
       </div>
 
-      {/* 차이가 없으면 고를 것도 없다 — 두 칩이 같은 목록을 가리킨다. */}
-      {hasDiff && (
-        <div className={styles.chips} role="group" aria-label="리소스 목록 범위">
-          {([
-            { value: true, label: '차이만' },
-            { value: false, label: '전체' },
-          ] as const).map((option) => {
-            const on = option.value === diffOnly;
-            return (
-              <button
-                key={option.label}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setDiffOnly(option.value)}
-                // 켠 칩은 base 를 **대체한다** — `cn` 은 이어 붙이기만 하므로 두 벌의
-                // 바탕·테두리를 겹치면 어느 쪽이 이길지 스타일시트 순서가 정한다.
-                className={cn(
-                  on
-                    ? pipelineStyles.filterChip.scope
-                    : // `base` carries no text colour of its own (its key/value spans do), so the
-                      // off chip states one; same weight as the on chip so the pill does not resize.
-                      cn(pipelineStyles.filterChip.base, 'font-semibold text-[var(--pl-text-medium)]'),
-                  'cursor-pointer',
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {/* 확정이 하나도 없을 때의 안내는 그대로 선다. 아래 표가 그 자리에서 무엇을
           기준으로 입력하게 되는지(승인 행 전부가 「확정 없음」)를 이어서 말한다. */}
       {empty && (
@@ -319,7 +266,6 @@ export function ReconcilePane({
       <ResourceArea
         isIdc={isIdc}
         reconcile={reconcile}
-        diffOnly={showDiffOnly}
         confirmed={confirmed}
         // 안내가 이미 위 칸을 닫았으면 표는 제 선을 또 긋지 않는다.
         topRule={!empty}
@@ -335,13 +281,11 @@ export function ReconcilePane({
 function ResourceArea({
   isIdc,
   reconcile,
-  diffOnly,
   confirmed,
   topRule,
 }: {
   isIdc: boolean;
   reconcile: ReconcileTable | null;
-  diffOnly: boolean;
   confirmed: ConfirmedIntegrationResponse | null;
   topRule: boolean;
 }): ReactNode {
@@ -352,14 +296,12 @@ function ResourceArea({
       <div className={frame}>
         {reconcile.kind === 'idc' ? (
           <ConfirmedIdcTable
-            rows={diffOnly ? reconcile.rows.filter((row) => row.reconcile !== 'match') : reconcile.rows}
+            rows={reconcile.rows}
             className="pb-6 pt-5"
           />
         ) : (
           <ConfirmedResourceTable
-            resources={
-              diffOnly ? reconcile.rows.filter((row) => row.reconcile !== 'match') : reconcile.rows
-            }
+            resources={reconcile.rows}
             className="pb-6 pt-5"
           />
         )}

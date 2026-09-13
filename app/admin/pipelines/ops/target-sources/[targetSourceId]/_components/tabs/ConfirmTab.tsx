@@ -18,9 +18,8 @@
  * 화면이 말하는 것은 계약이 주는 것뿐이다:
  *   - 확정이 어느 승인에 근거하는지는 계약에 없다 → "근거 승인"을 추정해 적지 않는다.
  *     대조도 **계보가 아니라 두 목록의 비교**다: 최신 승인과 현재 확정을 맞댈 뿐이다.
- *   - 헤드라인의 상태는 **낱말**이다: 등록됨 · 다시 입력 필요(없으면 아무 말도 없다). 색만으로 말하던
- *     점은 사라졌다(오너 2026-09-11) — 같은 사실이 확정 카드의 「상태」 kv 에도 서 있어서
- *     규칙은 `confirmedStateTag` 한 곳에 둔다.
+ *   - 헤드라인이 곧 상태다(승인 필요 · 확정 필요 · 재확정 필요 · 확정됨, owner 2026-09-13).
+ *     태그도 카드의 「상태」 kv 도 없다 — 같은 말을 세 자리에서 하지 않는다.
  *
  * 판정 문장의 규칙은 verdict.ts 한 곳에 있다. 대조 건수는 그 문장의 입력이지만 태그를
  * 바꾸지는 않는다 — 차이는 결함이 아니다.
@@ -71,12 +70,7 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { resolveWriteProvider } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/writeProvider';
 import {
   deriveConfirmVerdict,
-  type RequestFacet,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/verdict';
-import {
-  CONFIRMED_STATE_TONE,
-  confirmTagStyles,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedStateTag';
 import { ConfirmPane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/panes';
 import { ReconcilePane } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/ReconcilePane';
 import type { BadgeVariant } from '@/app/components/ui/Badge';
@@ -106,9 +100,6 @@ type Load<T> = { state: 'loading' } | { state: 'ready'; data: T | null } | { sta
  */
 type RequestLoad = Load<ApprovalRequestDetail> | { state: 'absent' };
 
-/** 설치가 끝난 뒤의 상태 — 판정 문장에서 다른 모든 입력을 이기는 유일한 기준. */
-const INSTALLED: ReadonlySet<string> = new Set<ProcessStatus>(['INSTALLED', 'CONNECTED', 'COMPLETED']);
-
 const APPROVED_STATUSES: ReadonlySet<string> = new Set(['APPROVED', 'AUTO_APPROVED']);
 
 /**
@@ -129,8 +120,6 @@ const RUN_LOCK = '진행 중인 작업이 끝나야 실행할 수 있습니다';
 
 const styles = {
   verdict: 'flex items-start gap-2',
-  /** 20px 헤드라인의 첫 줄 한가운데에 태그를 맞춘다 — 머리가 두 줄이 되어도 첫 줄 기준. */
-  verdictTag: 'mt-[3px]',
   verdictHead: 'text-[20px] font-bold leading-[1.34] tracking-[-0.028em] text-[var(--pl-text-strong)]',
   /** 판정 아래 한 줄 — 카드가 아니라 바닥 위에 선다. 바닥(gray-200)에서 weak 는 4.01 로
       AA 아래라 한 칸 내려간 gray-600(6.20)이 진다. 태그는 폭이 낱말마다 달라 머리 글자에
@@ -174,44 +163,16 @@ const TONE_TEXT = {
  * 와 같은 규칙) 판정 문장에서는 요청에 대해 아무 말도 하지 않는다.
  */
 const REQUEST_STATUS: Readonly<
-  Record<string, { label: string; tone: keyof typeof TONE_TEXT; closed: boolean }>
+  Record<string, { label: string; tone: keyof typeof TONE_TEXT }>
 > = {
-  PENDING: { label: '승인 대기', tone: 'warn', closed: false },
-  APPROVED: { label: '승인', tone: 'ok', closed: false },
-  AUTO_APPROVED: { label: '승인', tone: 'ok', closed: false },
-  REJECTED: { label: '반려', tone: 'err', closed: true },
-  CANCELLED: { label: '요청 취소', tone: 'off', closed: true },
-  UNAVAILABLE: { label: '연동 불가', tone: 'off', closed: true },
-  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가', tone: 'off', closed: true },
+  PENDING: { label: '승인 대기', tone: 'warn' },
+  APPROVED: { label: '승인', tone: 'ok' },
+  AUTO_APPROVED: { label: '승인', tone: 'ok' },
+  REJECTED: { label: '반려', tone: 'err' },
+  CANCELLED: { label: '요청 취소', tone: 'off' },
+  UNAVAILABLE: { label: '연동 불가', tone: 'off' },
+  UNAVAILABLE_ACKNOWLEDGED: { label: '연동 불가', tone: 'off' },
 };
-
-/**
- * 요청 상태 → 판정 문장의 입력. **순수 함수로 빼 둔 이유는 이 매핑이 한 번 틀렸기 때문이다** —
- * "반려도 승인도 아니면 대기" 라는 부정형이 계약 enum 8종 중 넷을 "승인 대기" 로 만들었다.
- *
- * 규칙은 셋뿐이다: 모르면 `unknown`(로드 전·실패), 계약이 대기라고 한 것만 `pending`,
- * 승인 없이 끝난 것은 `closed`. 어휘가 없는 값은 `closed` 이면서 label 이 없고, 그러면
- * 판정 문장이 요청에 대해 아무 말도 하지 않는다.
- *
- * 반려는 자기 headline 과 빨강 점을 가지므로 `closed` 와 따로 남긴다.
- */
-export function requestFacetOf(input: {
-  loaded: boolean;
-  present: boolean;
-  status: string | null;
-  selectedCount: number;
-}): RequestFacet {
-  const { loaded, present, status, selectedCount } = input;
-  if (!loaded) return { kind: 'unknown' };
-  if (!present) return { kind: 'none' };
-  if (status === 'REJECTED') return { kind: 'rejected' };
-  if (status != null && APPROVED_STATUSES.has(status)) {
-    return { kind: 'approved', count: selectedCount };
-  }
-  const spec = status != null ? REQUEST_STATUS[status] : undefined;
-  if (spec == null) return { kind: 'closed', label: null };
-  return spec.closed ? { kind: 'closed', label: spec.label } : { kind: 'pending' };
-}
 
 export interface ConfirmTabProps {
   targetSourceId: number;
@@ -383,20 +344,7 @@ export function ConfirmTab({
   const requestApproved = requestStatus != null && APPROVED_STATUSES.has(requestStatus);
   /** 선언된 상태면 그 어휘, 아니면 `undefined` — 모르는 값을 대기로 읽지 않기 위한 갈림길. */
   const requestSpec = requestStatus != null ? REQUEST_STATUS[requestStatus] : undefined;
-  const selectedCount = requestData?.resources.filter((row) => row.selected).length ?? 0;
 
-  // 축이 없으면 요청에 대한 사실도 없다 — `unknown`(아직 모름)도 `none`(요청이 없음)도
-  // 이 대상에서는 참이 아니라, 판정 문장이 승인 얘기를 꺼내지 않게 만드는 제 값이 있다.
-  const requestFacet: RequestFacet = request.state === 'absent'
-    ? { kind: 'absent' }
-    : requestFacetOf({
-    loaded: request.state === 'ready',
-    present: requestData != null,
-    status: requestStatus,
-    selectedCount,
-  });
-
-  const installed = processStatus != null && INSTALLED.has(processStatus);
   const hasConfirmed = confirmedRows.length > 0;
   /**
    * 진행 상태가 아직 3단계(반영 중)인데 확정 정보가 이미 등록돼 있다. 등록됐다는 사실만
@@ -422,12 +370,11 @@ export function ConfirmTab({
       : null;
 
   const verdict = deriveConfirmVerdict({
-    installed,
     confirmedCount: confirmedRows.length,
-    request: requestFacet,
     reconfirmNeeded,
+    // SDU has no approval axis: nothing gates the record there.
+    approved: isSdu || requestApproved,
     diffCount: reconcile?.diffCount ?? null,
-    reconfirmRunning: latest.live && latest.run?.type === 'RECONFIRM',
   });
 
   /**
@@ -475,20 +422,9 @@ export function ConfirmTab({
   return (
     <div>
       <p className={styles.verdict}>
-        {verdict.tag != null && (
-          <span
-            className={cn(
-              confirmTagStyles.tag,
-              confirmTagStyles[CONFIRMED_STATE_TONE[verdict.tag]],
-              styles.verdictTag,
-            )}
-          >
-            {verdict.tag}
-          </span>
-        )}
         <span className={styles.verdictHead}>{verdict.head}</span>
       </p>
-      <p className={styles.verdictSub}>{verdict.sub}</p>
+      {verdict.sub && <p className={styles.verdictSub}>{verdict.sub}</p>}
 
       {anyFailed && (
         <div className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
@@ -524,7 +460,6 @@ export function ConfirmTab({
             confirmedAtFailed={terraform.state === 'failed'}
             isIdc={isIdc}
             reconcile={reconcile}
-            reconfirmNeeded={reconfirmNeeded}
             // 재확정 opens the run modal here (owner 2026-09-12). Offered whenever a write
             // path exists (owner 2026-09-11): 「다시 입력 필요」 is a state the pane states
             // on its own, not the condition for this door.
