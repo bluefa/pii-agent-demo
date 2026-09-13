@@ -4,7 +4,7 @@
 - 대상: `/pass/admin/pipelines/ops/target-sources/{id}?tab=infra` 의 머리 카드(구 「Terraform 적용 상태」) ·
   `?tab=tc` 의 설치 미완료 예보 상자
 - 시안 아티팩트: https://claude.ai/code/artifact/4a83a5da-2a1d-4ea6-b43e-99b67967e2a3 (CSP 별 21면 + 변형 5)
-- 구현 PR: #TBD
+- 구현 PR: #898
 - 선행: [`ops-infra-head.md`](./ops-infra-head.md) · [`ops-infra-gate.md`](./ops-infra-gate.md)
 
 ## 문제
