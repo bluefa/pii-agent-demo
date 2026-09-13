@@ -7,8 +7,8 @@
  * this line says what is running or what last ran, and points at the run's own page. It
  * carries any type: a running 설치 or 삭제 locks this tab's doors just as 재확정 does.
  *
- * Box = the notice family (12px radius · 14/12 inset · 14/600 name). State is the pill, never
- * the border. No run at all (204) → the caller renders nothing: an absent run is not news.
+ * Box = the notice family (12px radius · 14/12 inset · 14/600 name). A live run takes the
+ * info wash + a 「파이프라인 작업 진행 중」 lead; a finished run sits plain. No run at all (204) → the caller renders nothing: an absent run is not news.
  */
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -31,11 +31,19 @@ export function RunLine({ run, onOpen, className }: RunLineProps): ReactElement 
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[12px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3.5 py-3',
+        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[12px] border px-3.5 py-3',
+        // A live run wears the info wash so the box itself says "something is happening";
+        // a finished one sits on the card ground (owner 2026-09-13).
+        live
+          ? 'border-[var(--pl-info-border)] bg-[var(--pl-info-bg)]'
+          : 'border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
         className,
       )}
       data-testid="run-line"
     >
+      {live && (
+        <span className="text-[14px] font-semibold text-[var(--pl-info-text)]">파이프라인 작업 진행 중</span>
+      )}
       <FlowStatusPill status={run.status} />
       <span className="text-[14px] font-semibold text-[var(--pl-text-strong)]">
         {name} #{run.pipeline_id}
