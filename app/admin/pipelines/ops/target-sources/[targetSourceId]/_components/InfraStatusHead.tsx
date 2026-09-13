@@ -1,66 +1,35 @@
 'use client';
 
 /**
- * 인프라 작업 tab head — the tab said in one sentence, then ONE card holding the
- * Terraform state.
+ * 인프라 작업 tab head — the tab said in one sentence, then ONE card: 설치 상태.
  *
- * The tab does three jobs: run install/delete, read what Terraform has applied,
- * and look up past runs. None of them were stated anywhere. Each section carried
- * its own 12px caption instead, which put three explanations on screen while the
- * tab itself stayed unnamed. The captions are gone; this states it once, above
- * everything, and the sections below are left as plain names.
- *
- * Order is fixed: statement → state → sections. The card is never collapsible.
- *
- * The state used to be a full-width `1fr 2fr` grey strip with two slots, and the
- * measurements said the split was wrong twice over:
- *   - the 연동 정보 verdict was set at 16px/700, the loudest thing on the tab, so
- *     a precondition outranked the subject it is a precondition FOR (the sibling
- *     cards name themselves in a 12px tag);
- *   - a task row was 912px wide but only 241px of it was ink, leaving 793px of
- *     blank between a task name and its own status pill.
- *
- * So both facts live in one card whose subject is the Terraform state, and
- * 연동 정보 is a quiet qualifier inside it — a plain label/value line, 12px, with
- * no tag, no badge and no pill (owner call, not an oversight). A tag was the
- * alternative and was rejected: the label 연동 정보 already stands in front of the
- * value, so nothing about whose verdict it is needs a second device to say it.
+ * The card used to list InfraManager's Terraform job records (terraform-status):
+ * wire enum names, 미적용/적용 중/적용 완료 per task. It said what we had run and
+ * never who had to do what, so 미적용 could mean "the service has not applied
+ * yet" or "the operator has not pressed 작업 시작" and the operator could not
+ * tell (owner 2026-09-13: "관리자들이 똑똑한 사람들이 아니야. 누가 뭘 할 차례다 /
+ * 완료됐다를 명확하게"). The rows now come from installation-status, folded by
+ * `installStateView` into one verdict line and one row per step with its owner
+ * (docs/ux/benchmark/infra-install-state.md). terraform-status still feeds the
+ * 연동 정보 line (`has_confirmed_infra`) and the delete gate; its task rows are
+ * gone from here. The run history the rows used to hint at is the 작업 이력 card.
  *
  * What the card holds, top to bottom:
- *   - the 카드 head — `Terraform 적용 상태` as plain 16px/700 text, and 조회 시각 at
- *     the far end of the same row. NOT the blue 12px tag the sibling 현재 작업 /
- *     작업 이력 cards wear (owner 2026-08-30): that tag exists to name a card and
- *     then defer to the card's own subject a row or two below, and 현재 작업 has a
- *     run name to defer to. This card has no second line — the title IS its
- *     subject, so it is set as one. No task count either: the rows underneath
- *     already are the count.
- *   - the 연동 정보 line — 확정됨 / 미확정, the precondition every run depends on.
- *     확정됨 carries a link into the 확정 정보 tab instead of a date: the confirmed
- *     detail — including WHEN it was confirmed — is that tab's whole subject, and
- *     a lone timestamp under the verdict answered a question nobody asked here.
- *     미확정 continues the same line with the step the target is actually sitting
- *     at, so the head says WHERE the work is rather than only that something is
- *     absent.
- *   - the task rows — one per task, with that task's own state. The combined
- *     `overall_state` pill is gone by owner call ("각 작업이 어떤 상태인지 보여주
- *     도록 하자. 조합 상태는 필요없음"): a single rolled-up word cannot say WHICH
- *     of the three tasks failed, which is the only question this list is asked.
- *
- * The rows ARE the per-task table that used to live in TerraformStatusModal, so
- * that modal is deleted — this overrides the #675 decision "Terraform 설치 현황은
- * 모달로", whose premise (one pill in the head, detail on demand) no longer holds
- * once the head shows every task. The GATE banner is gone too: it repeated the
- * 연동 정보 verdict at banner volume, and its next step now belongs to the 현재
- * 작업 card, which states it once (see gateStage.ts).
+ *   - the head — `설치 상태` as plain 16px/700 text (not the sibling cards' blue
+ *     tag: this card has no second line to defer to), and 확인 시각 at the far end
+ *     of the same row. The time is installation-status's `last_check`, the one
+ *     clock the rows below actually run on.
+ *   - the 연동 정보 line — 확정됨 / 미확정, the precondition every run depends on,
+ *     as a label/value pair (no tag, owner call). 확정됨 links to the 확정 정보
+ *     tab; 미확정 names the step the target sits at.
+ *   - the verdict row (`InstallStateRow`) — whose move it is, in one sentence.
+ *   - the step rows — one per step in execution order: name · owner tag · state
+ *     tag, a count when resources are only partly through, the guide under a
+ *     failed row. Only steps this target actually has: a step that is SKIP on
+ *     every resource is not drawn.
  *
  * The head carries no 작업 시작 (owner call): starting a run belongs to the
- * 현재 작업 card, so the head reads as state only and the tab keeps one place to
- * act from.
- *
- * Data comes from GET …/terraform-status via the parent (PipelineTab owns the
- * fetch because the start-CTA gate reads the same response). InfraManager's own
- * job records; no Cloud SDK call is made, so this can legitimately disagree with
- * the real infrastructure.
+ * 현재 작업 card, so the 관리자 turn offers a link down to it instead.
  */
 import { type ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -68,11 +37,14 @@ import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import {
-  SIDE_LABEL,
-  TONE,
-  metaOf,
-} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
+import { InstallStateRow } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallStateRow';
+import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
+import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
+import type {
+  InstallStateStep,
+  InstallStateView,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
+import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { OPS_TAB_SLUGS, type OpsTargetTabLabel } from '@/lib/routes';
 import type { TerraformStatusResponse } from '@/app/lib/api';
@@ -80,72 +52,78 @@ import type { TerraformStatusResponse } from '@/app/lib/api';
 /** The three jobs, named by weight inside the intro sentence. */
 const JOB = 'font-semibold text-[var(--pl-text-strong)]';
 
-/** 실행 주체 — a neutral bordered tag, never competing with the state pill beside it.
- *
- *  48px floor, centred: content width made the tag 44.5px for 서비스 and 37.6px for
- *  BDC, which moved the status pill 6.9px between rows and left the state column
- *  reading crooked — the counterpart of the benchmark's "가운데를 비우지 않는다"
- *  is that the right-hand pieces have to land on one x. 48px clears the widest
- *  label the contract can produce (SIDE_LABEL is SERVICE → 서비스, BDC → BDC).
- *  A floor rather than a fixed width: an unmapped wire value is passed through
- *  raw, and it should widen the tag rather than be clipped inside it. */
+/**
+ * 주체 태그 — a neutral bordered tag for the service owner; the operator's own
+ * steps take the warn stroke so the column says "you" at a glance.
+ * 48px floor, centred, so the state tags beside it land on one x (the same
+ * reasoning as the task rows this replaces).
+ */
 const SIDE_TAG =
-  'inline-flex min-w-[48px] flex-none items-center justify-center rounded-[4px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-1.5 py-0.5 text-[12px] font-medium text-[var(--pl-text-weak)]';
+  'inline-flex min-w-[48px] flex-none items-center justify-center rounded-[4px] border bg-[var(--pl-bg-card)] px-1.5 py-0.5 text-[12px] font-medium';
+const SIDE_TONE: Record<InstallStateStep['side'], string> = {
+  서비스: 'border-[var(--pl-border)] text-[var(--pl-text-weak)]',
+  관리자: 'border-[var(--pl-warn-text)] text-[var(--pl-warn-text)]',
+};
 
-/** One Terraform task: what it is, who runs it, what state it is in. */
-function TaskRow({
-  name,
-  side,
-  state,
-  first,
-}: {
-  name: string;
-  side: string;
-  state: string | null | undefined;
-  first: boolean;
-}): ReactElement {
-  const { tone, icon, label } = metaOf(state);
+const STATE_TAG: Record<InstallStateStep['state'], { tone: TcTone; label: string }> = {
+  done: { tone: 'ok', label: '완료' },
+  now: { tone: 'warn', label: '조치 필요' },
+  wait: { tone: 'off', label: '대기' },
+  na: { tone: 'off', label: '해당 없음' },
+  fail: { tone: 'err', label: '실패' },
+};
+
+/** The count only when it adds a fact: a step partly through, or partly failed. */
+const countOf = (step: InstallStateStep): string | null => {
+  if (step.failed > 0) return `${step.total}건 중 ${step.failed}건 실패`;
+  if (step.state !== 'done' && step.done > 0) return `${step.total}건 중 ${step.total - step.done}건 남음`;
+  return null;
+};
+
+/** One install step: what it is, who does it, where it stands. */
+function StepRow({ step, first }: { step: InstallStateStep; first: boolean }): ReactElement {
+  const tag = STATE_TAG[step.state];
+  const count = countOf(step);
   return (
-    <div
-      className={cn(
-        'flex min-h-[30px] items-center gap-2',
-        !first && 'border-t border-[var(--pl-border)]',
-      )}
-    >
-      {/* A FIXED 240px column, not `flex-1`. flex-1 handed the name every pixel
-          the row had spare and pushed the pill to the far edge — 912px of row for
-          241px of ink. 240px is `opsStyles.fmFold`'s column, whose note on this
-          same screen already records why a `1fr` track was abandoned there, so
-          the three pieces cluster and the row reads left to right.
-          Mono: a task name is compared against the recipe, not read as prose. */}
-      <span className="w-[240px] min-w-0 flex-none truncate text-[12px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
-        {name}
-      </span>
-      <span className={SIDE_TAG}>{side}</span>
-      <span
-        className={cn(
-          pipelineStyles.pill.base,
-          pipelineStyles.pill.md,
-          TONE[tone].pill,
-          'flex-none',
+    <div className={cn(!first && 'border-t border-[var(--pl-border)]')}>
+      <div className="flex min-h-[30px] items-center gap-2">
+        {/* A FIXED 240px column (opsStyles.fmFold's column): the three pieces
+            cluster and the row reads left to right instead of the state tag
+            drifting to the far edge. */}
+        <span className="w-[240px] min-w-0 flex-none truncate text-[12px] font-semibold text-[var(--pl-text-strong)]">
+          {step.title}
+        </span>
+        <span className={cn(SIDE_TAG, SIDE_TONE[step.side])}>{step.side}</span>
+        <TcPill tone={tag.tone} label={tag.label} />
+        {count && (
+          <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">{count}</span>
         )}
-      >
-        <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
-        {label}
-      </span>
+      </div>
+      {step.guides.map((guide) => (
+        <p key={guide} className="-mt-0.5 pb-1.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
+          {guide}
+        </p>
+      ))}
     </div>
   );
 }
 
 export interface InfraStatusHeadProps {
+  /** terraform-status — read here only for `has_confirmed_infra`. */
   status: TerraformStatusResponse | null;
   loading: boolean;
-  /** True when the status lookup failed — the card degrades to one line. */
+  /** True when the terraform-status lookup failed — the 연동 정보 value says so. */
   failed: boolean;
   /** Names the step the target is at while 연동 정보 is still 미확정. */
   processStatus: ProcessStatus | null;
   /** Opens another tab — 확정됨 offers the 확정 정보 tab as its detail. */
   onSelectTab: (tab: OpsTargetTabLabel) => void;
+  /** The fold. `null` = this target has no install status here (SDU). */
+  install: InstallStateView | null;
+  installLoading: boolean;
+  installLastCheck: InstallLastCheck | null;
+  /** The 관리자 turn's one move — scrolls to the 현재 작업 card that owns 작업 시작. */
+  onGoToCurrentWork: () => void;
 }
 
 export function InfraStatusHead({
@@ -154,19 +132,17 @@ export function InfraStatusHead({
   failed,
   processStatus,
   onSelectTab,
+  install,
+  installLoading,
+  installLastCheck,
+  onGoToCurrentWork,
 }: InfraStatusHeadProps): ReactElement {
   const confirmed = status?.has_confirmed_infra === true;
-  const tasks = status?.tasks ?? [];
   const step = processStatus ? STEP[processStatus] : null;
+  const installPending = installLoading && install === null;
 
   return (
     <div>
-      {/* The tab in its own words, as an info card. As bare 18px/14px text it had
-          no container while everything under it did, so it floated instead of
-          reading as a level. Contained and quieted, it sits UNDER the sections it
-          introduces — reference material, not the page's loudest line. The three
-          jobs are named by weight inside one sentence rather than as a list; the
-          state card and the two cards below already carry them as structure. */}
       <div className="flex items-start gap-3 rounded-[10px] border border-[var(--pl-info-border)] bg-[var(--pl-info-bg)] px-5 py-4">
         <span className="mt-px flex-none text-[var(--pl-info-text)]">
           <Icon name="info" size="md" strokeWidth={2} />
@@ -175,186 +151,131 @@ export function InfraStatusHead({
           <p className="text-[12px] font-semibold text-[var(--pl-info-text)]">이 탭에서 하는 일</p>
           <h2 className="mt-1 break-keep text-[14px] font-normal leading-[1.6] text-[var(--pl-text-medium)]">
             Terraform으로 이 대상의 인프라를 <b className={JOB}>설치·삭제</b>하고, 현재{' '}
-            <b className={JOB}>Terraform 적용 상태</b>와 지금까지 실행한{' '}
-            <b className={JOB}>작업 이력</b>을 확인합니다.
+            <b className={JOB}>설치 상태</b>와 지금까지 실행한 <b className={JOB}>작업 이력</b>을
+            확인합니다.
           </h2>
         </div>
       </div>
 
-      {loading ? (
-        /* The settled card's own markup, so the reserved height is no longer a
-           magic number that a row change silently invalidates (the 193px it
-           replaces was measured once and never re-measured). Fixed strings the
-           screen already knows — the title, 연동 정보 — are drawn for real; only
-           the data is bars (`StatusCardSkeleton`'s rule).
-           Three rows because the head cannot know the task count before the
-           response lands, and three is the longest list the contract can produce
-           (AWS 3 · GCP/IDC/SDU 2 · Azure 1). A shorter provider settles 30/60px
-           upward, which is the side that never covers the cards below. */
-        <section
-          aria-label="Terraform 적용 상태"
-          aria-busy
-          className={cn(pipelineStyles.card.flush, 'mt-4')}
-        >
-          <span className="sr-only">Terraform 적용 상태를 불러오는 중</span>
-          <div className={detailStyles.sectionCard.head}>
-            <div className={detailStyles.sectionCard.titleRow}>
-              <h3 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">
-                Terraform 적용 상태
-              </h3>
-              {/* 조회 시각 is data. 16.8px is the settled meta's measured line box
-                  (12px text at the card's leading); `self-center` keeps it OUT of
-                  the row's baseline, since a bar's baseline is its bottom edge and
-                  hanging that on the h3's baseline grows the row by 3px. */}
+      <section
+        aria-label="설치 상태"
+        aria-busy={installPending || loading || undefined}
+        className={cn(pipelineStyles.card.flush, 'mt-4')}
+      >
+        <div className={detailStyles.sectionCard.head}>
+          <div className={detailStyles.sectionCard.titleRow}>
+            <h3 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">
+              설치 상태
+            </h3>
+            {installPending ? (
               <span
                 className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[124px] flex-none self-center')}
                 aria-hidden
               />
-            </div>
+            ) : (
+              installLastCheck?.checkedAt && (
+                <span className={detailStyles.sectionCard.meta}>
+                  확인 {fmtDateTime(installLastCheck.checkedAt)}
+                </span>
+              )
+            )}
+          </div>
 
-            <dl className="mt-2 flex items-baseline gap-2 pb-4 text-[12px]">
-              <dt className="flex-none font-medium text-[var(--pl-text-weak)]">연동 정보</dt>
-              <dd className="flex min-w-0 items-center gap-2 self-center">
-                {/* 확정됨/미확정 plus whatever follows it (the 확정 정보 link, or the
-                    step) — both data, so one bar covers the whole value. 19.6px is
-                    what the settled value measures: the link, not the 16.8px word,
-                    is what sets that line's height. */}
+          <dl className="mt-2 flex items-baseline gap-2 pb-4 text-[12px]">
+            <dt className="flex-none font-medium text-[var(--pl-text-weak)]">연동 정보</dt>
+            <dd className="flex min-w-0 items-baseline gap-2">
+              {loading ? (
                 <span
                   className={cn(opsStyles.skeletonBar, 'block h-[19.6px] w-[132px]')}
                   aria-hidden
                 />
-              </dd>
-            </dl>
-          </div>
-
-          <div className="border-t border-[var(--pl-border)] px-6 py-2" aria-hidden>
-            {Array.from({ length: 3 }, (_, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'flex min-h-[30px] items-center gap-2',
-                  index > 0 && 'border-t border-[var(--pl-border)]',
-                )}
-              >
-                {/* Each bar is the footprint of the element it stands in for, so
-                    nothing moves sideways on arrival: the name column's fixed 240px
-                    (16.8px line box), the SIDE_TAG's 48px floor (22.8px = 16.8 line
-                    + py-0.5 + border), and the pill's own h-5 from
-                    `pipelineStyles.pill.md`. The 30px row holds all three. */}
-                <span className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[240px] flex-none')} />
-                <span
-                  className={cn(
-                    opsStyles.skeletonBar,
-                    'h-[22.8px] w-[48px] flex-none rounded-[4px]',
+              ) : failed || !status ? (
+                <span className="text-[var(--pl-text-weak)]">확인하지 못했습니다</span>
+              ) : (
+                <>
+                  <span
+                    className={cn(
+                      'font-semibold',
+                      confirmed ? 'text-[var(--pl-text-strong)]' : 'text-[var(--pl-warn-text)]',
+                    )}
+                  >
+                    {confirmed ? '확정됨' : '미확정'}
+                  </span>
+                  {confirmed ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectTab(OPS_TAB_SLUGS.confirm)}
+                      className={cn(opsStyles.detailLink, 'text-[12px] font-normal')}
+                      aria-label={`${OPS_TAB_SLUGS.confirm} 상세정보 보기`}
+                    >
+                      상세정보 보기
+                      <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+                    </button>
+                  ) : (
+                    step && (
+                      <span className="text-[var(--pl-text-weak)]">
+                        · {step.n}단계 · {step.label}
+                      </span>
+                    )
                   )}
-                />
-                <span
-                  className={cn(opsStyles.skeletonBar, 'h-5 w-[84px] flex-none rounded-full')}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : failed || !status ? (
-        <p className={cn(pipelineStyles.empty.base, 'mt-4 py-3 text-left')}>
-          Terraform 상태를 불러오지 못했습니다.
-        </p>
-      ) : (
-        /* `pipelineStyles.card.flush` — the shell 작업 이력 wears, so this and the
-           two cards under it read as one family instead of a grey strip sitting
-           on top of two white cards. */
-        <section aria-label="Terraform 적용 상태" className={cn(pipelineStyles.card.flush, 'mt-4')}>
-          <div className={detailStyles.sectionCard.head}>
-            <div className={detailStyles.sectionCard.titleRow}>
-              {/* Plain text at 16px/700, not the blue scopeTag the sibling cards
-                  wear (owner 2026-08-30). The tag exists to declare what a card IS
-                  and then get out of the way of the card's own subject — 현재 작업
-                  has a run name two rows down to defer to. This card has no such
-                  second line: the title IS its subject, so it is set as one. */}
-              <h3 className="text-[16px] font-bold leading-[1.3] text-[var(--pl-text-strong)]">
-                Terraform 적용 상태
-              </h3>
-              {/* 조회 qualifies the whole list, so it rides the title row; under
-                  the rows it read as a footnote to whichever task was last. */}
-              {status.checked_at && (
-                <span className={detailStyles.sectionCard.meta}>
-                  조회 {fmtDateTime(status.checked_at)}
-                </span>
+                </>
               )}
-            </div>
+            </dd>
+          </dl>
+        </div>
 
-            {/* A real <dl> for one pair: the label sits in front of the value, and
-                that pairing is the reason there is no tag here — it survives into
-                the a11y tree only if the markup keeps it. */}
-            <dl className="mt-2 flex items-baseline gap-2 pb-4 text-[12px]">
-              <dt className="flex-none font-medium text-[var(--pl-text-weak)]">연동 정보</dt>
-              <dd className="flex min-w-0 items-baseline gap-2">
-                {/* The VALUE wears the warning colour, not the cell and not the
-                    card: 미확정 is a stage of normal work, so an amber panel would
-                    read as a failure and red would say it is one. */}
-                <span
+        {installPending ? (
+          <div className="px-6 pb-4" aria-hidden>
+            <span className="sr-only">설치 상태를 불러오는 중</span>
+            <span className={cn(opsStyles.skeletonBar, 'block h-[46px] w-full rounded-[10px]')} />
+            <div className="mt-4 border-t border-[var(--pl-border)] pt-2">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div
+                  key={index}
                   className={cn(
-                    'font-semibold',
-                    confirmed ? 'text-[var(--pl-text-strong)]' : 'text-[var(--pl-warn-text)]',
+                    'flex min-h-[30px] items-center gap-2',
+                    index > 0 && 'border-t border-[var(--pl-border)]',
                   )}
                 >
-                  {confirmed ? '확정됨' : '미확정'}
-                </span>
-                {confirmed ? (
-                  /* Only when 확정됨: with nothing confirmed there is no confirmed
-                     detail to open. A button, not an anchor — the tab strip is
-                     client state on this screen, not a route. */
-                  <button
-                    type="button"
-                    onClick={() => onSelectTab(OPS_TAB_SLUGS.confirm)}
-                    className={cn(opsStyles.detailLink, 'text-[12px] font-normal')}
-                    aria-label={`${OPS_TAB_SLUGS.confirm} 상세정보 보기`}
-                  >
-                    상세정보 보기
-                    <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
-                  </button>
-                ) : (
-                  /* The step continues the SAME line. Nothing is said about a step
-                     the caller could not name. */
-                  step && (
-                    <span className="text-[var(--pl-text-weak)]">
-                      · {step.n}단계 · {step.label}
-                    </span>
-                  )
-                )}
-              </dd>
-            </dl>
+                  <span className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[240px] flex-none')} />
+                  <span
+                    className={cn(opsStyles.skeletonBar, 'h-[22.8px] w-[48px] flex-none rounded-[4px]')}
+                  />
+                  <span className={cn(opsStyles.skeletonBar, 'h-5 w-[84px] flex-none rounded-full')} />
+                </div>
+              ))}
+            </div>
           </div>
-
-          {/* The hairline is the only internal separation — no nested container,
-              and no column-header row: the card's own title already names the
-              list, and the contract's longest list is three rows (AWS 3,
-              GCP/IDC/SDU 2, Azure 1), so a header would cost a line and buy
-              nothing. That same ceiling is why there is no cap and no scroll —
-              a "+N개 더" affordance would never fire. */}
-          <div className="border-t border-[var(--pl-border)] px-6 py-2">
-            {tasks.length === 0 ? (
-              <p className="flex min-h-[30px] items-center text-[12px] text-[var(--pl-text-weak)]">
-                작업 정보가 없습니다.
-              </p>
-            ) : (
-              tasks.map((task, index) => (
-                <TaskRow
-                  key={task.terraform_task_name ?? index}
-                  name={task.terraform_task_name ?? '-'}
-                  side={
-                    SIDE_LABEL[task.terraform_execution_side ?? ''] ??
-                    task.terraform_execution_side ??
-                    '-'
-                  }
-                  state={task.state}
-                  first={index === 0}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      )}
+        ) : (
+          install && (
+            <>
+              <InstallStateRow
+                view={install}
+                className="mx-6 mb-4"
+                action={
+                  install.kind === 'me' ? (
+                    <button
+                      type="button"
+                      onClick={onGoToCurrentWork}
+                      className={cn(opsStyles.detailLink, 'text-[12px]')}
+                    >
+                      현재 작업으로 이동
+                      <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+                    </button>
+                  ) : undefined
+                }
+              />
+              {install.steps.length > 0 && (
+                <div className="border-t border-[var(--pl-border)] px-6 py-2">
+                  {install.steps.map((s, index) => (
+                    <StepRow key={s.id} step={s} first={index === 0} />
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        )}
+      </section>
     </div>
   );
 }

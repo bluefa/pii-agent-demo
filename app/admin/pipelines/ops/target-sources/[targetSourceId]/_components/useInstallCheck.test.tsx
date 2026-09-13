@@ -19,6 +19,7 @@ const getAwsInstallationStatus = vi.fn((id: number) =>
   id === 1
     ? Promise.resolve({
         lastCheck: { status: 'SUCCESS', checkedAt: CHECKED_AT },
+        roleVerify: { status: 'SKIP', roleArn: null },
         resources: [
           {
             resourceId: 'db-1',

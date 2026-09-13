@@ -61,10 +61,12 @@ import {
   toConfirmedUnits,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/logic';
 import { useInstallPending } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import { installStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import {
   InstallPendingNotice,
   type InstallPendingNoticeData,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingNotice';
+import type { OpsTargetTabLabel } from '@/lib/routes';
 import { InstallPendingConfirmModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallPendingConfirmModal';
 
 /** Same cadence as the user-side Step 5 poll (useTestConnectionPolling). */
@@ -104,6 +106,8 @@ export interface TcTabProps {
    * 단계를 다시 읽는다(승인 탭의 `onDecided` 와 같은 자리).
    */
   onAcknowledged: () => void;
+  /** Opens another tab — the 설치 미완료 notice sends the operator to 인프라 작업. */
+  onSelectTab: (tab: OpsTargetTabLabel) => void;
 }
 
 export function TcTab({
@@ -120,6 +124,7 @@ export function TcTab({
   tcStatusFailed,
   onStatusReload,
   onAcknowledged,
+  onSelectTab,
 }: TcTabProps): ReactElement {
   const toast = usePlToast();
   const [reloadKey, setReloadKey] = useState(0);
@@ -241,12 +246,18 @@ export function TcTab({
 
   const installPending = installPendingState.pending;
   // 카드까지 내려가는 한 묶음 — 그릴지 말지는 상자가 정한다(`startGate` 와 같은 길).
+  // 「누구 차례」는 인프라 작업 탭의 설치 상태 카드와 같은 fold 로 접는다 — 두 탭이 같은
+  // 대상을 두고 다른 문장을 말하지 않도록.
   const installPendingNotice = useMemo<InstallPendingNoticeData | null>(
     () =>
       installPending === null
         ? null
-        : { result: installPending, lastCheck: installPendingState.lastCheck },
-    [installPending, installPendingState.lastCheck],
+        : {
+            result: installPending,
+            lastCheck: installPendingState.lastCheck,
+            view: installStateView({ provider, manualInstall, detail: installPendingState.detail }),
+          },
+    [installPending, installPendingState.lastCheck, installPendingState.detail, provider, manualInstall],
   );
 
   // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,
@@ -330,7 +341,11 @@ export function TcTab({
         onOpenDecisionHistory={() => setHistoryOpen(true)}
         onOpenCredentials={() => setCredentialsOpen(true)}
         installPendingSlot={
-          <InstallPendingNotice data={installPendingNotice} className="mt-4" />
+          <InstallPendingNotice
+            data={installPendingNotice}
+            onSelectTab={onSelectTab}
+            className="mt-4"
+          />
         }
         stepHoldSlot={
           <StepHoldGate

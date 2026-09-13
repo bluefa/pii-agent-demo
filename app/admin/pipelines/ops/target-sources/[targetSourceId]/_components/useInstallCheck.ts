@@ -9,9 +9,10 @@
  * 조회 한 벌(`useInstallDetail`)은 둘이 나눠 쓴다 — latest-request-wins, 실패해도 스냅샷을
  * 버리지 않기, 조회하지 않는 대상에서는 요청 자체를 내지 않기가 전부 거기 한 번 있다.
  *
- * 조회는 **서비스 측 작업 단계를 가진 대상에서만** 일어난다(AWS 수동 설치·GCP). 그 밖의
- * 대상은 그릴 것이 없으므로 요청도 보내지 않는다 — `serviceWorkStep` 이 null 이면 훅은
- * 시작하지 않는다.
+ * 조회는 설치 상태를 가진 네 프로바이더 전부에서 일어난다(SDU 만 없다). 예전에는 서비스
+ * 측 작업 단계가 있는 대상(AWS 수동·GCP)에서만 읽었는데, 「설치 상태」 카드가 모든 대상에서
+ * 누구 차례인지를 말하게 되면서(`installStateView`) AWS 자동·Azure·IDC 도 같은 응답이
+ * 필요해졌다. `serviceWorkGate` 판정만 여전히 그 두 경우에 한한다.
  *
  * The admin console reads the SAME routes the service-side Step 4 reads
  * (`/api/v1/{aws,gcp}/target-sources/{id}/installation-status`) through the SAME CSR
@@ -36,9 +37,11 @@ import { getIdcInstallationStatus } from '@/app/lib/api/idc';
 import { buildAzureInstallDetail } from '@/app/components/features/process-status/azure/install-detail-adapter';
 import { buildGcpInstallDetail } from '@/app/components/features/process-status/gcp/install-detail-adapter';
 import { buildIdcInstallDetail } from '@/app/components/features/process-status/idc/install-detail-adapter';
-import type {
-  InstallDetailResource,
-  InstallLastCheck,
+import {
+  normalizeInstallStepValue,
+  type InstallDetailResource,
+  type InstallLastCheck,
+  type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   installPendingGate,
@@ -53,6 +56,8 @@ export interface InstallCheckDetail {
   lastCheck: InstallLastCheck | null;
   unavailable: boolean;
   resources: readonly InstallDetailResource[];
+  /** AWS only — `terraform_execution_role_verify.status`, the target-level first step of 자동 설치. */
+  roleVerify?: InstallStepValue | null;
 }
 
 const awsDetail = async (targetSourceId: number): Promise<InstallCheckDetail> => {
@@ -60,6 +65,7 @@ const awsDetail = async (targetSourceId: number): Promise<InstallCheckDetail> =>
   return {
     lastCheck: status.lastCheck,
     unavailable: status.lastCheck.unavailable === true,
+    roleVerify: normalizeInstallStepValue(status.roleVerify.status),
     // 키는 AwsInstallStatusDetail 의 것 그대로 — 같은 단계가 두 화면에서 다른 이름을
     // 가지면 게이트의 단계 id 가 한쪽에서만 맞는다.
     resources: status.resources.map((resource) => ({
@@ -104,16 +110,9 @@ const idcDetail = async (targetSourceId: number): Promise<InstallCheckDetail> =>
 
 type InstallFetcher = (id: number) => Promise<InstallCheckDetail>;
 
-/** 서비스 측 작업 단계를 가진 두 프로바이더뿐 — 나머지는 조회 자체를 하지 않는다. */
-const FETCHERS: Record<string, InstallFetcher> = {
-  aws: awsDetail,
-  gcp: gcpDetail,
-};
-
 /**
- * 설치 전체를 묻는 쪽은 네 프로바이더 전부다 — 연결 테스트는 누가 설치했는지를 가리지 않고,
- * 안 끝난 리소스는 어느 CSP 에서든 그 회차에서 실패한다. SDU 만 없다: 그 대상은 이 콘솔에서
- * 설치 상태를 갖지 않는다.
+ * 네 프로바이더 전부 — 두 탭 모두 이 응답으로 누구 차례인지를 말한다. SDU 만 없다: 그
+ * 대상은 이 콘솔에서 설치 상태를 갖지 않는다.
  */
 const ALL_FETCHERS: Record<string, InstallFetcher> = {
   aws: awsDetail,
@@ -182,6 +181,8 @@ function useInstallDetail(
 }
 
 export interface InstallCheckState {
+  /** The snapshot the 설치 상태 card folds (`installStateView`). `null` until read, or when the fetch failed. */
+  detail: InstallCheckDetail | null;
   /**
    * `null` when this target has no service-side step at all (AWS 자동 설치·Azure·IDC·SDU).
    * 부르는 쪽은 아무것도 그리지 않는다 — 「할 일 없음」이라는 문장조차 두지 않는다.
@@ -204,7 +205,7 @@ export function useInstallCheck(
   const step = serviceWorkStep(provider, manualInstall);
   const { detail, loading, failed, reload } = useInstallDetail(
     targetSourceId,
-    step ? FETCHERS[provider] : undefined,
+    ALL_FETCHERS[provider],
   );
 
   // 판정은 스냅샷이 바뀔 때만 새로 난다 — `serviceWorkGate` 은 매번 새 객체를 내므로,
@@ -226,6 +227,7 @@ export function useInstallCheck(
   );
 
   return {
+    detail: failed ? null : detail,
     gate,
     // 실패했으면 시각도 사유도 내놓지 않는다 — 직전 성공의 `fail_reason` 을 이번 실패의
     // 사유로 찍는 것이 이 한 줄을 두는 이유다(스냅샷은 남기되 그 위에 얹어 말하지 않는다).
@@ -241,6 +243,8 @@ export function useInstallCheck(
 // ---------------------------------------------------------------------------
 
 export interface InstallPendingState {
+  /** The same snapshot the 인프라 작업 tab folds — the 연결 테스트 tab says the same 누구 차례. */
+  detail: InstallCheckDetail | null;
   /**
    * `null` when this target has no install status to read at all (SDU). 부르는 쪽은
    * 아무것도 그리지 않는다 — 판정이 없는 것과 「끝났다」는 다른 문장이다.
@@ -290,6 +294,7 @@ export function useInstallPending(
   );
 
   return {
+    detail: failed ? null : detail,
     pending,
     // 실패했으면 시각도 사유도 내놓지 않는다 — 직전 성공의 시각을 이번 조회의 시각으로
     // 찍지 않는다(`useInstallCheck` 과 같은 규칙).

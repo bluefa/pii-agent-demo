@@ -57,6 +57,7 @@ vi.mock('@/app/lib/api/aws', () => ({
 
 const installing = {
   lastCheck: { status: 'SUCCESS' as const, checkedAt: '2026-08-31T01:00:00Z' },
+  roleVerify: { status: 'SKIP' as const, roleArn: null },
   resources: [
     {
       resourceId: 'arn:aws:rds:ap-northeast-2:1:cluster:db-1',
@@ -100,6 +101,7 @@ const renderTab = (): void => {
       tcStatusFailed={false}
       onAcknowledged={vi.fn()}
       onStatusReload={vi.fn()}
+      onSelectTab={vi.fn()}
     />,
   );
 };
@@ -117,6 +119,10 @@ describe('TcTab — 설치 미완료 확인', () => {
   it('안 끝난 설치가 있으면 확인 모달이 먼저 서고, 실행은 나가지 않는다', async () => {
     renderTab();
     await screen.findByText('설치가 끝나지 않아 연결 테스트가 실패합니다');
+    // The notice says whose move it is — the same fold the 인프라 작업 card reads —
+    // and sends the operator to that tab instead of listing resources here.
+    expect(screen.getByText('서비스 담당자가 Terraform을 직접 적용해야 합니다')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /인프라 작업 탭에서 설치 상태 보기/ })).toBeTruthy();
 
     fireEvent.click(runButton());
 

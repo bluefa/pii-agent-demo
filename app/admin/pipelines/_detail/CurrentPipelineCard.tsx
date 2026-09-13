@@ -181,7 +181,7 @@ export function CurrentPipelineCard({
                   the run had to out-rank a 16px section title two rows above it;
                   that title is a 12px tag now, so the run no longer needs the
                   extra step to win — and 16px puts it level with the neighbouring
-                  Terraform 적용 상태 card's title, which is the same rank of fact. */}
+                  설치 상태 card's title, which is the same rank of fact. */}
               <b className="text-[16px] font-semibold tracking-[-0.02em] text-[var(--pl-text-strong)]">
                 {title}
               </b>
