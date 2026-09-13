@@ -65,6 +65,16 @@ const createStatusForProcessStatus = (
           : { status: options?.isRejected ? "REJECTED" : "PENDING" },
       };
 
+    // 3단계는 승인이 난 뒤다 — 승인 없는 3단계 시드는 승인 요청 조회가 404 를 돌려준다.
+    // approvedAt 을 비워 두어 목의 자동 전이(20초 뒤 INSTALLING)가 시드 대상을 옮기지 않게 한다.
+    case ProcessStatus.APPLYING_APPROVED:
+      return {
+        ...base,
+        scan: { status: "COMPLETED" },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: "APPROVED" },
+      };
+
     case ProcessStatus.INSTALLING:
       return {
         ...base,
