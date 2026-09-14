@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import {
   borderColors,
   cardStyles,
@@ -9,6 +9,8 @@ import {
   textColors,
 } from '@/lib/theme';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
+import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
+import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
 import {
   buildGcpInstallDetail,
   type GcpInstallDetail,
@@ -52,13 +54,14 @@ interface GcpInstallationInlineProps {
  */
 type GcpCopy = (typeof INSTALL_COPY)['ko'];
 
-const gcpSteps = (t: GcpCopy): InstallTableStep[] => [
+const gcpSteps = (t: GcpCopy, subnetGuide?: ReactNode): InstallTableStep[] => [
   {
     id: 'subnet',
     title: t.gcp.subnetTitle,
     side: t.side.serviceResource,
     group: 'todo',
     desc: t.gcp.subnetDesc,
+    guide: subnetGuide,
   },
   {
     id: 'service',
@@ -83,7 +86,12 @@ export const GcpInstallationInline = ({
   const { locale } = useLocale();
   const copy = INSTALL_COPY[locale];
   const t = copy.inline;
-  const steps = useMemo(() => gcpSteps(copy), [copy]);
+  const subnetTargets = usePscSubnetTargets(targetSourceId);
+  const steps = useMemo(
+    () =>
+      gcpSteps(copy, subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined),
+    [copy, subnetTargets],
+  );
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever

@@ -18,7 +18,7 @@ import {
   textStyles,
 } from '@/lib/theme';
 import { TABLE_TAG_PILL } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
-import { DownloadIcon } from '@/app/components/ui/icons';
+import { ChevronDownIcon, DownloadIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { EmptyState } from '@/app/components/ui/state';
 import {
@@ -789,6 +789,31 @@ export const InstallStatusDetail = ({
       title={t.detail.naTitle}
       description={t.detail.naDesc(resources.length)}
     />
+  ) : active.guide ? (
+    // A step with a guide leads with it; the table folds shut behind one line. Native
+    // <details>: the fold is per-step reference, not state anything else reads.
+    <div className={cn('flex flex-col', stackGap.group)}>
+      {active.guide}
+      <details className="group/fold">
+        <summary
+          className={cn(
+            'flex cursor-pointer select-none items-center gap-2 list-none py-1.5 [&::-webkit-details-marker]:hidden',
+            textStyles.bodyStrong,
+            textColors.secondary,
+          )}
+        >
+          <ChevronDownIcon
+            className="h-3.5 w-3.5 flex-shrink-0 transition-transform group-open/fold:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+          {t.detail.tableFold(rows.length)}
+        </summary>
+        {/* 위 8px, 아래 4px — 펼친 표는 위로 붙고 아래로 숨을 쉰다 (오너 지시). */}
+        <div className="pt-2 pb-1">
+          <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} t={t} />
+        </div>
+      </details>
+    </div>
   ) : (
     // key resets pagination when switching steps
     <StepResourceTable key={active.id} rows={rows} identityColumns={identityColumns} t={t} />

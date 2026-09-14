@@ -1120,6 +1120,9 @@ export interface ResourceSnapshot {
     host?: string | null;
     port?: number | null;
     oracle_service_id?: string | null;
+    /** GCP Shared VPC host. TargetSourceResourceMetadataDto declares both; only GCP_SQL rows carry them. */
+    host_project?: string | null;
+    host_network?: string | null;
     // IDC-specific fields — absent for cloud. They sit HERE, not at the top level: the
     // top-level shape is `ResourceConfigDto` (confirmed-integration), a different DTO.
     // Declaring them top-level here made every approved-integration read return undefined,

@@ -31,7 +31,7 @@
  * The head carries no 작업 시작 (owner call): starting a run belongs to the
  * 현재 작업 card, so the 관리자 turn offers a link down to it instead.
  */
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { fmtDateTime } from '@/lib/pipeline/format';
@@ -85,7 +85,16 @@ const countOf = (step: InstallStateStep): string | null => {
 };
 
 /** One install step: what it is, who does it, where it stands. */
-function StepRow({ step, first }: { step: InstallStateStep; first: boolean }): ReactElement {
+function StepRow({
+  step,
+  first,
+  children,
+}: {
+  step: InstallStateStep;
+  first: boolean;
+  /** Reference drawn under the row (the GCP subnet commands). */
+  children?: ReactNode;
+}): ReactElement {
   const tag = STATE_TAG[step.state];
   const count = countOf(step);
   return (
@@ -108,6 +117,7 @@ function StepRow({ step, first }: { step: InstallStateStep; first: boolean }): R
           {guide}
         </p>
       ))}
+      {children}
     </div>
   );
 }
@@ -167,6 +177,12 @@ export interface InfraStatusHeadProps {
   install: InstallStateView | null;
   installLoading: boolean;
   installLastCheck: InstallLastCheck | null;
+  /**
+   * GCP only: the per-Region PSC proxy-subnet commands, drawn under the 「PSC용 Subnet
+   * 생성」 row while that row is still open — the thing the operator hands to the
+   * service owner when it is their move. `undefined` for every other provider.
+   */
+  subnetGuide?: ReactNode;
   /** The 관리자 turn's one move — scrolls to the 현재 작업 card that owns 작업 시작. */
   onGoToCurrentWork: () => void;
 }
@@ -180,6 +196,7 @@ export function InfraStatusHead({
   install,
   installLoading,
   installLastCheck,
+  subnetGuide,
   onGoToCurrentWork,
 }: InfraStatusHeadProps): ReactElement {
   const confirmed = status?.has_confirmed_infra === true;
@@ -313,7 +330,11 @@ export function InfraStatusHead({
               {install.steps.length > 0 && (
                 <div className="border-t border-[var(--pl-border)] px-6 py-2">
                   {install.steps.map((s, index) => (
-                    <StepRow key={s.id} step={s} first={index === 0} />
+                    <StepRow key={s.id} step={s} first={index === 0}>
+                      {s.id === 'subnet' && s.state !== 'done' && subnetGuide && (
+                        <div className="pb-4 pt-1">{subnetGuide}</div>
+                      )}
+                    </StepRow>
                   ))}
                 </div>
               )}

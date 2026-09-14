@@ -103,6 +103,12 @@ export interface InstallTableStep {
   /** Optional control rendered in the step's panel head (e.g. IDC 접근 허용 확인). */
   action?: ReactNode;
   /**
+   * Reference block rendered ABOVE the step's resource table (GCP PSC subnet commands).
+   * When set, the table folds behind a closed `<details>`: the guide is what the reader
+   * came for, the rows stay one click away for whoever wants them.
+   */
+  guide?: ReactNode;
+  /**
    * 설명 아래 보조 한 줄 — 참고 항목으로 보내는 역참조.
    * `link.label` 을 파란 밑줄로 그리고 누르면 그 항목을 연다.
    * `text` 는 라벨 뒤에 **공백 없이** 이어 붙는다 (조사가 라벨에 붙으므로).

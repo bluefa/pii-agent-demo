@@ -25,6 +25,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useModal } from '@/app/hooks/useModal';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { InfraStatusHead } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InfraStatusHead';
+import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
+import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
 import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
 import { installStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import { CURRENT_WORK_ID } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
@@ -139,6 +141,9 @@ export function PipelineTab({
   // 현재 작업 카드의 서비스 측 경고가 같은 스냅샷을 읽는다.
   const manualInstall = isManualInstall(detail);
   const install = useInstallCheck(targetSourceId, provider, manualInstall);
+  // GCP: the subnet commands the service side runs, same rows and same block as the
+  // user's step-4 card, so the operator and the owner read one thing.
+  const subnetTargets = usePscSubnetTargets(targetSourceId, provider === 'gcp');
   const installView = useMemo(
     () =>
       installStateView({
@@ -181,6 +186,7 @@ export function PipelineTab({
         install={installView}
         installLoading={install.loading}
         installLastCheck={install.lastCheck}
+        subnetGuide={subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} admin /> : undefined}
         onGoToCurrentWork={goToCurrentWork}
       />
       <TargetPipelineSections

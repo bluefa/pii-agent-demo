@@ -93,6 +93,9 @@ const STEP_MATRIX: Record<string, [boolean, boolean, boolean]> = {
 // demo 결정론적 상태를 쓰는 GCP Cloud SQL 리소스 타입(데모 시드 전용).
 const DEMO_STEP_TYPES: ReadonlySet<string> = new Set(['GCP_SQL']);
 
+/** Step-4 fixtures whose PSC proxy subnet is still the service side's move. */
+const SUBNET_PENDING_TARGETS: ReadonlySet<number> = new Set([1301]);
+
 const FAIL_GUIDES = [
   'Subnet 생성에 실패했습니다. 네트워크 권한을 확인하세요.',
   'Service Terraform 적용에 실패했습니다. 로그를 확인하세요.',
@@ -163,7 +166,19 @@ export const getGcpInstallationStatus = (
   }
 
   const selectedResources = project.resources.filter((r) => r.isSelected);
-  const resources = selectedResources.map(buildInstallResource);
+  const resources = selectedResources.map((r) => {
+    const built = buildInstallResource(r);
+    // 1301 is the step-4 fixture whose service side has NOT made the proxy subnet
+    // yet — the case the PSC subnet guide exists for, on both the user card and the
+    // admin 인프라 작업 head. The demo matrix would mark it COMPLETED.
+    if (!SUBNET_PENDING_TARGETS.has(targetSourceId) || built.serviceSideSubnetCreation.status === 'SKIP') return built;
+    const pending: StepStatus = { status: 'IN_PROGRESS', guide: null };
+    return {
+      ...built,
+      serviceSideSubnetCreation: pending,
+      installationStatus: deriveInstallationStatus([pending, built.serviceSideTerraformApply, built.bdcSideTerraformApply]),
+    };
+  });
 
   const result: GcpInstallationStatus = {
     provider: 'GCP',

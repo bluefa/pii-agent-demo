@@ -215,6 +215,31 @@ describe('InfraStatusHead — 설치 상태', () => {
   });
 });
 
+describe('InfraStatusHead — GCP subnet guide', () => {
+  const gcpTurn: InstallStateView = {
+    kind: 'svc',
+    sentence: '서비스 담당자가 PSC용 Subnet을 만들어야 합니다',
+    steps: [
+      step('subnet', 'PSC용 Subnet 생성', '서비스', 'now'),
+      step('service', '서비스측 Terraform 적용', '서비스', 'wait'),
+      step('bdc', 'BDC측 Terraform 적용', '관리자', 'wait'),
+    ],
+  };
+
+  it('draws the guide under the 「PSC용 Subnet 생성」 row while that row is open', () => {
+    renderHead({ install: gcpTurn, subnetGuide: <div data-testid="psc-guide">gcloud …</div> });
+    const guide = screen.getByTestId('psc-guide');
+    const row = screen.getByText('PSC용 Subnet 생성').closest('div')?.parentElement;
+    expect(row?.contains(guide)).toBe(true);
+  });
+
+  it('drops the guide once the subnet row is done — nothing left to hand over', () => {
+    const done = { ...gcpTurn, steps: [step('subnet', 'PSC용 Subnet 생성', '서비스', 'done'), ...gcpTurn.steps.slice(1)] };
+    renderHead({ install: done, subnetGuide: <div data-testid="psc-guide">gcloud …</div> });
+    expect(screen.queryByTestId('psc-guide')).toBeNull();
+  });
+});
+
 describe('InfraStatusHead — 불러오는 중', () => {
   it('draws the card frame while the install status is still in flight', () => {
     renderHead({ install: null, installLoading: true, installLastCheck: null });

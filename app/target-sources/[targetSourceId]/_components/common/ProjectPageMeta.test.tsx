@@ -680,6 +680,24 @@ describe('ProjectPageMeta — the fact grid', () => {
     }
   });
 
+  it('caps a LONE cell at two tracks, whatever its length', () => {
+    // The inline cell is `col-span-2` already; the cap was still counting it as ONE track
+    // (240px), and the label tag beside the value took ~105px of that. Every GCP project
+    // id from 14 to 26 chars — under `WIDE_CELL_MIN_CHARS`, so never marked wide — clipped.
+    render(
+      <ProjectPageMeta
+        project={{ ...projectFixture, cloudProvider: 'GCP' }}
+        identity={{
+          cloudProvider: 'GCP',
+          identifiers: [{ label: 'GCP Project ID', value: 'pii-agent-prod-12345', mono: true }],
+        }}
+      />,
+    );
+    const grid = within(scopeBlock()).getByText('GCP Project ID').parentElement
+      ?.parentElement as HTMLElement;
+    expect(grid.style.maxWidth).toBe('498px');
+  });
+
   it('counts the 설치 모드 cell — a fact beside it is a neighbour', () => {
     // The mode is a cell like any other, so an identifier PLUS the mode is two, and both
     // stack. One identifier and no mode is one, and it goes inline. ⛔ Counting only
