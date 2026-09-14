@@ -16,6 +16,7 @@ import {
   CloudProvider,
 } from "@/lib/types";
 import { getStore } from "@/lib/mock-store";
+import { INSTALL_SCENARIO_TARGETS } from "@/lib/bff/mock/install-state-scenarios";
 import { createInitialProjectStatus } from "@/lib/process";
 import {
   AWS_WIRE_APPROVAL_ACCOUNT_ID,
@@ -3197,6 +3198,51 @@ export const mockAwsServiceSettings: Map<string, LegacyAwsServiceSettings> =
       },
     ],
   ]);
+
+// ===== 설치 상태 시나리오 대상 (9101~9144) =====
+// One target per verdict the ops 인프라 작업 tab can show. The step cells come from
+// lib/bff/mock/install-state-scenarios.ts; this only registers a Step 4 project per id
+// so the detail, terraform-status (confirmed) and 연결 테스트 tab all resolve. Bases:
+// AWS 자동 = 1008 (granted), AWS 수동 = 1034 (not granted), GCP = gcp-proj-1,
+// Azure = 1004 (VM 포함), IDC = 1583.
+const SCENARIO_BASE: Record<string, { id: string; resources: () => MockResource[] }> = {
+  awsAuto: { id: "proj-3", resources: () => awsWireSampleResources },
+  awsManual: {
+    id: "proj-3d",
+    resources: () => awsWireApprovalResources.map((r) => ({ ...r, isSelected: true })),
+  },
+  gcp: { id: "gcp-proj-1", resources: () => gcpDemoResources },
+  azure: { id: "azure-proj-2", resources: () => alertDrilldownResources("scn", "Azure") },
+  idc: { id: "tcq-proj-1583", resources: () => ivtResources },
+};
+const SCENARIO_PROVIDER_LABEL: Record<string, string> = {
+  aws: "AWS",
+  gcp: "GCP",
+  azure: "Azure",
+  idc: "IDC",
+};
+
+mockProjects.push(
+  ...INSTALL_SCENARIO_TARGETS.map((t): Project => {
+    const base =
+      t.provider === "aws" ? (t.manual ? SCENARIO_BASE.awsManual : SCENARIO_BASE.awsAuto) : SCENARIO_BASE[t.provider];
+    const selected = base.resources().filter((r) => r.isSelected);
+    // Pad with copies when the base is short so the case's resource count holds.
+    const resources = Array.from({ length: t.resources }, (_, i) => {
+      const r = selected[i % selected.length];
+      return i < selected.length ? r : { ...r, id: `${r.id}-scn-${i}`, resourceId: `${r.resourceId}-${i}` };
+    });
+    return cloneForStep(base.id, {
+      id: `install-scn-${t.targetSourceId}`,
+      targetSourceId: t.targetSourceId,
+      projectCode: `SCN-${t.targetSourceId}`,
+      name: `시나리오 · ${t.label}`,
+      description: `설치 상태 시나리오 (${SCENARIO_PROVIDER_LABEL[t.provider]}) — 인프라 작업 탭의 설치 상태 카드가 「${t.label}」 을 그리는 대상입니다.`,
+      status: ProcessStatus.INSTALLING,
+      resources,
+    });
+  })
+);
 
 // ===== AWS Installation Helper Functions =====
 

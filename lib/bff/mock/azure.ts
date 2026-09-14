@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import * as azureFns from '@/lib/mock-azure';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 import { minutesAgo } from '@/lib/bff/mock/clock';
+import { installScenarioResponse, scenarioResourcesOf } from '@/lib/bff/mock/install-state-scenarios';
 
 
 /**
@@ -57,6 +58,10 @@ export const mockAzure = {
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
+
+    // 설치 상태 scenario targets (9131-9137): one scripted response per verdict.
+    const scenario = installScenarioResponse('azure', Number(projectId), scenarioResourcesOf(auth.project));
+    if (scenario) return NextResponse.json(scenario);
 
     const dbResult = azureFns.getAzureInstallationStatus(Number(projectId));
     if (dbResult.error) return handleResult(dbResult);
