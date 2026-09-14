@@ -37,12 +37,12 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 104개 프로젝트를 포함한다 (cloud 21 + step-coverage 14 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 9 + 운영 알림 드릴다운 8 + 연동 요청 큐 7 + 설치 상태 시나리오 27)', () => {
+  it('seed 데이터는 105개 프로젝트를 포함한다 (cloud 21 + step-coverage 15 + IDC 데모 9 + SDU 데모 4 + TC 큐 5 + TC 카드 상태 9 + 운영 알림 드릴다운 8 + 연동 요청 큐 7 + 설치 상태 시나리오 27)', () => {
     // cloud 21 = 기존 15 + 중국 리전 AWS 대상 1018 + 권한 확인만 끝난 Step 4 AWS 대상 1009
     // + 권한 확인이 실패로 끝난 그 짝 1019 + 스캔한 적 없는 1단계 짝 Azure 1030 · AWS 1029
     // (GCP 는 1002 가 이미 그 자리다) + 수동 설치 Step 4 AWS 대상 1034(운영 콘솔의
     // '설치 작업 전 서비스 측 대응 필요' 알림이 서는 유일한 조건을 갖춘 대상).
-    // + GCP Step 4 1301 (PSC proxy-subnet 명령 안내 — host_project·host_network 를 가진 승인 행).
+    // + GCP Step 4 1301 (PSC proxy-subnet 명령 안내) · 1302 (BigQuery 만이라 안내 없음).
     // TC 카드 상태 9 = 21xx fixture (시안 A 슬롯 폴딩 6종 + 시작 대기 2107 + 무보고 실패
     // 2108, lib/mock-test-connection.ts TC_CARD_FIXTURE) + 설치 미완료 2109 (나머지 21xx 는
     // serviceTf 를 COMPLETED 로 물려받아 설치가 통째로 끝나 있으므로, 운영 콘솔 연결 테스트
@@ -57,7 +57,7 @@ describe('targetSourceId — seed 데이터', () => {
     // 없던 것들(APPROVAL_QUEUE_TARGETS). 없으면 큐 행의 링크가 404 로 떨어진다.
     // 이 숫자는 손으로 세지 않는다 — 큐 픽스처가 늘면 여기도 함께 늘어야 하고, 그때
     // 이 테스트가 실패하는 것이 바로 이 census 가 하는 일이다.
-    expect(mockProjects).toHaveLength(104);
+    expect(mockProjects).toHaveLength(105);
   });
 });
 

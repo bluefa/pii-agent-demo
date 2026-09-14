@@ -50,6 +50,9 @@ export const pscSubnetCommand = (t: Pick<PscSubnetTarget, 'hostProject' | 'hostN
 export const pscSubnetTargets = (rows: ResourceSnapshot[]): PscSubnetTarget[] => {
   const byKey = new Map<string, PscSubnetTarget>();
   for (const row of rows) {
+    // PSC is a Cloud SQL thing — a BigQuery dataset needs no proxy subnet, whatever
+    // host facts its row happens to carry.
+    if (row.resource_type !== 'GCP_SQL') continue;
     const hostProject = row.metadata?.host_project?.trim();
     const hostNetwork = row.metadata?.host_network?.trim();
     const region = (row.metadata?.region ?? row.database_region)?.trim();

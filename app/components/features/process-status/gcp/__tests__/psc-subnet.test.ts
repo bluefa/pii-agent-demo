@@ -49,6 +49,10 @@ describe('pscSubnetTargets', () => {
     expect(pscSubnetTargets([{ ...row('x'), metadata: { host_project: 'p', host_network: 'n' } }])).toEqual([]);
   });
 
+  it('ignores BigQuery rows — PSC, and so the proxy subnet, is Cloud SQL only', () => {
+    expect(pscSubnetTargets([{ ...row('asia-northeast3'), resource_type: 'GCP_BIGQUERY_DATASET_REGION' }])).toEqual([]);
+  });
+
   it('fills everything but the CIDR into the command', () => {
     const [target] = pscSubnetTargets([row('asia-northeast3')]);
     expect(target.command).toContain('subnets create pii-agent-proxy-subnet-an3 \\');

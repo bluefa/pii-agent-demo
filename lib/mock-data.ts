@@ -1000,6 +1000,14 @@ export const mockProjects: Project[] = [
         "GCP PII Agent - 설치 중 (PSC Subnet 안내)",
         "Step 4. Agent 설치 — 서비스 측이 만들 PSC용 Regional Managed Proxy Subnet 의 gcloud 명령을 Region 마다 보여 주는 화면입니다.",
       ],
+      [
+        1302,
+        ProcessStatus.INSTALLING,
+        "GCP-007",
+        "GCP PII Agent - 설치 중 (BigQuery 만, Subnet 불필요)",
+        "Step 4. Agent 설치 — 연동 대상이 BigQuery 뿐이라 PSC 도 proxy subnet 도 필요 없는 화면입니다. 1301 과 대조: subnet 명령 안내가 그려지지 않아야 합니다.",
+        true,
+      ],
     ] as const
   ).map(
     ([
@@ -1008,6 +1016,7 @@ export const mockProjects: Project[] = [
       projectCode,
       name,
       description,
+      bigqueryOnly,
     ]): Project => ({
       id: `gcp-proj-${targetSourceId}`,
       targetSourceId,
@@ -1025,20 +1034,22 @@ export const mockProjects: Project[] = [
       resources: [
         {
           id: `gcp-inel-${targetSourceId}-1`,
-          type: "GCP_SQL",
-          resourceId:
-            "projects/pii-agent-prod-12345/instances/cloudsql-prod-020",
-          databaseType: "MYSQL",
+          type: bigqueryOnly ? "GCP_BIGQUERY_DATASET_REGION" : "GCP_SQL",
+          resourceId: bigqueryOnly
+            ? "projects/pii-agent-prod-12345/datasets/analytics_1/regions/asia-northeast3"
+            : "projects/pii-agent-prod-12345/instances/cloudsql-prod-020",
+          databaseType: bigqueryOnly ? "BIGQUERY" : "MYSQL",
           connectionStatus: "PENDING",
           isSelected: true,
           integrationCategory: "TARGET",
         },
         {
           id: `gcp-inel-${targetSourceId}-2`,
-          type: "GCP_SQL",
-          resourceId:
-            "projects/pii-agent-prod-12345/instances/cloudsql-prod-021",
-          databaseType: "POSTGRESQL",
+          type: bigqueryOnly ? "GCP_BIGQUERY_DATASET_REGION" : "GCP_SQL",
+          resourceId: bigqueryOnly
+            ? "projects/pii-agent-prod-12345/datasets/analytics_2/regions/asia-northeast3"
+            : "projects/pii-agent-prod-12345/instances/cloudsql-prod-021",
+          databaseType: bigqueryOnly ? "BIGQUERY" : "POSTGRESQL",
           connectionStatus: "PENDING",
           isSelected: true,
           integrationCategory: "TARGET",
