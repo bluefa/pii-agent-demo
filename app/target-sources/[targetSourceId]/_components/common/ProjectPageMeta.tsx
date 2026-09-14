@@ -220,7 +220,11 @@ export const ProjectPageMeta = ({ project, identity, action }: ProjectPageMetaPr
   // line up across neighbouring columns; with one cell there is no neighbour, so it only
   // costs a line. Counted, not switched on the provider — see `factCellInline`.
   const cellCount = facts.length + (identity.installMode ? 1 : 0);
-  const trackCount = cellCount + facts.filter((fact) => fact.wide).length;
+  // The lone cell is already `col-span-2` (label BESIDE value shares the track with a
+  // ~105px label tag), so it always needs two tracks — capping it at one clipped every
+  // GCP project id between 14 and 26 characters, the length most of them are.
+  const trackCount =
+    cellCount === 1 ? 2 : cellCount + facts.filter((fact) => fact.wide).length;
   const factClass = cellCount === 1 ? h.factCellInline : h.factCell;
   // Inline, the label loses the line break that used to mark it, so it takes a boundary
   // of its own instead — see `factLabelTag`. Stacked labels keep the plain `kvLabel`.
