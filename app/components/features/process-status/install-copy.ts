@@ -255,6 +255,9 @@ const ko = {
     pscLeadAdmin:
       '서비스 측 담당자에게 아래 명령으로 PSC용 Regional Managed Proxy Subnet을 Region마다 하나 만들어 달라고 요청해주세요. 호스트 프로젝트에서 실행하는 명령이며, Subnet이 있어야 그 Region의 Cloud SQL에 PSC를 만들 수 있습니다.',
     pscCidrNoteAdmin: 'CIDR은 서비스 측이 프로젝트에서 비어 있는 /24 대역으로 정합니다. 화면은 값을 넣지 않습니다.',
+    /** First line of the command, a shell comment — what it makes, where (오너 2026-09-14). */
+    pscCommandComment: (hostProject: string, hostNetwork: string, region: string) =>
+      `# 호스트 프로젝트 ${hostProject} 의 VPC ${hostNetwork} 에 ${region} PSC용 proxy subnet 을 만듭니다`,
     pscCovers: (n: number) => `Cloud SQL ${n}대`,
     pscCopy: (region: string) => `${region} 명령 복사`,
   },
@@ -497,6 +500,8 @@ const en: typeof ko = {
     pscLeadAdmin:
       'Ask the service owner to create one Regional Managed Proxy Subnet per Region with the command below. It runs in the host project, and a PSC for that Region\'s Cloud SQL cannot be created until the subnet exists.',
     pscCidrNoteAdmin: 'The service side picks the CIDR, a free /24 block in their project. The screen fills in nothing.',
+    pscCommandComment: (hostProject: string, hostNetwork: string, region: string) =>
+      `# Creates the ${region} PSC proxy subnet in VPC ${hostNetwork} of host project ${hostProject}`,
     pscCovers: (n: number) => `${n} Cloud SQL`,
     pscCopy: (region: string) => `Copy the ${region} command`,
   },

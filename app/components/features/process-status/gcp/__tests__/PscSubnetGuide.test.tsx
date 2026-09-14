@@ -22,6 +22,15 @@ describe('PscSubnetGuide', () => {
     expect(openStates(container)).toEqual([true, false]);
   });
 
+  it('leads the command with a comment saying which project and VPC it works in, and copies it too', () => {
+    const { container } = render(<PscSubnetGuide targets={targets} />);
+    const pre = container.querySelector('pre');
+    expect(pre?.textContent?.split('\n')[0]).toBe(
+      '# 호스트 프로젝트 acme-net-host-prod 의 VPC shared-vpc-prod 에 asia-northeast3 PSC용 proxy subnet 을 만듭니다',
+    );
+    expect(pre?.textContent?.split('\n')[1]).toContain('gcloud compute networks subnets create');
+  });
+
   it('for the operator: every Region folded, and the lead asks them to REQUEST the subnet (오너 2026-09-14)', () => {
     const { container, getByText, queryByText } = render(<PscSubnetGuide targets={targets} admin />);
     expect(openStates(container)).toEqual([false, false]);

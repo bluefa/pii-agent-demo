@@ -50,7 +50,11 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
     <div className={cn('flex flex-col', stackGap.group)}>
       <p className={cn(textStyles.body, textColors.secondary)}>{admin ? t.pscLeadAdmin : t.pscLead}</p>
       <div className={cn('flex flex-col', stackGap.related)}>
-        {targets.map((target, index) => (
+        {targets.map((target, index) => {
+          // The comment rides the command: it is copied with it, and prints one tint down.
+          const comment = t.pscCommandComment(target.hostProject, target.hostNetwork, target.region);
+          const command = `${comment}\n${target.command}`;
+          return (
           <details
             key={`${target.hostNetwork}|${target.region}`}
             open={!admin && index === 0}
@@ -76,7 +80,7 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
               {/* Inside <summary>, a click would also toggle the fold — stop it here. */}
               <span className="ml-auto" onClick={(e) => e.preventDefault()}>
                 <CopyButton
-                  value={target.command}
+                  value={command}
                   label={t.pscCopy(target.region)}
                   className={cn('border bg-white', borderColors.default)}
                 />
@@ -90,6 +94,8 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
                   textColors.secondary,
                 )}
               >
+                <span className={textColors.tertiary}>{comment}</span>
+                {'\n'}
                 {target.command.split(CIDR_PLACEHOLDER).map((part, i, parts) => (
                   <span key={i}>
                     {part}
@@ -109,7 +115,8 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
               </pre>
             </div>
           </details>
-        ))}
+          );
+        })}
       </div>
       <p className={cn(textStyles.caption, textColors.tertiary)}>{admin ? t.pscCidrNoteAdmin : t.pscCidrNote}</p>
     </div>
