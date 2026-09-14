@@ -88,6 +88,22 @@ describe('installStateView — AWS 자동 (4)', () => {
     expect(v).toEqual({ kind: 'unk', sentence: UNKNOWN_SENTENCE, steps: [] });
   });
 
+  it('first read in flight: null, not 확인 불가 (the card draws its skeleton)', () => {
+    expect(
+      installStateView({ provider: 'aws', manualInstall: false, detail: null, loading: true }),
+    ).toBeNull();
+  });
+
+  it('a refetch keeps the previous snapshot readable', () => {
+    const v = installStateView({
+      provider: 'aws',
+      manualInstall: false,
+      loading: true,
+      detail: detail([resource('db-1', { service: IP, bdcCommon: IP, bdcService: IP })], 'COMPLETED'),
+    });
+    expect(v?.kind).toBe('me');
+  });
+
   it('still the operator while BDC runs: IN_PROGRESS is not "running"', () => {
     // The wire cannot tell a run in flight from one never started. Owner: 조치 필요 either way.
     const v = aws({ service: CO, bdcCommon: IP, bdcService: IP }, CO);

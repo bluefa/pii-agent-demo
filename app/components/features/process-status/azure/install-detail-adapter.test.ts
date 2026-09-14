@@ -62,4 +62,22 @@ describe('buildAzureInstallDetail — unavailable 은 판독이 아니라는 사
     // VM 단계가 없는 리소스는 해당 없음(SKIP)이다 — 이 티켓이 바꾸지 않은 규칙.
     expect(detail.resources[0].cells.vmSubnet.status).toBe('SKIP');
   });
+
+  it('a resource without a private endpoint DTO (a VM) settles the PE step as SKIP', () => {
+    const detail = buildAzureInstallDetail({
+      last_check: { status: 'IN_PROGRESS' },
+      resources: [
+        {
+          resource_id: 'vm-1',
+          resource_name: 'vm-1',
+          installation_status: 'IN_PROGRESS',
+          bdc_side_terraform_apply: { status: 'COMPLETED', guide: null },
+          azure_virtual_machine_subnet_creation: { status: 'COMPLETED', guide: null },
+          azure_virtual_machine_terraform_apply: { status: 'COMPLETED', guide: null },
+        },
+      ],
+    } as never);
+
+    expect(detail.resources[0].cells.pe.status).toBe('SKIP');
+  });
 });

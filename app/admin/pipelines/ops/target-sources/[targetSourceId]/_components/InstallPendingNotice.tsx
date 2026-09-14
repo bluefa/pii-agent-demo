@@ -32,13 +32,11 @@ import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourc
 import { InstallStateRow } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InstallStateRow';
 import type { InstallPendingResult } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installGate';
 import type { InstallStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
-import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import { OPS_TAB_SLUGS, type OpsTargetTabLabel } from '@/lib/routes';
 
 /** 조회 결과 한 묶음 — `TcTab` 이 만들어 카드까지 내려보낸다. 카드는 읽지 않고 자리만 준다. */
 export interface InstallPendingNoticeData {
   result: InstallPendingResult;
-  lastCheck: InstallLastCheck | null;
   /** 누구 차례인가 — 인프라 작업 탭과 같은 fold. `null` 이면 문장 없이 제목만 선다. */
   view: InstallStateView | null;
 }

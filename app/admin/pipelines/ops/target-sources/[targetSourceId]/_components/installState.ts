@@ -35,7 +35,7 @@ export type InstallSide = '서비스' | '관리자';
 
 export type InstallStateKind = 'svc' | 'me' | 'done' | 'unk';
 
-export type InstallStepState = 'done' | 'now' | 'wait' | 'na' | 'fail';
+export type InstallStepState = 'done' | 'now' | 'wait' | 'fail';
 
 export interface InstallStateStep {
   id: string;
@@ -62,6 +62,12 @@ export interface InstallStateInput {
   provider: string;
   /** AWS only — the service applies the script itself (no role check, service owns step 1). */
   manualInstall: boolean;
+  /**
+   * True while the first read is still in flight. With no snapshot yet the fold
+   * returns `null` instead of 「확인 불가」 — a read that has not answered is not a
+   * read that failed, and the card draws its skeleton for `null` + loading.
+   */
+  loading?: boolean;
   /** The adapter output. `null` = not read yet, or the fetch failed. */
   detail: {
     lastCheck: InstallLastCheck | null;
@@ -175,9 +181,11 @@ export function installStateView({
   provider,
   manualInstall,
   detail,
+  loading = false,
 }: InstallStateInput): InstallStateView | null {
   const chain = chainFor(provider, manualInstall);
   if (!chain) return null;
+  if (loading && detail === null) return null;
   if (
     detail === null ||
     detail.unavailable ||

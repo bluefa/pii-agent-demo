@@ -135,7 +135,8 @@ function useInstallDetail(
   fetcher: InstallFetcher | undefined,
 ): InstallDetailState {
   const [detail, setDetail] = useState<InstallCheckDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  // No fetcher → nothing is in flight, so the first paint must not say it is.
+  const [loading, setLoading] = useState(fetcher !== undefined);
   const [failed, setFailed] = useState(false);
 
   // Latest-request-wins, the pattern PipelineTab's own `load()` uses: a response for a
@@ -169,9 +170,9 @@ function useInstallDetail(
     // 다시 읽는 동안 스냅샷을 버리면 「실패는 빈 결과가 아니다」(아래 catch)가 무너진다.
     // 여기서만 비우면 대상이 바뀐 순간에만 비워진다 — `load` 의 정체가 곧 [fetcher, id] 다.
     setDetail(null);
-    setLoading(true);
+    setLoading(fetcher !== undefined);
     void load();
-  }, [load]);
+  }, [load, fetcher]);
 
   const reload = useCallback(() => {
     void load();

@@ -45,6 +45,11 @@ import type {
   InstallStateView,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
+import {
+  SIDE_LABEL,
+  TONE,
+  metaOf,
+} from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/terraformState';
 import { STEP, type ProcessStatus } from '@/app/admin/pipelines/queue/_components/StepStack';
 import { OPS_TAB_SLUGS, type OpsTargetTabLabel } from '@/lib/routes';
 import type { TerraformStatusResponse } from '@/app/lib/api';
@@ -69,7 +74,6 @@ const STATE_TAG: Record<InstallStateStep['state'], { tone: TcTone; label: string
   done: { tone: 'ok', label: '완료' },
   now: { tone: 'warn', label: '조치 필요' },
   wait: { tone: 'off', label: '대기' },
-  na: { tone: 'off', label: '해당 없음' },
   fail: { tone: 'err', label: '실패' },
 };
 
@@ -104,6 +108,47 @@ function StepRow({ step, first }: { step: InstallStateStep; first: boolean }): R
           {guide}
         </p>
       ))}
+    </div>
+  );
+}
+
+/**
+ * SDU fallback — one terraform-status task per row, the rows the head drew before
+ * the fold existed. SDU has no installation-status in this console (Crawler and
+ * Athena, not Terraform cells), so the fold is `null` there; dropping the rows
+ * would leave the card with nothing but the 연동 정보 line while terraform-status
+ * still answers with two live tasks. The SDU tab set is its own design track
+ * (PR #835), so this keeps what was there rather than inventing a state for it.
+ */
+function TaskRow({
+  name,
+  side,
+  state,
+  first,
+}: {
+  name: string;
+  side: string;
+  state: string | null | undefined;
+  first: boolean;
+}): ReactElement {
+  const { tone, icon, label } = metaOf(state);
+  return (
+    <div
+      className={cn(
+        'flex min-h-[30px] items-center gap-2',
+        !first && 'border-t border-[var(--pl-border)]',
+      )}
+    >
+      <span className="w-[240px] min-w-0 flex-none truncate text-[12px] font-semibold text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
+        {name}
+      </span>
+      <span className={SIDE_TAG}>{side}</span>
+      <span
+        className={cn(pipelineStyles.pill.base, pipelineStyles.pill.md, TONE[tone].pill, 'flex-none')}
+      >
+        <Icon name={icon} size="sm" className={icon === 'loader' ? 'animate-spin' : undefined} />
+        {label}
+      </span>
     </div>
   );
 }
@@ -274,6 +319,23 @@ export function InfraStatusHead({
               )}
             </>
           )
+        )}
+        {install === null && !installLoading && status && status.tasks && status.tasks.length > 0 && (
+          <div className="border-t border-[var(--pl-border)] px-6 py-2">
+            {status.tasks.map((task, index) => (
+              <TaskRow
+                key={task.terraform_task_name ?? index}
+                name={task.terraform_task_name ?? '-'}
+                side={
+                  SIDE_LABEL[task.terraform_execution_side ?? ''] ??
+                  task.terraform_execution_side ??
+                  '-'
+                }
+                state={task.state}
+                first={index === 0}
+              />
+            ))}
+          </div>
         )}
       </section>
     </div>

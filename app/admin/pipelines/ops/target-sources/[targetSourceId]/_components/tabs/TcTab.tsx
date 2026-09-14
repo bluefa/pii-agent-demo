@@ -254,10 +254,9 @@ export function TcTab({
         ? null
         : {
             result: installPending,
-            lastCheck: installPendingState.lastCheck,
             view: installStateView({ provider, manualInstall, detail: installPendingState.detail }),
           },
-    [installPending, installPendingState.lastCheck, installPendingState.detail, provider, manualInstall],
+    [installPending, installPendingState.detail, provider, manualInstall],
   );
 
   // 마지막 하나를 배정하면 경고 줄이 사라진다 — 필터를 그대로 두면 표가 빈 화면이 되고,

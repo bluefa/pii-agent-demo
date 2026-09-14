@@ -140,8 +140,14 @@ export function PipelineTab({
   const manualInstall = isManualInstall(detail);
   const install = useInstallCheck(targetSourceId, provider, manualInstall);
   const installView = useMemo(
-    () => installStateView({ provider, manualInstall, detail: install.detail }),
-    [provider, manualInstall, install.detail],
+    () =>
+      installStateView({
+        provider,
+        manualInstall,
+        detail: install.detail,
+        loading: install.loading,
+      }),
+    [provider, manualInstall, install.detail, install.loading],
   );
   const goToCurrentWork = useCallback(() => {
     document.getElementById(CURRENT_WORK_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

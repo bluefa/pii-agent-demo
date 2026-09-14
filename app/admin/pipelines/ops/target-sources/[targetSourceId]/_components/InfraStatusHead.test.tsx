@@ -195,11 +195,23 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.queryByText('적용 완료')).toBeNull();
   });
 
-  it('draws nothing below 연동 정보 for a target with no install status (SDU)', () => {
-    renderHead({ install: null });
+  it('falls back to the terraform-status task rows for a target with no install status (SDU)', () => {
+    renderHead({
+      install: null,
+      status: {
+        has_confirmed_infra: true,
+        tasks: [
+          { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_execution_side: 'BDC', state: 'APPLIED' },
+          { terraform_task_name: 'SDU_BDC_SERVICE', terraform_execution_side: 'BDC', state: 'APPLYING' },
+        ],
+      } as never,
+    });
 
     expect(screen.getByText('연동 정보')).toBeTruthy();
     expect(screen.queryByText(/조치 필요/)).toBeNull();
+    expect(screen.getByText('SDU_BDC_SERVICE_COMMON')).toBeTruthy();
+    expect(screen.getByText('적용 완료')).toBeTruthy();
+    expect(screen.getByText('적용 중')).toBeTruthy();
   });
 });
 

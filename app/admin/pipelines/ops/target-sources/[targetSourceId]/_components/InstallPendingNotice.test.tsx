@@ -42,9 +42,8 @@ const detailOf = (
 const dataOf = (
   resources: readonly InstallDetailResource[],
   detail: { unavailable?: boolean } = {},
-): { result: InstallPendingResult; lastCheck: null; view: InstallStateView | null } => ({
+): { result: InstallPendingResult; view: InstallStateView | null } => ({
   result: installPendingGate({ provider: 'aws', manualInstall: true, detail: detailOf(resources, detail) }),
-  lastCheck: null,
   view: installStateView({ provider: 'aws', manualInstall: true, detail: detailOf(resources, detail) }),
 });
 
