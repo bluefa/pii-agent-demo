@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import {
   borderColors,
   cardStyles,
@@ -9,10 +9,8 @@ import {
   textColors,
 } from '@/lib/theme';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
-import { getApprovedIntegration } from '@/app/lib/api';
-import type { ResourceSnapshot } from '@/lib/types';
 import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
-import { pscSubnetTargets } from '@/app/components/features/process-status/gcp/psc-subnet';
+import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
 import {
   buildGcpInstallDetail,
   type GcpInstallDetail,
@@ -88,18 +86,7 @@ export const GcpInstallationInline = ({
   const { locale } = useLocale();
   const copy = INSTALL_COPY[locale];
   const t = copy.inline;
-  // The subnet commands need host_project / host_network, which only the approved rows
-  // carry (TargetSourceResourceMetadataDto) — confirmed-integration has neither.
-  const [approvedRows, setApprovedRows] = useState<ResourceSnapshot[]>([]);
-  useEffect(() => {
-    const controller = new AbortController();
-    getApprovedIntegration(targetSourceId, { signal: controller.signal })
-      .then((r) => setApprovedRows(r.approved_integration?.resource_infos ?? []))
-      // No rows, no guide — the step still stands on its own description.
-      .catch(() => setApprovedRows([]));
-    return () => controller.abort();
-  }, [targetSourceId]);
-  const subnetTargets = useMemo(() => pscSubnetTargets(approvedRows), [approvedRows]);
+  const subnetTargets = usePscSubnetTargets(targetSourceId);
   const steps = useMemo(
     () =>
       gcpSteps(copy, subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined),
