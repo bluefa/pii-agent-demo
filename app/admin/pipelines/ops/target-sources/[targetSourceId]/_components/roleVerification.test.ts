@@ -17,18 +17,12 @@ vi.mock('@/app/lib/api/gcp', () => ({ getGcpScanServiceAccount: vi.fn() }));
 import { roleVerdict } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleVerification';
 
 describe('roleVerdict — 계약 여섯 코드', () => {
-  it('등록 전은 오류가 아니다 — INVALID 로 와도 중립 톤 + 등록 CTA', () => {
+  it('등록 전은 오류가 아니다 — INVALID 로 와도 중립 톤, 안내 박스와 CTA 는 없다', () => {
     const v = roleVerdict('scan', { status: 'INVALID', fail_reason: 'ROLE_NOT_CONFIGURED' });
     expect(v.tone).toBe('off');
-    expect(v.action).toEqual({ kind: 'edit', role: 'scan', label: '등록하기' });
-    // The sentence names the role that was verified.
-    expect(v.message).toContain('Scan Role');
-  });
-
-  it('같은 코드라도 execution 을 검증했으면 그 Role 이름으로 말한다', () => {
-    const v = roleVerdict('execution', { status: 'INVALID', fail_reason: 'ROLE_NOT_CONFIGURED' });
-    expect(v.message).toContain('Terraform Execution Role');
-    expect(v.action?.role).toBe('execution');
+    expect(v.label).toBe('설정 필요');
+    expect(v.message).toBeNull();
+    expect(v.action).toBeNull();
   });
 
   it.each([

@@ -82,8 +82,8 @@ const FALLBACK_MESSAGE = '자격 검증에 실패했습니다. 권한 설정을 
 const UNDETERMINED_MESSAGE = '지금은 검증 결과를 확정할 수 없습니다. 설정 문제가 아닐 수 있습니다.';
 
 /**
- * The six codes the contract froze. Only ROLE_NOT_CONFIGURED words itself after
- * the role that was verified, so map values take `kind` as an argument.
+ * The six codes the contract froze. Map values take `kind` as an argument so a
+ * code can word itself after the role that was verified.
  *
  * ROLE_NOT_CONFIGURED arrives as INVALID (a definitive configuration error) but
  * the screen paints it neutral: painting a target that has registered nothing
@@ -91,11 +91,13 @@ const UNDETERMINED_MESSAGE = '지금은 검증 결과를 확정할 수 없습니
  * fail_reason is a stable key, so this is decidable without consulting status.
  */
 const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
-  ROLE_NOT_CONFIGURED: (kind) => ({
+  // Unregistered is not a failure to explain: the pill alone says 설정 필요,
+  // and the register CTA lives in the role fold (ops feedback, 09-14).
+  ROLE_NOT_CONFIGURED: () => ({
     tone: 'off',
     label: '설정 필요',
-    message: `${ROLE_META[kind].title}이 등록되어 있지 않습니다.`,
-    action: { kind: 'edit', role: kind, label: '등록하기' },
+    message: null,
+    action: null,
     note: null,
   }),
   INVALID_ROLE_ARN: (kind) => ({
