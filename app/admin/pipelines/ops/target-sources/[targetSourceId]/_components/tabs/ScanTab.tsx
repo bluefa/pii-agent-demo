@@ -20,7 +20,6 @@ import type { RawTargetSourceDetail } from '@/app/lib/api/pipeline-target';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { ScanCredentialCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanCredentialCard';
 import { SduRecipientsCard } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/SduRecipientsCard';
-import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import { RecentScanCard, type TypeEntry } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/RecentScanCard';
 import { ScanHistoryCard, SCAN_HISTORY_PAGE_SIZE } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanHistoryCard';
 import { ScanDetailModal } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/ScanDetailModal';
@@ -35,9 +34,6 @@ export interface ScanTabProps {
    * 이 안에서 다시 물으면 SDU 대상이 AWS 라고 대답한다 (`isSduTarget`, `@/lib/types`).
    */
   isSdu: boolean;
-  /** Action CTA of the permission card — passed down because OpsTargetView owns
-      RoleEditModal. Only AWS, the one provider with a register/edit contract, sends it. */
-  onEditRole?: (role: RoleKind) => void;
   /** Changes when a role is saved — makes the permission card re-verify. */
   credentialReloadKey?: string;
 }
@@ -46,7 +42,6 @@ export function ScanTab({
   targetSourceId,
   detail,
   isSdu,
-  onEditRole,
   credentialReloadKey,
 }: ScanTabProps): ReactElement {
   const provider = normalizeCloudProvider(detail.cloud_provider);
@@ -213,7 +208,6 @@ export function ScanTab({
             <ScanCredentialCard
               provider={provider}
               targetSourceId={targetSourceId}
-              onEditRole={onEditRole}
               reloadKey={credentialReloadKey}
             />
           )}

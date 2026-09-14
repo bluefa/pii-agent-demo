@@ -18,7 +18,7 @@ import { getAwsRoleVerification } from '@/app/lib/api/aws';
 import { getAzureScanApp } from '@/app/lib/api/azure';
 import { getGcpScanServiceAccount } from '@/app/lib/api/gcp';
 import type { CloudProvider } from '@/lib/types';
-import { ROLE_META, type RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
+import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 
 /** Structural union of the three providers' responses — every schema is partial, so all optional. */
 export interface CredentialVerification {
@@ -55,12 +55,9 @@ export const fetchCredential = (
 
 export type VerdictTone = 'ok' | 'off' | 'err' | 'warn';
 
+/** The only action the card offers is a re-fetch — registering or editing a role happens in the role fold. */
 export interface VerdictAction {
   label: string;
-  /** edit = open RoleEditModal, retry = re-fetch. */
-  kind: 'edit' | 'retry';
-  /** Target of an edit — may differ from what was verified (SCAN_ROLE_* points at the Scan Role). */
-  role?: RoleKind;
 }
 
 export interface RoleVerdict {
@@ -82,61 +79,61 @@ const FALLBACK_MESSAGE = '자격 검증에 실패했습니다. 권한 설정을 
 const UNDETERMINED_MESSAGE = '지금은 검증 결과를 확정할 수 없습니다. 설정 문제가 아닐 수 있습니다.';
 
 /**
- * The six codes the contract froze. Map values take `kind` as an argument so a
- * code can word itself after the role that was verified.
+ * The six codes the contract froze.
  *
  * ROLE_NOT_CONFIGURED arrives as INVALID (a definitive configuration error) but
  * the screen paints it neutral: painting a target that has registered nothing
  * yet in red contradicts the header, which calls the same target "unregistered".
  * fail_reason is a stable key, so this is decidable without consulting status.
  */
-const REASONS: Record<string, (kind: RoleKind) => ReasonSpec> = {
-  // Unregistered is not a failure to explain: the pill alone says 설정 필요,
-  // and the register CTA lives in the role fold (ops feedback, 09-14).
-  ROLE_NOT_CONFIGURED: () => ({
+// No register/edit CTA on any code — the card states the cause, the role fold
+// holds the register and edit buttons (ops feedback, 09-14).
+const REASONS: Record<string, ReasonSpec> = {
+  // Unregistered is not a failure to explain: the pill alone says 설정 필요.
+  ROLE_NOT_CONFIGURED: {
     tone: 'off',
     label: '설정 필요',
     message: null,
     action: null,
     note: null,
-  }),
-  INVALID_ROLE_ARN: (kind) => ({
+  },
+  INVALID_ROLE_ARN: {
     tone: 'err',
     label: '검증 실패',
     message: '등록된 Role ARN 형식이 올바르지 않습니다.',
-    action: { kind: 'edit', role: kind, label: '수정하기' },
+    action: null,
     note: null,
-  }),
-  ROLE_NOT_FOUND: (kind) => ({
+  },
+  ROLE_NOT_FOUND: {
     tone: 'err',
     label: '검증 실패',
     message: 'ARN은 올바르지만 AWS IAM에 해당 Role이 없습니다.',
-    action: { kind: 'edit', role: kind, label: '수정하기' },
+    action: null,
     note: null,
-  }),
-  SCAN_ROLE_NOT_CONFIGURED: () => ({
+  },
+  SCAN_ROLE_NOT_CONFIGURED: {
     tone: 'off',
     label: '설정 필요',
     message: 'Terraform Role을 검증하려면 Scan Role이 먼저 등록되어야 합니다.',
-    action: { kind: 'edit', role: 'scan', label: 'Scan Role 등록하기' },
+    action: null,
     note: '조치 대상이 Scan Role로 넘어갑니다.',
-  }),
-  SCAN_ROLE_NOT_ASSUMABLE: () => ({
+  },
+  SCAN_ROLE_NOT_ASSUMABLE: {
     tone: 'err',
     label: '검증 실패',
     // The contract does not split the cause apart (bad ARN / trust policy /
     // caller permissions), so the screen does not pretend to know either.
     message: 'Scan Role을 넘겨받지 못했습니다. ARN 또는 신뢰 정책을 확인해 주세요.',
-    action: { kind: 'edit', role: 'scan', label: 'Scan Role 수정하기' },
+    action: null,
     note: '등록된 Terraform Role ARN은 원인이 아닙니다.',
-  }),
-  ROLE_VERIFICATION_UNAVAILABLE: () => ({
+  },
+  ROLE_VERIFICATION_UNAVAILABLE: {
     tone: 'warn',
     label: '판정 불가',
     message: UNDETERMINED_MESSAGE,
-    action: { kind: 'retry', label: '다시 확인' },
+    action: { label: '다시 확인' },
     note: 'IAM 변경 직후라면 잠시 후 다시 확인해 주세요.',
-  }),
+  },
 };
 
 /**
@@ -164,7 +161,7 @@ const byStatus = (status: string | null, failMessage: string | null): ReasonSpec
         tone: 'warn',
         label: '판정 불가',
         message: failMessage ?? UNDETERMINED_MESSAGE,
-        action: { kind: 'retry', label: '다시 확인' },
+        action: { label: '다시 확인' },
         note: null,
       };
     case 'FAIL':
@@ -182,10 +179,10 @@ const byStatus = (status: string | null, failMessage: string | null): ReasonSpec
   }
 };
 
-export const roleVerdict = (kind: RoleKind, data: CredentialVerification): RoleVerdict => {
+export const roleVerdict = (data: CredentialVerification): RoleVerdict => {
   const reason = data.fail_reason ?? null;
   const spec = reason ? REASONS[reason] : undefined;
-  if (spec) return { ...spec(kind), rawCode: null };
+  if (spec) return { ...spec, rawCode: null };
 
   const base = byStatus(data.status ?? null, data.fail_message ?? null);
   // A code with no sentence to carry it would leave the box undrawn, and the
