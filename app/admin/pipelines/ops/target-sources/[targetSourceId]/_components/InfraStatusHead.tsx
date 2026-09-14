@@ -23,10 +23,13 @@
  *     as a label/value pair (no tag, owner call). 확정됨 links to the 확정 정보
  *     tab; 미확정 names the step the target sits at.
  *   - the verdict row (`InstallStateRow`) — whose move it is, in one sentence.
- *   - the step rows — one per step in execution order: name · owner tag · state
- *     tag, a count when resources are only partly through, the guide under a
- *     failed row. Only steps this target actually has: a step that is SKIP on
- *     every resource is not drawn.
+ *   - the step rows — one per step in execution order: name · owner (weak text),
+ *     then ONE fact: a 조치 필요 / 조회 실패 tag with the count while the step is
+ *     the one to act on, plain 대기 or 「N건 모두 완료」 otherwise. Under the step to
+ *     act on, the resources still open — address (or name) · DB · 조치 필요 / 조회
+ *     도중 실패 · guide — so the card names WHICH database is left, not only how
+ *     many (docs/ux/benchmark/idc-install-state-rows.md). Only steps this target
+ *     actually has: a step that is SKIP on every resource is not drawn.
  *
  * The head carries no 작업 시작 (owner call): starting a run belongs to the
  * 현재 작업 card, so the 관리자 turn offers a link down to it instead.
@@ -44,6 +47,8 @@ import type {
   InstallStateStep,
   InstallStateView,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
+import type { InstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   SIDE_LABEL,
@@ -58,65 +63,106 @@ import type { TerraformStatusResponse } from '@/app/lib/api';
 const JOB = 'font-semibold text-[var(--pl-text-strong)]';
 
 /**
- * 주체 태그 — a neutral bordered tag for the service owner; the operator's own
- * steps take the warn stroke so the column says "you" at a glance.
- * 48px floor, centred, so the state tags beside it land on one x (the same
- * reasoning as the task rows this replaces).
+ * 주체 태그 for the SDU task rows below — a neutral bordered tag. 48px floor,
+ * centred, so the state tags beside it land on one x.
  */
 const SIDE_TAG =
   'inline-flex min-w-[48px] flex-none items-center justify-center rounded-[4px] border bg-[var(--pl-bg-card)] px-1.5 py-0.5 text-[12px] font-medium';
-const SIDE_TONE: Record<InstallStateStep['side'], string> = {
-  서비스: 'border-[var(--pl-border)] text-[var(--pl-text-weak)]',
-  관리자: 'border-[var(--pl-warn-text)] text-[var(--pl-warn-text)]',
-};
 
-const STATE_TAG: Record<InstallStateStep['state'], { tone: TcTone; label: string }> = {
-  done: { tone: 'ok', label: '완료' },
+/**
+ * The tag is spent on the step to act on only; 대기 and 완료 are plain text (Carbon:
+ * no status indicator where no action is possible). FAIL reads 조회 실패 — the
+ * owner's word: the contract does not say what failed, only that the check did.
+ */
+const OPEN_TAG: Record<'now' | 'fail', { tone: TcTone; label: string }> = {
   now: { tone: 'warn', label: '조치 필요' },
-  wait: { tone: 'off', label: '대기' },
-  fail: { tone: 'err', label: '실패' },
+  fail: { tone: 'err', label: '조회 실패' },
 };
 
-/** The count only when it adds a fact: a step partly through, or partly failed. */
+/** The count while the step is open: what is left, or what failed. */
 const countOf = (step: InstallStateStep): string | null => {
-  if (step.failed > 0) return `${step.total}건 중 ${step.failed}건 실패`;
-  if (step.state !== 'done' && step.done > 0) return `${step.total}건 중 ${step.total - step.done}건 남음`;
+  if (step.failed > 0) return `${step.total}건 중 ${step.failed}건 조회 실패`;
+  if (step.done > 0) return `${step.total}건 중 ${step.total - step.done}건 남음`;
   return null;
 };
+
+const WEAK = 'text-[12px] text-[var(--pl-text-weak)]';
+
+export const FAIL_NOTE = '조회 실패가 여러 번 이어지면 개발자에게 연락하세요.';
 
 /** One install step: what it is, who does it, where it stands. */
 function StepRow({
   step,
   first,
+  identity,
   children,
 }: {
   step: InstallStateStep;
   first: boolean;
+  identity: ReadonlyMap<string, InstallResourceIdentity>;
   /** Reference drawn under the row (the GCP subnet commands). */
   children?: ReactNode;
 }): ReactElement {
-  const tag = STATE_TAG[step.state];
-  const count = countOf(step);
+  const openTag = step.state === 'now' || step.state === 'fail' ? OPEN_TAG[step.state] : null;
+  const count = openTag ? countOf(step) : null;
   return (
     <div className={cn(!first && 'border-t border-[var(--pl-border)]')}>
       <div className="flex min-h-[30px] items-center gap-2">
-        {/* A FIXED 240px column (opsStyles.fmFold's column): the three pieces
-            cluster and the row reads left to right instead of the state tag
-            drifting to the far edge. */}
+        {/* A FIXED 240px column (opsStyles.fmFold's column): the pieces cluster and
+            the row reads left to right instead of the state drifting to the far edge. */}
         <span className="w-[240px] min-w-0 flex-none truncate text-[12px] font-semibold text-[var(--pl-text-strong)]">
           {step.title}
+          <span className="ml-1 font-normal text-[var(--pl-text-weak)]">· {step.side}</span>
         </span>
-        <span className={cn(SIDE_TAG, SIDE_TONE[step.side])}>{step.side}</span>
-        <TcPill tone={tag.tone} label={tag.label} />
-        {count && (
-          <span className="text-[12px] tabular-nums text-[var(--pl-text-weak)]">{count}</span>
+        {openTag ? (
+          <TcPill tone={openTag.tone} label={openTag.label} />
+        ) : step.state === 'done' ? (
+          <span className="text-[12px] tabular-nums text-[var(--pl-ok-text)]">{step.total}건 모두 완료</span>
+        ) : (
+          <span className={WEAK}>대기</span>
         )}
+        {count && <span className={cn(WEAK, 'tabular-nums')}>{count}</span>}
       </div>
-      {step.guides.map((guide) => (
-        <p key={guide} className="-mt-0.5 pb-1.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
-          {guide}
-        </p>
-      ))}
+      {openTag && step.open.length > 0 && (
+        <div className="mb-2 ml-3 border-l-2 border-[var(--pl-gray-200)] pl-3 text-[12px]">
+          <ul
+            className="grid grid-cols-[minmax(200px,max-content)_72px_auto] gap-x-2"
+            aria-label={`${step.title} 남은 리소스`}
+          >
+            {step.open.map((r) => {
+              const who = identity.get(r.resourceId);
+              const db = who?.databaseType ? getDatabaseShortLabel(who.databaseType) : null;
+              return (
+                // `contents`: the cells sit in the list's grid, so the address column is as
+                // wide as the longest address (a host name can run long) and every row's
+                // DB and state land on one x. Nothing is truncated — the address IS the row.
+                <li key={r.resourceId} className="contents">
+                  <span className="flex min-h-[26px] items-center break-all text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
+                    {r.resourceName ?? who?.label ?? r.resourceId}
+                  </span>
+                  <span className={cn(WEAK, 'flex min-h-[26px] items-center truncate')}>{db}</span>
+                  <span
+                    className={cn(
+                      'flex min-h-[26px] items-center',
+                      r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]',
+                    )}
+                  >
+                    {r.failed ? '조회 도중 실패' : '조치 필요'}
+                  </span>
+                  {r.guide && (
+                    <p className="col-span-3 pb-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
+                      {r.guide}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {/* Owner 2026-09-14: a failed check is said out loud, and a check that keeps
+              failing is the developer's, not the operator's. */}
+          {step.failed > 0 && <p className={cn(WEAK, 'min-h-[26px] leading-[26px]')}>{FAIL_NOTE}</p>}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -183,9 +229,13 @@ export interface InfraStatusHeadProps {
    * service owner when it is their move. `undefined` for every other provider.
    */
   subnetGuide?: ReactNode;
+  /** resource id → address / name, joined from the confirmed integration (`installIdentity`). */
+  identity?: ReadonlyMap<string, InstallResourceIdentity>;
   /** The 관리자 turn's one move — scrolls to the 현재 작업 card that owns 작업 시작. */
   onGoToCurrentWork: () => void;
 }
+
+const NO_IDENTITY: ReadonlyMap<string, InstallResourceIdentity> = new Map();
 
 export function InfraStatusHead({
   status,
@@ -197,6 +247,7 @@ export function InfraStatusHead({
   installLoading,
   installLastCheck,
   subnetGuide,
+  identity = NO_IDENTITY,
   onGoToCurrentWork,
 }: InfraStatusHeadProps): ReactElement {
   const confirmed = status?.has_confirmed_infra === true;
@@ -300,9 +351,6 @@ export function InfraStatusHead({
                   )}
                 >
                   <span className={cn(opsStyles.skeletonBar, 'h-[16.8px] w-[240px] flex-none')} />
-                  <span
-                    className={cn(opsStyles.skeletonBar, 'h-[22.8px] w-[48px] flex-none rounded-[4px]')}
-                  />
                   <span className={cn(opsStyles.skeletonBar, 'h-5 w-[84px] flex-none rounded-full')} />
                 </div>
               ))}
@@ -330,7 +378,7 @@ export function InfraStatusHead({
               {install.steps.length > 0 && (
                 <div className="border-t border-[var(--pl-border)] px-6 py-2">
                   {install.steps.map((s, index) => (
-                    <StepRow key={s.id} step={s} first={index === 0}>
+                    <StepRow key={s.id} step={s} first={index === 0} identity={identity}>
                       {s.id === 'subnet' && s.state !== 'done' && subnetGuide && (
                         <div className="pb-4 pt-1">{subnetGuide}</div>
                       )}

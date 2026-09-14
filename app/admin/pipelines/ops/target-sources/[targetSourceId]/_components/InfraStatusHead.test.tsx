@@ -13,7 +13,7 @@
  *   4. The card head carries 확인 시각 from installation-status, not terraform-status.
  *   5. The terraform-status task rows are gone; 연동 정보 still reads that response.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
@@ -52,7 +52,7 @@ const step = (
   done: state === 'done' ? 1 : 0,
   total: 1,
   failed: 0,
-  guides: [],
+  open: [],
   ...extra,
 });
 
@@ -98,17 +98,56 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('관리자 조치 필요')).toBeTruthy();
   });
 
-  it('renders one row per step with its owner and its own state', () => {
+  it('renders one row per step with its owner and ONE state fact: tag only on the step to act on', () => {
     renderHead();
 
     expect(screen.getByText('서비스 측 Terraform 적용')).toBeTruthy();
     expect(screen.getByText('BDC 공통 영역')).toBeTruthy();
     expect(screen.getByText('BDC 서비스 영역')).toBeTruthy();
-    expect(screen.getByText('서비스')).toBeTruthy();
-    expect(screen.getAllByText('관리자')).toHaveLength(2);
-    expect(screen.getByText('완료')).toBeTruthy();
+    // The owner is weak text after the title, not a tag of its own.
+    expect(screen.getByText('· 서비스')).toBeTruthy();
+    expect(screen.getAllByText('· 관리자')).toHaveLength(2);
+    expect(screen.getByText('1건 모두 완료')).toBeTruthy();
     expect(screen.getByText('조치 필요')).toBeTruthy();
     expect(screen.getByText('대기')).toBeTruthy();
+    // No resource list under a step that has none open in its list.
+    expect(screen.queryByRole('list', { name: /남은 리소스/ })).toBeNull();
+  });
+
+  it('names the resources still open under the step to act on: address, DB, and 조치 필요', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 접근 허용을 확인해야 합니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'done', { done: 5, total: 5 }),
+          step('firewall', '접근 허용', '서비스', 'now', {
+            done: 3,
+            total: 5,
+            open: [
+              { resourceId: 'idc-res-002', resourceName: null, failed: false, guide: null },
+              { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
+            ],
+          }),
+        ],
+      },
+      identity: new Map([
+        ['idc-res-002', { label: '10.20.31.10:1521', databaseType: 'ORACLE' }],
+      ]),
+    });
+
+    expect(screen.getByText('5건 모두 완료')).toBeTruthy();
+    expect(screen.getByText('5건 중 2건 남음')).toBeTruthy();
+    const list = screen.getByRole('list', { name: '접근 허용 남은 리소스' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText('10.20.31.10:1521')).toBeTruthy();
+    expect(within(rows[0]).getByText('Oracle')).toBeTruthy();
+    expect(within(rows[0]).getByText('조치 필요')).toBeTruthy();
+    // Not in the join: the wire id stands in.
+    expect(within(rows[1]).getByText('idc-res-004')).toBeTruthy();
+    // Nothing failed: no note about the developer.
+    expect(screen.queryByText(/개발자에게 연락/)).toBeNull();
   });
 
   it('offers the 관리자 turn a link to 현재 작업, never a 작업 시작 button', () => {
@@ -143,15 +182,26 @@ describe('InfraStatusHead — 설치 상태', () => {
             done: 3,
             total: 4,
             failed: 1,
-            guides: ['서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.'],
+            open: [
+              {
+                resourceId: 'db-3',
+                resourceName: 'orders-db',
+                failed: true,
+                guide: '서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.',
+              },
+            ],
           }),
         ],
       },
     });
 
-    expect(screen.getByText('실패')).toBeTruthy();
-    expect(screen.getByText('4건 중 1건 실패')).toBeTruthy();
+    // FAIL is 조회 실패 (owner's word): the step tag, the count, and the resource row.
+    expect(screen.getByText('조회 실패')).toBeTruthy();
+    expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('orders-db')).toBeTruthy();
+    expect(screen.getByText('조회 도중 실패')).toBeTruthy();
     expect(screen.getByText('서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
     expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
   });
 

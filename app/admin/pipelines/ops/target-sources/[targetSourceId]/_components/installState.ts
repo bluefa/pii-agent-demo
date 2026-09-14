@@ -16,8 +16,13 @@
  *     card's job, not this fold's.
  *   - The first unsettled step in execution order is the one to act on; the ones
  *     after it are 대기 (derived from order, the wire cannot say it).
- *   - FAIL is not a state of its own: same verdict, the row turns red and carries
- *     the guide.
+ *   - FAIL is not a state of its own: same verdict, the row reads 조회 실패 (the
+ *     owner's word for it — the contract does not say what failed) and the
+ *     resource carries its guide.
+ *   - The resources still open on a step are listed by id (`open`), so the card
+ *     can name WHICH database is left instead of only how many
+ *     (docs/ux/benchmark/idc-install-state-rows.md). The role check is
+ *     target-level and lists nothing.
  *   - A step that is SKIP on every resource (or has no cell anywhere) is dropped —
  *     no row, no state. GCP without the Subnet option and Azure without a VM lose a
  *     step this way, and AWS 수동 has no role check.
@@ -28,6 +33,7 @@ import {
   isSettledInstallStatus,
   type InstallDetailResource,
   type InstallLastCheck,
+  type InstallStepCell,
   type InstallStepValue,
 } from '@/app/components/features/process-status/install-status-detail/model';
 
@@ -36,6 +42,15 @@ export type InstallSide = '서비스' | '관리자';
 export type InstallStateKind = 'svc' | 'me' | 'done' | 'unk';
 
 export type InstallStepState = 'done' | 'now' | 'wait' | 'fail';
+
+/** One resource whose cell on a step is not settled. */
+export interface InstallOpenResource {
+  resourceId: string;
+  /** The CSP-side name when the wire carries one (IDC does not). */
+  resourceName: string | null;
+  failed: boolean;
+  guide: string | null;
+}
 
 export interface InstallStateStep {
   id: string;
@@ -47,8 +62,8 @@ export interface InstallStateStep {
   total: number;
   /** FAIL cells out of `total`. */
   failed: number;
-  /** Distinct guide sentences the failed cells carry. */
-  guides: string[];
+  /** Resources not yet settled on this step, in wire order. Empty for the role check. */
+  open: InstallOpenResource[];
 }
 
 export interface InstallStateView {
@@ -197,26 +212,38 @@ export function installStateView({
 
   const steps: InstallStateStep[] = [];
   for (const step of chain) {
-    const cells =
+    const cells: Array<{ resource: InstallDetailResource | null } & InstallStepCell> =
       step.id === ROLE_STEP_ID
         ? detail.roleVerify
-          ? [{ status: detail.roleVerify, guide: null }]
+          ? [{ resource: null, status: detail.roleVerify, guide: null }]
           : []
-        : detail.resources.flatMap((r) => (r.cells[step.id] ? [r.cells[step.id]] : []));
+        : detail.resources.flatMap((r) =>
+            r.cells[step.id] ? [{ resource: r, ...r.cells[step.id] }] : [],
+          );
     // No cell anywhere, or SKIP everywhere: the step does not exist for this target.
     if (cells.length === 0 || cells.every((c) => c.status === 'SKIP')) continue;
 
-    const done = cells.filter((c) => isSettledInstallStatus(c.status)).length;
-    const failedCells = cells.filter((c) => c.status === 'FAIL');
+    const openCells = cells.filter((c) => !isSettledInstallStatus(c.status));
     steps.push({
       id: step.id,
       title: step.title,
       side: step.side,
       state: 'wait',
-      done,
+      done: cells.length - openCells.length,
       total: cells.length,
-      failed: failedCells.length,
-      guides: [...new Set(failedCells.flatMap((c) => (c.guide ? [c.guide] : [])))],
+      failed: openCells.filter((c) => c.status === 'FAIL').length,
+      open: openCells.flatMap((c) =>
+        c.resource
+          ? [
+              {
+                resourceId: c.resource.resourceId,
+                resourceName: c.resource.resourceName,
+                failed: c.status === 'FAIL',
+                guide: c.guide,
+              },
+            ]
+          : [],
+      ),
     });
   }
   if (steps.length === 0) return UNKNOWN;

@@ -311,7 +311,14 @@ describe('installStateView — variants that change a row, not the state', () =>
       done: 3,
       total: 4,
       failed: 1,
-      guides: ['서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.'],
+      open: [
+        {
+          resourceId: 'db-3',
+          resourceName: 'db-3',
+          failed: true,
+          guide: '서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.',
+        },
+      ],
     });
   });
 
@@ -328,7 +335,43 @@ describe('installStateView — variants that change a row, not the state', () =>
       ),
     });
     expect(v?.kind).toBe('me');
-    expect(v?.steps[2]).toMatchObject({ id: 'bdcCommon', state: 'fail', failed: 2, guides: ['timeout'] });
+    expect(v?.steps[2]).toMatchObject({ id: 'bdcCommon', state: 'fail', failed: 2 });
+    expect(v?.steps[2].open.map((r) => [r.resourceId, r.failed, r.guide])).toEqual([
+      ['db-1', true, 'timeout'],
+      ['db-2', true, 'timeout'],
+    ]);
+  });
+
+  it('the open list names the resources still on the step, in wire order; settled ones are not in it', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: CO, bdp: CO, firewall: CO }),
+        resource('idc-res-002', { cx: CO, bdp: CO, firewall: IP }),
+        resource('idc-res-003', { cx: CO, bdp: CO, firewall: CO }),
+        resource('idc-res-004', { cx: CO, bdp: CO, firewall: ['FAIL', null as unknown as string] }),
+      ]),
+    });
+    expect(v?.kind).toBe('svc');
+    expect(v?.steps.map((s) => [s.id, s.state, s.open.length])).toEqual([
+      ['cx', 'done', 0],
+      ['bdp', 'done', 0],
+      ['firewall', 'fail', 2],
+    ]);
+    expect(v?.steps[2].open).toEqual([
+      { resourceId: 'idc-res-002', resourceName: 'idc-res-002', failed: false, guide: null },
+      { resourceId: 'idc-res-004', resourceName: 'idc-res-004', failed: true, guide: null },
+    ]);
+  });
+
+  it('the role check is target-level: it lists no resource', () => {
+    const v = installStateView({
+      provider: 'aws',
+      manualInstall: false,
+      detail: detail([resource('db-1', { service: IP, bdcCommon: IP, bdcService: IP })], IP),
+    });
+    expect(v?.steps[0]).toMatchObject({ id: 'role', state: 'now', open: [] });
   });
 
   it('a step with no cell on any resource is dropped, not counted as done', () => {
