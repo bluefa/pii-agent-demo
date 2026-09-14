@@ -5,7 +5,7 @@
   (`InfraStatusHead` StepRow). 다섯 CSP 모두 같은 행이지만 발단은 IDC.
 - 시안 아티팩트: https://claude.ai/code/artifact/46bf714c-0193-4dea-bc24-a3ef44a4c696
   (진단 7 · 레퍼런스 13 · 개선안 5 · 비교표)
-- 구현 PR: (아래 채움)
+- 구현 PR: #902
 - 선행: [`infra-install-state.md`](./infra-install-state.md) — 판정 fold 와 판정 행은 그대로.
 
 ## 문제
