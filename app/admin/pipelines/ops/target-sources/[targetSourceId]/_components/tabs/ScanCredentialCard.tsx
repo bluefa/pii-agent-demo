@@ -21,7 +21,6 @@ import type { CloudProvider } from '@/lib/types';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { RoleKind } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/roleMeta';
 import {
   fetchCredential,
   roleVerdict,
@@ -82,12 +81,6 @@ type LoadState =
 export interface ScanCredentialCardProps {
   provider: CloudProvider;
   targetSourceId: number;
-  /**
-   * Opens RoleEditModal — OpsTargetView owns that modal. Only AWS has a
-   * register/edit contract, so other providers get no callback, and without one
-   * the card draws no CTA.
-   */
-  onEditRole?: (role: RoleKind) => void;
   /** Changes when a role is saved — re-verifies so a fixed credential never sits under a stale verdict. */
   reloadKey?: string;
 }
@@ -95,7 +88,6 @@ export interface ScanCredentialCardProps {
 export function ScanCredentialCard({
   provider,
   targetSourceId,
-  onEditRole,
   reloadKey,
 }: ScanCredentialCardProps): ReactElement {
   const [state, setState] = useState<LoadState>({ phase: 'loading' });
@@ -126,7 +118,7 @@ export function ScanCredentialCard({
   const credentialLabel = SCAN_CREDENTIAL_LABELS[provider];
   // Verdict beside the title — same slot as the recent-scan card's status pill (ops feedback).
   const data = state.phase === 'done' ? state.data : null;
-  const verdict = data && roleVerdict('scan', data);
+  const verdict = data && roleVerdict(data);
 
   return (
     // flex-col — mt-auto pins the bottom time row (last verified) so the floor lines up with the sibling card.
@@ -152,7 +144,7 @@ export function ScanCredentialCard({
           <div className={cn(opsStyles.skeleton, 'mt-4 h-4 w-44 flex-none')} aria-hidden="true" />
         </div>
       ) : data && verdict ? (
-        <CredentialResult data={data} verdict={verdict} onEditRole={onEditRole} onRetry={retry} />
+        <CredentialResult data={data} verdict={verdict} onRetry={retry} />
       ) : (
         <p className={cn(pipelineStyles.text.meta, 'mt-4')}>자격 정보를 불러오지 못했습니다.</p>
       )}
@@ -163,24 +155,14 @@ export function ScanCredentialCard({
 function CredentialResult({
   data,
   verdict,
-  onEditRole,
   onRetry,
 }: {
   data: CredentialVerification;
   verdict: RoleVerdict;
-  onEditRole?: (role: RoleKind) => void;
   onRetry: () => void;
 }): ReactElement {
+  // The only action is a re-fetch; register/edit lives in the role fold.
   const { action } = verdict;
-  // An action is drawn only when it can actually run — on a provider with no
-  // register/edit contract the button would be there and do nothing.
-  const editTarget = action?.kind === 'edit' ? action.role : undefined;
-  const runAction =
-    action?.kind === 'retry'
-      ? onRetry
-      : editTarget != null && onEditRole != null
-        ? () => onEditRole?.(editTarget)
-        : null;
 
   return (
     <>
@@ -190,10 +172,10 @@ function CredentialResult({
       {verdict.message && (
         <div className={cn('mt-4 rounded-lg px-3.5 py-3', VERDICT_BOX[verdict.tone])}>
           <p className="text-[14px] leading-[1.5]">{verdict.message}</p>
-          {(runAction || verdict.note || verdict.rawCode) && (
+          {(action || verdict.note || verdict.rawCode) && (
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-              {runAction && action && (
-                <PlButton variant="secondary" size="sm" onClick={runAction}>
+              {action && (
+                <PlButton variant="secondary" size="sm" onClick={onRetry}>
                   {action.label}
                 </PlButton>
               )}

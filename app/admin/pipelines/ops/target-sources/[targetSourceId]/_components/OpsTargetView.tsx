@@ -641,9 +641,6 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
               // 탭이 `detail` 에서 다시 세우지 않는다 — provider 는 SDU 대상에서도 'AWS'
               // 라고 대답한다. 판정은 이 화면이 이미 내렸다.
               isSdu={isSdu}
-              // This screen owns the modal the permission card's CTA opens. The
-              // register/edit contract is AWS-only, so no other provider gets it.
-              onEditRole={isAws ? (kind) => setModal({ type: 'edit', kind }) : undefined}
               credentialReloadKey={savedRoleArns.scan}
             />
           )}

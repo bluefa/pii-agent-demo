@@ -22,11 +22,11 @@ BFF 가 `fail_reason` 을 안정 enum 으로 확정하면서, "실패했습니�
 | status | fail_reason | 적용 엔드포인트 | 화면 상태 | 조치 |
 |---|---|---|---|---|
 | VALID | (생략) | scan·exec | 정상 (ok) | — |
-| INVALID | `ROLE_NOT_CONFIGURED` | scan·exec | 설정 필요 (off) | 등록하기 |
-| INVALID | `INVALID_ROLE_ARN` | scan·exec | 검증 실패 (err) | 수정하기 |
-| INVALID | `ROLE_NOT_FOUND` | exec 전용 | 검증 실패 (err) | 수정하기 |
-| INVALID | `SCAN_ROLE_NOT_CONFIGURED` | exec 전용 | 설정 필요 (off) | **Scan Role** 등록하기 |
-| INVALID | `SCAN_ROLE_NOT_ASSUMABLE` | exec 전용 | 검증 실패 (err) | **Scan Role** 수정하기 |
+| INVALID | `ROLE_NOT_CONFIGURED` | scan·exec | 설정 필요 (off) | — (안내 박스도 없음) |
+| INVALID | `INVALID_ROLE_ARN` | scan·exec | 검증 실패 (err) | — |
+| INVALID | `ROLE_NOT_FOUND` | exec 전용 | 검증 실패 (err) | — |
+| INVALID | `SCAN_ROLE_NOT_CONFIGURED` | exec 전용 | 설정 필요 (off) | — |
+| INVALID | `SCAN_ROLE_NOT_ASSUMABLE` | exec 전용 | 검증 실패 (err) | — |
 | UNVERIFIED | `ROLE_VERIFICATION_UNAVAILABLE` | scan·exec | 판정 불가 (warn) | 다시 확인 |
 
 매핑은 여섯 코드를 모두 담는다(계약이 그렇게 말하므로). 다만 `exec 전용` 셋은 이번 범위에
@@ -64,7 +64,7 @@ BFF 가 `fail_reason` 을 안정 enum 으로 확정하면서, "실패했습니�
 | 무엇 | 어디 |
 |---|---|
 | 조회·판정·재조회 | `ScanCredentialCard` 자신. 화면에 검증이 한 자리뿐이라 호출도 한 번이다 |
-| 조치 CTA 가 여는 모달 | `OpsTargetView`(RoleEditModal 의 기존 주인) → `ScanTab` → 카드로 콜백만 내려온다 |
+| 등록·수정 | 카드가 아니라 Role 접기 영역(`OpsDetailFold`)의 버튼. 카드는 CTA 를 그리지 않는다 (09-14 오너: 「등록되어 있지 않습니다 · 등록하기」 박스와 「수정하기」 제거, PR #899) |
 
 **제외한 것** — 시안에는 있었으나 오너 결정으로 빼기로 했다:
 
@@ -83,7 +83,7 @@ BFF 가 `fail_reason` 을 안정 enum 으로 확정하면서, "실패했습니�
   한다 (이펙트 안 setState 는 연쇄 렌더).
 - **Role 저장 → 재검증**: 고친 자격을 옛 판정 위에 두지 않도록 `reloadKey` 로 다시 부른다.
 - **시점 없는 판정은 안 그린다**: `last_verified_at` 이 없으면 시각 행 생략(현행 유지).
-- **조치는 수행 가능할 때만**: GCP·Azure 는 등록·수정 계약이 없어 CTA 를 그리지 않는다.
+- **카드에는 등록·수정 CTA 가 없다** (09-14, PR #899): 원인 문장만 말하고, 버튼은 Role 접기 영역에 둔다. 「다시 확인」 만 판정 불가에서 남는다.
 
 ## 5. 목에서 실패 상태를 여는 법
 
