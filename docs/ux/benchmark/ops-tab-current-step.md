@@ -83,11 +83,50 @@
 - 아래 「칠한 탭 셀」 기각은 채운 칩 + wash + 3px 막대를 한꺼번에 얹은 안("너무 쎄")에
   대한 것이었다. 전제가 달라졌으므로 wash 하나만은 다시 열렸다.
 
+## 2026-09-14 후속 — 셀 wash 회수 (벤치 3차, A안)
+
+오너: "현재 단계가 너무 심하게 눈에 띈다 · 선택된 탭이 현재 단계 탭에 묻힌다"
+(`/admin/pipelines/ops/target-sources/1023?tab=tc`, IDC CONFIRMED).
+아티팩트: https://claude.ai/code/artifact/f66cdbe2-606f-46f1-ab79-e73d596ea46f
+
+### 진단 (실측, main 10a9af8c @1422)
+
+| # | 문제 | 등급 |
+|---|------|------|
+| 1 | wash 는 틴트가 아니라 조명 — `--pl-warn-bg` 휘도 0.956 > 바닥 gray-200 0.797. 흰 카드가 바닥 위 1.24, wash 1.19 로 셀이 흰 카드만큼 떠오른다 | 수치 |
+| 2 | 면적 20.8:1 — 단계 셀 6,967 px² vs 선택 밑줄 335 px² | 수치 |
+| 3 | 선택 파랑 잉크 5.41 < 비활성 회색 8.44 — 선택을 붙드는 건 2px 밑줄 하나 | UX 원칙 |
+| 4 | 상시 신호(모든 대상은 늘 어떤 단계)가 행위 신호(선택)를 이긴다 | UX 원칙 |
+| 5 | 로젠지 + wash, 같은 사실에 장치 둘 | UX 원칙 |
+
+### 참고한 레퍼런스
+
+| 이름 | URL | 가져온 것 |
+|---|---|---|
+| shadcn/ui Tabs | https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/registry/new-york-v4/ui/tabs.tsx | 회색 트레이 위 밝은 셀 = 선택의 관용구 — 다른 뜻에 쓰지 않는다 |
+| Carbon Tabs (contained) | https://carbondesignsystem.com/components/tabs/usage/ | 선택 탭이 패널과 같은 layer 를 쓴다 — 면은 선택의 것 |
+| Ant Design Tabs (card) | https://ant.design/components/tabs | 틴트는 어두운 쪽(비활성)에 |
+| GOV.UK Task list | https://design-system.service.gov.uk/components/task-list/ | 많이 켜지는 상태는 낮춘다 |
+| Cloudscape Tabs | https://raw.githubusercontent.com/cloudscape-design/components/main/src/tabs/tab-header-bar.scss | 선택 레버 2(잉크·밑줄)는 표준 — 경쟁자를 치운다 |
+| Primer UnderlineNav | https://primer.style/components/underline-nav | 한 항목만 부속물을 달면 작게 |
+| 사내 `serviceSidebarStyles.rowCurrent` | `lib/theme.ts` | 플레인과 같은 밝기의 틴트(시안 B 근거) |
+
+### 시안과 결정
+
+- **A (채택)** — wash 회수, 09-11 E안으로 복귀. 클래스 1개 삭제.
+- B — 바닥보다 어두운 주황 그늘(새 토큰). 면적·장치 중복은 남는다.
+- C — 선택 탭에 `--pl-primary-bg` 면(Salesforce Path 채널 분리). 08-27 탭 카드 취소 판례와 스침.
+- D — 로젠지 subtle 화. 09-11 "회색 칩 안 보임" 재발 위험.
+- E — 로젠지를 라벨 앞으로(자리로 묶기). 벤치 추천안이었으나 오너가 A 를 골랐다.
+
+09-13 의 "색으로 탭과 묶자" 요구는 A 로 되돌아간다 — 오너 결정(09-14).
+
 ## ⛔ 재제안 금지
 
 - 빨간 코너 점
 - 코너 배지
-- 채운 칩 + 탭 wash + 위 막대를 한꺼번에 (wash 단독은 09-13 채택)
+- 채운 칩 + 탭 wash + 위 막대를 한꺼번에
+- 탭 셀 wash 단독 (09-13 채택 → 09-14 회수: 바닥보다 밝은 면은 조명이다)
 - 탭 폭 전체의 위 막대
 - 채운 주황 칩
 - 11px 칩

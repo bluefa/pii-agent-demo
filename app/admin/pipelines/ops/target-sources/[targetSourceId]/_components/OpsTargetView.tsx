@@ -578,7 +578,7 @@ export function OpsTargetView({ targetSourceId, initialTab, statusSlot }: OpsTar
                     role="tab"
                     aria-selected={active}
                     onClick={() => selectTab(tab)}
-                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle, isStep && opsStyles.tabStep)}
+                    className={cn(opsStyles.tab, active ? opsStyles.tabActive : opsStyles.tabIdle)}
                   >
                     {tab}
                     {/* 보이는 낱말이 곧 접근명이다 — `.sr-only`·`title` 을 따로 두지 않는다.

@@ -81,9 +81,10 @@ describe('OpsTargetView — 「현재 단계」 탭 태그', () => {
     const labelled = screen.getByRole('tab', { name: `${tab} ${STEP_LABEL}` });
     expect(labelled.getAttribute('title')).toBeNull();
     expect(labelled.querySelector('.sr-only')).toBeNull();
-    // The cell wears the same wash as the lozenge — label and tag read as one unit (오너 09-13).
-    expect(labelled.className).toContain(opsStyles.tabStep);
-    expect(screen.getByRole('tab', { name: '진행 상태' }).className).not.toContain(opsStyles.tabStep);
+    // The lozenge is the only device — the cell itself is not washed (09-14: the wash out-shone
+    // the open tab's underline). Idle and step cells share one class list apart from the lozenge.
+    const idle = screen.getAllByRole('tab', { selected: false }).find((t) => t !== labelled);
+    expect(labelled.className).toBe(idle?.className);
   });
 
   it('COMPLETED 는 어느 탭에도 서지 않는다', async () => {
