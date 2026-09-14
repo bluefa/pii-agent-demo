@@ -463,6 +463,8 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     metadata: {
       provider: cloudProviderToWireProvider(project.cloudProvider),
       region: demoRegion(project.cloudProvider, r),
+      // GCP Shared VPC host — what the PSC proxy-subnet command needs (step 4 guide).
+      ...(project.cloudProvider === 'GCP' ? { host_project: 'acme-net-host-prod', host_network: 'shared-vpc-prod' } : {}),
       database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
       host: r.vmDatabaseConfig?.host ?? r.host ?? null,
       port: r.vmDatabaseConfig?.port ?? resolvePort(project.cloudProvider, r),
@@ -1107,14 +1109,17 @@ export const mockConfirm = {
     // ADR-006: store에서 ApprovedIntegration 조회
     const approved = approvedIntegrationStore.get(project.id);
 
-    // Demo fallback: seeded WAITING_APPROVAL / APPLYING_APPROVED fixtures never
-    // populate the store (no live approve call), so synthesize the approved view
-    // directly from the project's selected/excluded resources. Without this the
-    // step-2 (승인 대기) and step-3 (반영 중) tables render empty.
+    // Demo fallback: seeded fixtures past step 1 never populate the store (no live
+    // approve call), so synthesize the approved view directly from the project's
+    // selected/excluded resources. Without this the step-2 (승인 대기) and step-3
+    // (반영 중) tables render empty — and the step-4 GCP PSC subnet guide, which reads
+    // host_project/host_network off these rows, draws nothing. The record exists from
+    // step 2 until 설치 확정 deletes the snapshot (scenario 6), so those are the steps
+    // that answer.
     if (!approved) {
       const showsApprovalView =
-        project.processStatus === ProcessStatus.WAITING_APPROVAL ||
-        project.processStatus === ProcessStatus.APPLYING_APPROVED;
+        project.processStatus !== ProcessStatus.WAITING_TARGET_CONFIRMATION &&
+        project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE;
       const selectedResources = project.resources.filter((r) => r.isSelected);
       if (!showsApprovalView || selectedResources.length === 0) {
         return NextResponse.json(

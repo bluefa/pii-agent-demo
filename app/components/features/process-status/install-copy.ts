@@ -100,6 +100,7 @@ const ko = {
     noResources: '설치 대상 리소스가 없습니다.',
     filterEmpty: '조건에 맞는 결과가 없어요.',
     naTitle: '이 단계에 해당하는 리소스가 없어요',
+    tableFold: (n: number) => `연동 대상 리소스 표 · ${n}건`,
     naDesc: (total: number) =>
       `연동 대상 ${total}건 모두 이 단계에 해당하지 않아, 수행할 작업이 없습니다.`,
   },
@@ -246,6 +247,12 @@ const ko = {
     serviceDesc: '서비스 프로젝트 측 리소스를 Terraform으로 적용합니다.',
     bdcTitle: 'BDC측 Terraform 적용',
     bdcDesc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
+    /** PSC proxy-subnet guide (step 4 panel). */
+    pscLead:
+      'Regional Managed Proxy Subnet이 Region마다 하나 있어야 그 Region의 Cloud SQL에 PSC를 만들 수 있습니다. 아래 명령을 호스트 프로젝트에서 Region마다 한 번 실행해주세요. CIDR만 프로젝트 대역에 맞게 채우면 됩니다.',
+    pscCidrNote: 'CIDR은 서비스 측 네트워크 대역이라 화면이 정하지 않습니다. 프로젝트에서 비어 있는 /24 대역을 넣어주세요.',
+    pscCovers: (n: number) => `Cloud SQL ${n}대`,
+    pscCopy: (region: string) => `${region} 명령 복사`,
   },
 
   /** Permission-setup walkthrough (`TfRoleGuideModal`). */
@@ -353,6 +360,7 @@ const en: typeof ko = {
     noResources: 'There are no resources to install.',
     filterEmpty: 'No results match your filters.',
     naTitle: 'No resources apply to this step',
+    tableFold: (n: number) => `Resource table · ${n}`,
     naDesc: (total: number) =>
       `None of the ${total} integration ${plural(total, 'target applies', 'targets apply')} to this step, so there is nothing to do.`,
   },
@@ -479,6 +487,11 @@ const en: typeof ko = {
     serviceDesc: "Applies the service project's resources with Terraform.",
     bdcTitle: 'Apply BDC-side Terraform',
     bdcDesc: 'BDC runs the Terraform work that configures the PII Agent.',
+    pscLead:
+      'Each Region needs one Regional Managed Proxy Subnet before a PSC can be created for its Cloud SQL. Run the command below in the host project, once per Region. Only the CIDR needs filling in.',
+    pscCidrNote: 'The CIDR is your network range, so the screen does not pick it. Use a free /24 block in the project.',
+    pscCovers: (n: number) => `${n} Cloud SQL`,
+    pscCopy: (region: string) => `Copy the ${region} command`,
   },
 
   tfRoleGuide: {

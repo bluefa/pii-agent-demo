@@ -993,6 +993,13 @@ export const mockProjects: Project[] = [
         "GCP PII Agent - 반영 중 (연동 불가 포함)",
         "Step 3. 승인 반영 중 — 같은 구성(대상 2 · 제외 1 · 연동 불가 2)이 승인된 뒤 확정 처리를 기다리는 화면입니다. 반영 중에도 비대상 행이 사유와 함께 남는지 확인합니다.",
       ],
+      [
+        1301,
+        ProcessStatus.INSTALLING,
+        "GCP-006",
+        "GCP PII Agent - 설치 중 (PSC Subnet 안내)",
+        "Step 4. Agent 설치 — 서비스 측이 만들 PSC용 Regional Managed Proxy Subnet 의 gcloud 명령을 Region 마다 보여 주는 화면입니다.",
+      ],
     ] as const
   ).map(
     ([

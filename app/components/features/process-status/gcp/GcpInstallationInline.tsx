@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   borderColors,
   cardStyles,
@@ -9,6 +9,10 @@ import {
   textColors,
 } from '@/lib/theme';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
+import { getApprovedIntegration } from '@/app/lib/api';
+import type { ResourceSnapshot } from '@/lib/types';
+import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
+import { pscSubnetTargets } from '@/app/components/features/process-status/gcp/psc-subnet';
 import {
   buildGcpInstallDetail,
   type GcpInstallDetail,
@@ -52,13 +56,14 @@ interface GcpInstallationInlineProps {
  */
 type GcpCopy = (typeof INSTALL_COPY)['ko'];
 
-const gcpSteps = (t: GcpCopy): InstallTableStep[] => [
+const gcpSteps = (t: GcpCopy, subnetGuide?: ReactNode): InstallTableStep[] => [
   {
     id: 'subnet',
     title: t.gcp.subnetTitle,
     side: t.side.serviceResource,
     group: 'todo',
     desc: t.gcp.subnetDesc,
+    guide: subnetGuide,
   },
   {
     id: 'service',
@@ -83,7 +88,23 @@ export const GcpInstallationInline = ({
   const { locale } = useLocale();
   const copy = INSTALL_COPY[locale];
   const t = copy.inline;
-  const steps = useMemo(() => gcpSteps(copy), [copy]);
+  // The subnet commands need host_project / host_network, which only the approved rows
+  // carry (TargetSourceResourceMetadataDto) — confirmed-integration has neither.
+  const [approvedRows, setApprovedRows] = useState<ResourceSnapshot[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    getApprovedIntegration(targetSourceId, { signal: controller.signal })
+      .then((r) => setApprovedRows(r.approved_integration?.resource_infos ?? []))
+      // No rows, no guide — the step still stands on its own description.
+      .catch(() => setApprovedRows([]));
+    return () => controller.abort();
+  }, [targetSourceId]);
+  const subnetTargets = useMemo(() => pscSubnetTargets(approvedRows), [approvedRows]);
+  const steps = useMemo(
+    () =>
+      gcpSteps(copy, subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined),
+    [copy, subnetTargets],
+  );
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
