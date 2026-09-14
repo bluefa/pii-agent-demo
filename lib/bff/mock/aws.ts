@@ -6,6 +6,7 @@ import {
   isAwsWireInstallSample,
 } from '@/lib/bff/mock/aws-wire-sample';
 import { minutesAgo } from '@/lib/bff/mock/clock';
+import { installScenarioResponse, scenarioResourcesOf } from '@/lib/bff/mock/install-state-scenarios';
 
 
 /**
@@ -136,6 +137,10 @@ export const mockAws = {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) return notFound();
     if (project.cloudProvider !== 'AWS') return notAws();
+
+    // 설치 상태 scenario targets (9101-9115): one scripted response per verdict.
+    const scenario = installScenarioResponse('aws', Number(targetSourceId), scenarioResourcesOf(project));
+    if (scenario) return NextResponse.json(scenario);
 
     // Real-BFF capture, served verbatim (region-level Athena ids, null role_arn).
     if (isAwsWireInstallSample(Number(targetSourceId))) {

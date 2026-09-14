@@ -90,6 +90,7 @@ describe('TcTab — 진행률 분모', () => {
         tcStatusFailed={false}
         onAcknowledged={vi.fn()}
         onStatusReload={vi.fn()}
+      onSelectTab={vi.fn()}
       />,
     );
 

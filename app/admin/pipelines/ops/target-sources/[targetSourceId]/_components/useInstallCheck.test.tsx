@@ -19,6 +19,7 @@ const getAwsInstallationStatus = vi.fn((id: number) =>
   id === 1
     ? Promise.resolve({
         lastCheck: { status: 'SUCCESS', checkedAt: CHECKED_AT },
+        roleVerify: { status: 'SKIP', roleArn: null },
         resources: [
           {
             resourceId: 'db-1',
@@ -37,9 +38,31 @@ const getAwsInstallationStatus = vi.fn((id: number) =>
 vi.mock('@/app/lib/api/aws', () => ({
   getAwsInstallationStatus: (targetSourceId: number) => getAwsInstallationStatus(targetSourceId),
 }));
-vi.mock('@/app/lib/api/azure', () => ({ getAzureInstallationStatus: vi.fn() }));
-vi.mock('@/app/lib/api/gcp', () => ({ getGcpInstallationStatus: vi.fn() }));
-vi.mock('@/app/lib/api/idc', () => ({ getIdcInstallationStatus: vi.fn() }));
+// 응답은 오지 않는다 — 요청이 나갔는지만 센다.
+const getAzureInstallationStatus = vi.fn(() => new Promise(() => {}));
+const getGcpInstallationStatus = vi.fn(() => new Promise(() => {}));
+const getIdcInstallationStatus = vi.fn(() => new Promise(() => {}));
+vi.mock('@/app/lib/api/azure', () => ({
+  getAzureInstallationStatus: () => getAzureInstallationStatus(),
+}));
+vi.mock('@/app/lib/api/gcp', () => ({ getGcpInstallationStatus: () => getGcpInstallationStatus() }));
+vi.mock('@/app/lib/api/idc', () => ({ getIdcInstallationStatus: () => getIdcInstallationStatus() }));
+
+/** 프로바이더별 — 요청이 나가는가, 스냅샷이 나오는가. */
+function ProviderProbe({
+  provider,
+  manualInstall,
+}: {
+  provider: string;
+  manualInstall: boolean;
+}): ReactElement {
+  const { detail, loading } = useInstallCheck(1, provider, manualInstall);
+  return (
+    <output data-testid="probe">
+      {loading ? 'loading' : 'settled'}|{detail?.roleVerify ?? 'none'}
+    </output>
+  );
+}
 
 /** 관측 가능한 렌더 — 커밋된 값만 읽는다. */
 function Probe({ targetSourceId }: { targetSourceId: number }): ReactElement {
@@ -65,5 +88,34 @@ describe('useInstallCheck — 대상 전환', () => {
     rerender(<Probe targetSourceId={2} />);
 
     await waitFor(() => expect(read()).toBe('loading|none'));
+  });
+});
+
+describe('useInstallCheck — 네 프로바이더 전부 조회한다', () => {
+  // 예전에는 서비스 측 단계가 있는 대상(AWS 수동·GCP)만 읽었다. 설치 상태 카드가 모든
+  // 대상에서 누구 차례인지를 말하므로 AWS 자동·Azure·IDC 도 요청이 나가야 한다.
+  it('AWS 자동 설치도 읽고, roleVerify 를 내놓는다', async () => {
+    render(<ProviderProbe provider="aws" manualInstall={false} />);
+    await waitFor(() => expect(read()).toBe('settled|SKIP'));
+    expect(getAwsInstallationStatus).toHaveBeenCalledWith(1);
+  });
+
+  it.each([
+    ['azure', getAzureInstallationStatus],
+    ['gcp', getGcpInstallationStatus],
+    ['idc', getIdcInstallationStatus],
+  ])('%s 도 요청을 보낸다', async (provider, fetcher) => {
+    render(<ProviderProbe provider={provider} manualInstall />);
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    expect(read()).toBe('loading|none');
+  });
+
+  it('SDU 는 읽을 설치 상태가 없다 — 요청도 없고 로딩도 아니다', () => {
+    render(<ProviderProbe provider="sdu" manualInstall />);
+    expect(read()).toBe('settled|none');
+    expect(getAwsInstallationStatus).not.toHaveBeenCalled();
+    expect(getAzureInstallationStatus).not.toHaveBeenCalled();
+    expect(getGcpInstallationStatus).not.toHaveBeenCalled();
+    expect(getIdcInstallationStatus).not.toHaveBeenCalled();
   });
 });

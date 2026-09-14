@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import * as idcFns from '@/lib/mock-idc';
 import type { MockIdcError } from '@/lib/mock-idc';
 import { getNlbTableRows } from '@/lib/bff/mock/task-queue';
+import { installScenarioResponse, scenarioResourcesOf } from '@/lib/bff/mock/install-state-scenarios';
 
 const AUTH_ERRORS = {
   UNAUTHORIZED: { code: 'UNAUTHORIZED', message: '인증이 필요합니다.', status: 401 },
@@ -35,6 +36,12 @@ export const mockIdc = {
   getInstallationStatus: async (targetSourceId: string) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+    // 설치 상태 scenario targets (9141-9144): one scripted response per verdict.
+    const scenario =
+      'project' in auth && auth.project
+        ? installScenarioResponse('idc', Number(targetSourceId), scenarioResourcesOf(auth.project))
+        : null;
+    if (scenario) return NextResponse.json(scenario);
     return handleResult(idcFns.getIdcInstallationStatus(Number(targetSourceId)));
   },
 

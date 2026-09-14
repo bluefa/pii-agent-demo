@@ -55,12 +55,17 @@ const toVmCell = (step: WireStep): InstallStepCell =>
 
 const toPeCell = (resource: WireResource, t: AzureInstallCopy): InstallStepCell => {
   const pe = resource.service_side_private_endpoint_approval;
-  const status = normalizeInstallStepValue(pe?.status);
+  // A VM has no private endpoint and the wire omits the DTO for it (live 1004/1005).
+  // Same rule as `toVmCell`: a missing DTO is a step that does not apply, not one we
+  // could not read — as UNKNOWN it would keep every mixed VM+DB target from ever
+  // settling, on this screen and on the operator's 설치 상태 card alike.
+  if (!pe) return { status: 'SKIP', guide: null };
+  const status = normalizeInstallStepValue(pe.status);
   const label = peLabels(t)[status];
   return {
     status,
     ...(label && { label }),
-    guide: pe?.guide ?? null,
+    guide: pe.guide ?? null,
   };
 };
 

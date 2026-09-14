@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import * as gcpFns from '@/lib/mock-gcp';
 import { GCP_ERROR_CODES } from '@/lib/constants/gcp';
 import { minutesAgo } from '@/lib/bff/mock/clock';
+import { installScenarioResponse, scenarioResourcesOf } from '@/lib/bff/mock/install-state-scenarios';
 
 
 /**
@@ -50,6 +51,13 @@ export const mockGcp = {
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+
+    // 설치 상태 scenario targets (9121-9126): one scripted response per verdict.
+    const scenario =
+      'project' in auth && auth.project
+        ? installScenarioResponse('gcp', Number(projectId), scenarioResourcesOf(auth.project))
+        : null;
+    if (scenario) return NextResponse.json(scenario);
 
     const result = gcpFns.getGcpInstallationStatus(Number(projectId));
     if (result.error) {

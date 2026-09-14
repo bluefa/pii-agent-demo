@@ -54,6 +54,7 @@ vi.mock('@/app/admin/pipelines/_components/usePlToast', () => ({
 vi.mock('@/app/lib/api/aws', () => ({
   getAwsInstallationStatus: vi.fn().mockResolvedValue({
     lastCheck: { status: 'SUCCESS', checkedAt: '2026-08-31T01:00:00Z' },
+    roleVerify: { status: 'SKIP', roleArn: null },
     resources: [],
   }),
 }));
@@ -85,6 +86,7 @@ describe('TcTab — 관리자의 승인 요청', () => {
         tcStatus={null}
         tcStatusFailed={false}
         onStatusReload={onStatusReload}
+        onSelectTab={vi.fn()}
         onAcknowledged={onAcknowledged}
       />,
     );

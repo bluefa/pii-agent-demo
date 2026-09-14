@@ -61,6 +61,10 @@ const HISTORY_SIZE = 5;
 const LIVE_POLL_MS = 8_000;
 
 
+
+/** The 현재 작업 slot — the 설치 상태 card's 「현재 작업으로 이동」 scrolls here. */
+export const CURRENT_WORK_ID = 'ops-current-work';
+
 export interface TargetPipelineSectionsProps {
   targetSourceId: string;
   /** Orchestrator wire provider; null = custom execution unsupported (e.g. SDU). */
@@ -215,7 +219,7 @@ export function TargetPipelineSections({
         {/* R24 — the run card whenever a run exists (현재 작업 while live, 최근
             작업 once it has ended), the empty card only before the first one.
             They wrap rather than break at two thirds of the width. */}
-        <div className="min-w-0">
+        <div className="min-w-0" id={CURRENT_WORK_ID}>
           {focusDetail && live ? (
             <CurrentPipelineCard
               detail={focusDetail}

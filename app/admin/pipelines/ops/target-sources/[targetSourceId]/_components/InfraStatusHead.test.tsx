@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
 /**
- * The head's job after two owner calls:
+ * The head's job after three owner calls:
  *
- *   "각 작업이 어떤 상태인지 보여주도록 하자. 조합 상태는 필요없음" (2026-08-27)
  *   "연동 확정 정보와 Terraform 상태를 하나의 카드로, 확정 정보는 라벨로" (2026-08-30)
+ *   "작업 시작은 현재 작업 카드에만" (2026-08-30)
+ *   "installationStatus 로 누가 뭘 할 차례다 / 완료됐다를 명확하게" (2026-09-13)
  *
- *   1. Every task in the response is on screen with ITS OWN state. A rolled-up
- *      pill cannot say which of three tasks failed.
- *   2. 미확정 is a stage, not an absence — it names the step the target sits at.
- *   3. Neither the combined 적용 상태 pill nor the 설치 현황 modal link comes back.
- *   4. The card head carries the list-wide qualifier (조회), and the 연동 정보
- *      label line carries the verdict plus the 확정 정보 link — the link only when
- *      there IS confirmed detail to open.
- *   5. Both facts live in ONE card, and the rows carry no column header.
+ *   1. ONE card: the 연동 정보 label line, the verdict row, the step rows.
+ *   2. The verdict names whose move it is; the rows carry each step's owner and
+ *      state, and only the steps this target actually has.
+ *   3. The 관리자 turn offers a link down to 현재 작업, never a 작업 시작 button.
+ *   4. The card head carries 확인 시각 from installation-status, not terraform-status.
+ *   5. The terraform-status task rows are gone; 연동 정보 still reads that response.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
@@ -21,9 +20,10 @@ import {
   InfraStatusHead,
   type InfraStatusHeadProps,
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InfraStatusHead';
+import type { InstallStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import type { TerraformStatusResponse } from '@/app/lib/api';
 
-const THREE_TASKS: TerraformStatusResponse = {
+const CONFIRMED: TerraformStatusResponse = {
   target_source_id: 1010,
   cloud_provider: 'AWS',
   is_sdu_type: false,
@@ -33,139 +33,217 @@ const THREE_TASKS: TerraformStatusResponse = {
   overall_state: 'APPLY_FAILED',
   tasks: [
     { terraform_execution_side: 'BDC', terraform_task_name: 'aws-vpc-peering', state: 'APPLIED' },
-    { terraform_execution_side: 'SERVICE', terraform_task_name: 'aws-iam-role', state: 'APPLYING' },
-    {
-      terraform_execution_side: 'SERVICE',
-      terraform_task_name: 'aws-security-group',
-      state: 'APPLY_FAILED',
-    },
   ],
 };
 
-const UNCONFIRMED: TerraformStatusResponse = { ...THREE_TASKS, has_confirmed_infra: false };
+const UNCONFIRMED: TerraformStatusResponse = { ...CONFIRMED, has_confirmed_infra: false };
+
+const step = (
+  id: string,
+  title: string,
+  side: '서비스' | '관리자',
+  state: InstallStateView['steps'][number]['state'],
+  extra: Partial<InstallStateView['steps'][number]> = {},
+): InstallStateView['steps'][number] => ({
+  id,
+  title,
+  side,
+  state,
+  done: state === 'done' ? 1 : 0,
+  total: 1,
+  failed: 0,
+  guides: [],
+  ...extra,
+});
+
+/** AWS 수동 ② — the service applied, the operator is next. */
+const OPERATOR_TURN: InstallStateView = {
+  kind: 'me',
+  sentence: '관리자가 Terraform을 적용할 차례입니다',
+  steps: [
+    step('service', '서비스 측 Terraform 적용', '서비스', 'done'),
+    step('bdcCommon', 'BDC 공통 영역', '관리자', 'now'),
+    step('bdcService', 'BDC 서비스 영역', '관리자', 'wait'),
+  ],
+};
+
+const LAST_CHECK = { status: 'SUCCESS' as const, checkedAt: '2026-09-12T05:03:00.000Z' };
 
 const renderHead = (
-  status: TerraformStatusResponse,
-  processStatus: InfraStatusHeadProps['processStatus'] = 'INSTALLED',
-  onSelectTab: InfraStatusHeadProps['onSelectTab'] = vi.fn(),
+  overrides: Partial<InfraStatusHeadProps> = {},
 ) =>
   render(
     <InfraStatusHead
-      status={status}
+      status={CONFIRMED}
       loading={false}
       failed={false}
-      processStatus={processStatus}
-      onSelectTab={onSelectTab}
+      processStatus="INSTALLED"
+      onSelectTab={vi.fn()}
+      install={OPERATOR_TURN}
+      installLoading={false}
+      installLastCheck={LAST_CHECK}
+      onGoToCurrentWork={vi.fn()}
+      {...overrides}
     />,
   );
 
 const detailButton = () => screen.queryByRole('button', { name: /상세정보 보기/ });
 
-describe('InfraStatusHead — Terraform 작업', () => {
-  it('renders one row per task, each wearing its own state', () => {
-    renderHead(THREE_TASKS);
+describe('InfraStatusHead — 설치 상태', () => {
+  it('says whose move it is in one sentence, with the tag beside it', () => {
+    renderHead();
 
-    expect(screen.getByText('aws-vpc-peering')).toBeTruthy();
-    expect(screen.getByText('aws-iam-role')).toBeTruthy();
-    expect(screen.getByText('aws-security-group')).toBeTruthy();
-    // Three different states on three rows — the exact thing one pill could not say.
+    expect(screen.getByRole('heading', { name: '설치 상태' })).toBeTruthy();
+    expect(screen.getByText('관리자가 Terraform을 적용할 차례입니다')).toBeTruthy();
+    expect(screen.getByText('관리자 조치 필요')).toBeTruthy();
+  });
+
+  it('renders one row per step with its owner and its own state', () => {
+    renderHead();
+
+    expect(screen.getByText('서비스 측 Terraform 적용')).toBeTruthy();
+    expect(screen.getByText('BDC 공통 영역')).toBeTruthy();
+    expect(screen.getByText('BDC 서비스 영역')).toBeTruthy();
+    expect(screen.getByText('서비스')).toBeTruthy();
+    expect(screen.getAllByText('관리자')).toHaveLength(2);
+    expect(screen.getByText('완료')).toBeTruthy();
+    expect(screen.getByText('조치 필요')).toBeTruthy();
+    expect(screen.getByText('대기')).toBeTruthy();
+  });
+
+  it('offers the 관리자 turn a link to 현재 작업, never a 작업 시작 button', () => {
+    const onGoToCurrentWork = vi.fn();
+    renderHead({ onGoToCurrentWork });
+
+    expect(screen.queryByRole('button', { name: /작업 시작/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /현재 작업으로 이동/ }));
+    expect(onGoToCurrentWork).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no move on the service turn', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform을 직접 적용해야 합니다',
+        steps: [step('service', '서비스 측 Terraform 적용', '서비스', 'now')],
+      },
+    });
+
+    expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /현재 작업으로 이동/ })).toBeNull();
+  });
+
+  it('writes the count and the guide on a failed row, and keeps the verdict', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform을 직접 적용해야 합니다',
+        steps: [
+          step('service', '서비스 측 Terraform 적용', '서비스', 'fail', {
+            done: 3,
+            total: 4,
+            failed: 1,
+            guides: ['서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.'],
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByText('실패')).toBeTruthy();
+    expect(screen.getByText('4건 중 1건 실패')).toBeTruthy();
+    expect(screen.getByText('서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.')).toBeTruthy();
+    expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
+  });
+
+  it('writes how many are left on a step partly through', () => {
+    renderHead({
+      install: {
+        ...OPERATOR_TURN,
+        steps: [step('bdcCommon', 'BDC 공통 영역', '관리자', 'now', { done: 2, total: 4 })],
+      },
+    });
+
+    expect(screen.getByText('4건 중 2건 남음')).toBeTruthy();
+  });
+
+  it('draws no rows when the status could not be read', () => {
+    renderHead({
+      install: { kind: 'unk', sentence: '설치 상태를 확인하지 못했습니다', steps: [] },
+      installLastCheck: null,
+    });
+
+    expect(screen.getByText('설치 상태를 확인하지 못했습니다')).toBeTruthy();
+    // The mark's svg <title> carries the same words as the tag — both are on screen.
+    expect(screen.getAllByText('확인 불가').length).toBeGreaterThan(0);
+    expect(screen.queryByText('BDC 공통 영역')).toBeNull();
+    expect(screen.queryByText(/^확인 \d/)).toBeNull();
+  });
+
+  it('hangs 확인 시각 on the card head, from installation-status', () => {
+    renderHead();
+
+    const checked = screen.getByText(/^확인 /);
+    expect(checked.parentElement?.textContent).toContain('설치 상태');
+    // terraform-status's own clock is not the one the rows run on.
+    expect(screen.queryByText(/^조회 /)).toBeNull();
+  });
+
+  it('no longer lists the terraform-status tasks', () => {
+    renderHead();
+
+    expect(screen.queryByText('aws-vpc-peering')).toBeNull();
+    expect(screen.queryByText('적용 완료')).toBeNull();
+  });
+
+  it('falls back to the terraform-status task rows for a target with no install status (SDU)', () => {
+    renderHead({
+      install: null,
+      status: {
+        has_confirmed_infra: true,
+        tasks: [
+          { terraform_task_name: 'SDU_BDC_SERVICE_COMMON', terraform_execution_side: 'BDC', state: 'APPLIED' },
+          { terraform_task_name: 'SDU_BDC_SERVICE', terraform_execution_side: 'BDC', state: 'APPLYING' },
+        ],
+      } as never,
+    });
+
+    expect(screen.getByText('연동 정보')).toBeTruthy();
+    expect(screen.queryByText(/조치 필요/)).toBeNull();
+    expect(screen.getByText('SDU_BDC_SERVICE_COMMON')).toBeTruthy();
     expect(screen.getByText('적용 완료')).toBeTruthy();
     expect(screen.getByText('적용 중')).toBeTruthy();
-    expect(screen.getByText('적용 실패')).toBeTruthy();
-    // 실행 주체 rides each row, in Korean.
-    expect(screen.getByText('BDC')).toBeTruthy();
-    expect(screen.getAllByText('서비스')).toHaveLength(2);
-  });
-
-  it('drops the combined pill and the modal link the rows replaced', () => {
-    // `적용 상태` alone was the combined pill's label. The card's own title reads
-    // `Terraform 적용 상태`, a different string, so it is not that pill returning.
-    renderHead(THREE_TASKS);
-
-    expect(screen.queryByText('적용 상태')).toBeNull();
-    expect(screen.queryByRole('button', { name: /설치 현황 보기/ })).toBeNull();
-  });
-
-  it('hangs 조회 on the card head, not under the last task', () => {
-    renderHead(THREE_TASKS);
-
-    // The lookup time qualifies the whole list. Under the rows it read as a
-    // footnote to whichever task happened to be last.
-    const checked = screen.getByText(/^조회 /);
-    expect(checked.parentElement?.textContent).toContain('Terraform 적용 상태');
-  });
-
-  it('leaves the head alone when the response has no 조회 시각', () => {
-    renderHead({ ...THREE_TASKS, checked_at: null });
-
-    expect(screen.queryByText(/^조회 /)).toBeNull();
-    expect(screen.getByText('aws-vpc-peering')).toBeTruthy();
-  });
-
-  it('says so when the response carries no task at all', () => {
-    renderHead({ ...THREE_TASKS, tasks: null });
-
-    expect(screen.getByText('작업 정보가 없습니다.')).toBeTruthy();
-  });
-
-  it('renders no column-header row above the tasks', () => {
-    // At most three rows ever land here (AWS 3 · GCP/IDC/SDU 2 · Azure 1), so a
-    // header would cost a line and buy nothing — the card title names the list.
-    // Asserted structurally, not by three literal strings: a re-added header is
-    // as likely to read `Task` or `구분` as `작업`, and a string list would let
-    // those through while claiming the row is gone.
-    const { container } = renderHead(THREE_TASKS);
-
-    expect(container.querySelector('thead')).toBeNull();
-    expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
   });
 });
 
 describe('InfraStatusHead — 불러오는 중', () => {
-  it('draws the card frame while the response is still in flight', () => {
-    // The loading branch used to be a blank reserved box, so the card appeared
-    // only when the data did. It now stands as itself with bars where the data
-    // goes — the title is a fixed string, the tasks are not.
-    render(
-      <InfraStatusHead
-        status={null}
-        loading
-        failed={false}
-        processStatus="INSTALLED"
-        onSelectTab={vi.fn()}
-      />,
-    );
+  it('draws the card frame while the install status is still in flight', () => {
+    renderHead({ install: null, installLoading: true, installLastCheck: null });
 
-    expect(screen.getByRole('heading', { name: 'Terraform 적용 상태' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '설치 상태' })).toBeTruthy();
     expect(screen.getByText('연동 정보')).toBeTruthy();
-    expect(screen.queryByText('aws-vpc-peering')).toBeNull();
-    expect(screen.queryByText('작업 정보가 없습니다.')).toBeNull();
+    expect(screen.queryByText(/조치 필요/)).toBeNull();
   });
 });
 
 describe('InfraStatusHead — 연동 정보', () => {
   it('reads 미확정 and names the step the target is waiting at', () => {
-    renderHead(UNCONFIRMED, 'IDLE');
+    renderHead({ status: UNCONFIRMED, processStatus: 'IDLE' });
 
     expect(screen.getByText('미확정')).toBeTruthy();
     expect(screen.getByText(/1단계 · 연동 대상 DB 선택/)).toBeTruthy();
-    // The banner that used to shout this is gone — the line states it once.
     expect(screen.queryByText('확정된 연동 정보가 없습니다')).toBeNull();
   });
 
   it('says nothing about a step it does not know', () => {
-    renderHead(UNCONFIRMED, null);
+    renderHead({ status: UNCONFIRMED, processStatus: null });
 
     expect(screen.getByText('미확정')).toBeTruthy();
     expect(screen.queryByText(/단계 ·/)).toBeNull();
   });
 
   it('states the verdict as a label/value pair, not a tag', () => {
-    renderHead(THREE_TASKS);
+    renderHead();
 
-    // The label stands in front of the value — that pairing is why this round
-    // chose a label line over a tag, and it survives in the a11y tree only as
-    // real dt/dd.
     const value = screen.getByText('확정됨');
     const pair = value.closest('dl');
     expect(pair).not.toBeNull();
@@ -175,37 +253,35 @@ describe('InfraStatusHead — 연동 정보', () => {
 
   it('reads 확정됨 and offers the 확정 정보 tab as its detail', () => {
     const onSelectTab = vi.fn();
-    renderHead(THREE_TASKS, 'INSTALLED', onSelectTab);
+    renderHead({ onSelectTab });
 
     expect(screen.getByText('확정됨')).toBeTruthy();
     const detail = detailButton();
     expect(detail).not.toBeNull();
-    // It follows the value on the same 연동 정보 line.
     expect(detail?.closest('dl')?.textContent).toContain('연동 정보');
 
     fireEvent.click(detail as HTMLElement);
     expect(onSelectTab).toHaveBeenCalledWith('확정 정보');
   });
 
-  it('drops the 최근 확정 date the 확정 정보 tab owns', () => {
-    renderHead(THREE_TASKS);
-
-    expect(screen.queryByText(/최근 확정/)).toBeNull();
-  });
-
   it('offers no detail link while there is nothing confirmed to open', () => {
-    renderHead(UNCONFIRMED, 'IDLE');
+    renderHead({ status: UNCONFIRMED, processStatus: 'IDLE' });
 
     expect(detailButton()).toBeNull();
   });
 
-  it('keeps the verdict and the task rows inside ONE card', () => {
-    // Owner call 2026-08-30: 하나의 카드. Splitting the verdict back out into its
-    // own container fails here.
-    renderHead(THREE_TASKS);
+  it('says it could not read 연동 정보 when terraform-status failed, and keeps the install rows', () => {
+    renderHead({ status: null, failed: true });
+
+    expect(screen.getByText('확인하지 못했습니다')).toBeTruthy();
+    expect(screen.getByText('BDC 공통 영역')).toBeTruthy();
+  });
+
+  it('keeps the verdict and the step rows inside ONE card', () => {
+    renderHead();
 
     const card = screen.getByText('확정됨').closest('section');
     expect(card).not.toBeNull();
-    expect(screen.getByText('aws-vpc-peering').closest('section')).toBe(card);
+    expect(screen.getByText('BDC 공통 영역').closest('section')).toBe(card);
   });
 });

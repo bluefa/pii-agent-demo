@@ -26,6 +26,8 @@ import { useModal } from '@/app/hooks/useModal';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { InfraStatusHead } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InfraStatusHead';
 import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import { installStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
+import { CURRENT_WORK_ID } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
 import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
 import { PreviewModal } from '@/app/admin/pipelines/_detail/PreviewModal';
 import { TargetPipelineSections } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
@@ -132,10 +134,24 @@ export function PipelineTab({
 
   const provider = pipelineProviderKey(detail);
   const orchProvider = wireProvider(provider);
-  // 서비스 측 작업은 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
-  // 실제로 무엇이 서 있는지를 묻는다(installation-status). 서비스가 손댈 단계가 있는 두
-  // 경우에만 조회하고, 그 밖의 대상에서는 요청 자체가 나가지 않는다.
-  const install = useInstallCheck(targetSourceId, provider, isManualInstall(detail));
+  // 설치 상태는 terraform-status 와 **다른 출처**다 — 우리 쪽 작업 기록이 아니라 CSP 에
+  // 실제로 무엇이 서 있는지를 묻는다(installation-status). 머리 카드의 「누구 차례」와
+  // 현재 작업 카드의 서비스 측 경고가 같은 스냅샷을 읽는다.
+  const manualInstall = isManualInstall(detail);
+  const install = useInstallCheck(targetSourceId, provider, manualInstall);
+  const installView = useMemo(
+    () =>
+      installStateView({
+        provider,
+        manualInstall,
+        detail: install.detail,
+        loading: install.loading,
+      }),
+    [provider, manualInstall, install.detail, install.loading],
+  );
+  const goToCurrentWork = useCallback(() => {
+    document.getElementById(CURRENT_WORK_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
   // 판정은 여기서 나고, 그것을 문장으로 만드는 일은
   // 그 문장이 붙는 동작(작업 시작)을 가진 카드가 한다.
   const serviceWork = useMemo<ServiceWorkNoticeData | null>(
@@ -162,6 +178,10 @@ export function PipelineTab({
         failed={failed}
         processStatus={processStatus}
         onSelectTab={onSelectTab}
+        install={installView}
+        installLoading={install.loading}
+        installLastCheck={install.lastCheck}
+        onGoToCurrentWork={goToCurrentWork}
       />
       <TargetPipelineSections
         targetSourceId={String(targetSourceId)}
