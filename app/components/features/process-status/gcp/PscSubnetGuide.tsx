@@ -20,6 +20,14 @@ import {
 
 interface PscSubnetGuideProps {
   targets: PscSubnetTarget[];
+  /**
+   * The operator's reading of the same block (admin 인프라 작업 head, 오너 2026-09-14):
+   * every Region starts folded (the owner runs the command, the operator only hands
+   * it over), the lead asks the operator to REQUEST the subnet from the service owner
+   * rather than to create it, and the copy is Korean whatever the root locale says —
+   * the admin console is Korean-only.
+   */
+  admin?: boolean;
 }
 
 /**
@@ -34,18 +42,18 @@ interface PscSubnetGuideProps {
  * leaves 16px under itself (오너: 위 좁게, 아래 넓게). The block is a `CommandBlock`
  * in shape (SDU upload) — same border, same head row, same panel-grey `<pre>`.
  */
-export const PscSubnetGuide = ({ targets }: PscSubnetGuideProps) => {
+export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) => {
   const { locale } = useLocale();
-  const t = INSTALL_COPY[locale].gcp;
+  const t = INSTALL_COPY[admin ? 'ko' : locale].gcp;
 
   return (
     <div className={cn('flex flex-col', stackGap.group)}>
-      <p className={cn(textStyles.body, textColors.secondary)}>{t.pscLead}</p>
+      <p className={cn(textStyles.body, textColors.secondary)}>{admin ? t.pscLeadAdmin : t.pscLead}</p>
       <div className={cn('flex flex-col', stackGap.related)}>
         {targets.map((target, index) => (
           <details
             key={`${target.hostNetwork}|${target.region}`}
-            open={index === 0}
+            open={!admin && index === 0}
             className={cn('group/psc overflow-hidden rounded-xl border bg-white', borderColors.default)}
           >
             <summary
@@ -103,7 +111,7 @@ export const PscSubnetGuide = ({ targets }: PscSubnetGuideProps) => {
           </details>
         ))}
       </div>
-      <p className={cn(textStyles.caption, textColors.tertiary)}>{t.pscCidrNote}</p>
+      <p className={cn(textStyles.caption, textColors.tertiary)}>{admin ? t.pscCidrNoteAdmin : t.pscCidrNote}</p>
     </div>
   );
 };

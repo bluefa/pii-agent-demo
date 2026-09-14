@@ -186,7 +186,7 @@ export function PipelineTab({
         install={installView}
         installLoading={install.loading}
         installLastCheck={install.lastCheck}
-        subnetGuide={subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined}
+        subnetGuide={subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} admin /> : undefined}
         onGoToCurrentWork={goToCurrentWork}
       />
       <TargetPipelineSections
