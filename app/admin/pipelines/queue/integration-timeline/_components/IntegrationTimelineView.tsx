@@ -170,7 +170,7 @@ export function IntegrationTimelineView(): ReactElement {
       <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
-          <h1 className={ts.title}>TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜</h1>
+          <h1 className={ts.title}>TargetSource 연동 시점</h1>
           <p className={ts.lede}>
             TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
             최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.

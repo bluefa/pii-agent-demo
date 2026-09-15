@@ -136,7 +136,7 @@ page-head: h1 + head-sub(ProvTag·mono 코드·상태 pill: 연결 테스트 완
 ```
 breadcrumb: Task Queue / 연동 시점
 바닥(09-15 오너): 연동 요청 페이지와 같은 full-bleed gray-200 캔버스(`rq.page`/`opsStyles.page`) — 카드가 바닥에서 떠 보여야 한다
-page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (연동 요청 h1 과 같은 24/700/-0.02em) · 리드 문장은 medium 잉크(gray-200 위 weak 는 AA 미달)
+page-head: h1 "TargetSource 연동 시점" (오너 09-15 축약 · 연동 요청 h1 과 같은 24/700/-0.02em) · 리드 문장은 medium 잉크(gray-200 위 weak 는 AA 미달)
   + sub 14 weak "TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
                  최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다."
   (헤더에 액션 없음 — CSV 는 표 툴바 밴드 우단, 09-15 벤치 2차 시안 3)
