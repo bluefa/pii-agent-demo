@@ -26,9 +26,10 @@
  *   - the step rows — one per step in execution order: name · owner (weak text),
  *     then ONE fact: a 조치 필요 / 조회 실패 tag with the count while the step is
  *     the one to act on, plain 대기 or 「N건 모두 완료」 otherwise. Under the step to
- *     act on, the resources still open — address (or name) · DB · 조치 필요 / 조회
- *     도중 실패 · guide — so the card names WHICH database is left, not only how
- *     many (docs/ux/benchmark/idc-install-state-rows.md). Only steps this target
+ *     act on (Azure, IDC 접근 허용 only), a fold with a table of the resources
+ *     still open — address (or name) · DB · state · guide — so the card names
+ *     WHICH database is left, not only how many
+ *     (docs/ux/benchmark/idc-install-state-rows.md). Only steps this target
  *     actually has: a step that is SKIP on every resource is not drawn.
  *
  * The head carries no 작업 시작 (owner call): starting a run belongs to the
@@ -49,6 +50,7 @@ import type {
 } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import type { InstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { ChevronDownIcon } from '@/app/components/ui/icons';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   SIDE_LABEL,
@@ -124,43 +126,58 @@ function StepRow({
         {count && <span className={cn(WEAK, 'tabular-nums')}>{count}</span>}
       </div>
       {openTag && step.open.length > 0 && (
-        <div className="mb-2 ml-3 border-l-2 border-[var(--pl-gray-200)] pl-3 text-[12px]">
+        <div className="mb-3 ml-3 mt-1 text-[12px]">
           {step.listResources ? (
-            <ul
-              className="grid grid-cols-[minmax(200px,max-content)_72px_auto] gap-x-2"
-              aria-label={`${step.title} 남은 리소스`}
+            // The GCP subnet guide's fold, one level down: a native <details> that
+            // starts open (which database is left is the point of the row), a table
+            // inside in the 확정 정보 table's own cells.
+            <details
+              open
+              className="group/open overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]"
             >
-              {step.open.map((r) => {
-                const who = identity.get(r.resourceId);
-                const db = who?.databaseType ? getDatabaseShortLabel(who.databaseType) : null;
-                return (
-                  // `contents`: the cells sit in the list's grid, so the address column is as
-                  // wide as the longest address (a host name can run long) and every row's
-                  // DB and state land on one x. Nothing is truncated — the address IS the row.
-                  <li key={r.resourceId} className="contents">
-                    <span className="flex min-h-[26px] items-center break-all text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
-                      {r.resourceName ?? who?.label ?? r.resourceId}
-                    </span>
-                    <span className={cn(WEAK, 'flex min-h-[26px] items-center truncate')}>{db}</span>
-                    <span
-                      className={cn(
-                        'flex min-h-[26px] items-center',
-                        r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]',
-                      )}
-                    >
-                      {r.failed ? '조회 도중 실패' : '조치 필요'}
-                    </span>
-                    {r.guide && (
-                      <p className="col-span-3 pb-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
-                        {r.guide}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 list-none [&::-webkit-details-marker]:hidden hover:bg-[var(--pl-gray-50)]">
+                <ChevronDownIcon
+                  className="h-3.5 w-3.5 flex-shrink-0 text-[var(--pl-text-weak)] transition-transform group-open/open:rotate-180 motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+                <span className="font-semibold text-[var(--pl-text-strong)]">남은 리소스</span>
+                <span className={cn(WEAK, 'tabular-nums')}>{step.open.length}건</span>
+              </summary>
+              <table className="w-full border-t border-[var(--pl-border)]" aria-label={`${step.title} 남은 리소스`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className={opsStyles.table.headCell}>접속 주소</th>
+                    <th scope="col" className={cn(opsStyles.table.headCell, 'w-[120px]')}>DB 종류</th>
+                    <th scope="col" className={opsStyles.table.headCell}>상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {step.open.map((r) => {
+                    const who = identity.get(r.resourceId);
+                    return (
+                      <tr key={r.resourceId}>
+                        <td className={cn(opsStyles.table.cell, 'break-all text-[14px] [font-family:var(--pl-font-mono)]')}>
+                          {r.resourceName ?? who?.label ?? r.resourceId}
+                        </td>
+                        <td className={cn(opsStyles.table.cell, 'text-[14px] text-[var(--pl-text-medium)]')}>
+                          {who?.databaseType ? getDatabaseShortLabel(who.databaseType) : '-'}
+                        </td>
+                        <td className={cn(opsStyles.table.cell, 'text-[14px]')}>
+                          <span className={r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]'}>
+                            {r.failed ? '조회 도중 실패' : step.openLabel}
+                          </span>
+                          {r.guide && (
+                            <p className="mt-0.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">{r.guide}</p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </details>
           ) : (
-            // No rows for this step (AWS, IDC BDP): the guides still have to be read.
+            // No rows for this step (AWS, GCP, IDC BDC side): the guides still have to be read.
             [...new Set(step.open.flatMap((r) => (r.guide ? [r.guide] : [])))].map((guide) => (
               <p key={guide} className="py-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
                 {guide}

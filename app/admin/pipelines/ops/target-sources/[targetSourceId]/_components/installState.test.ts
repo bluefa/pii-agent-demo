@@ -363,9 +363,11 @@ describe('installStateView — variants that change a row, not the state', () =>
       { resourceId: 'idc-res-002', resourceName: 'idc-res-002', failed: false, guide: null },
       { resourceId: 'idc-res-004', resourceName: 'idc-res-004', failed: true, guide: null },
     ]);
+    // The firewall row speaks in the owner's words; every other step says 조치 필요.
+    expect(v?.steps.map((s) => s.openLabel)).toEqual(['조치 필요', '조치 필요', '서비스측 방화벽 확인 요청 필요']);
   });
 
-  it('IDC BDP is one apply for the whole target: counted, never listed by resource', () => {
+  it('the IDC BDC side says done / not done only: counted, never listed by resource', () => {
     const v = installStateView({
       provider: 'idc',
       manualInstall: true,
@@ -377,7 +379,7 @@ describe('installStateView — variants that change a row, not the state', () =>
     expect(v?.steps[1]).toMatchObject({ id: 'bdp', state: 'now', done: 1, total: 2, listResources: false });
     expect(v?.steps[1].open).toHaveLength(1);
     expect(v?.steps.map((s) => [s.id, s.listResources])).toEqual([
-      ['cx', true],
+      ['cx', false],
       ['bdp', false],
       ['firewall', true],
     ]);

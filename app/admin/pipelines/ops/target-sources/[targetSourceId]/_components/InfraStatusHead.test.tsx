@@ -54,6 +54,7 @@ const step = (
   failed: 0,
   open: [],
   listResources: true,
+  openLabel: '조치 필요',
   ...extra,
 });
 
@@ -111,11 +112,11 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('1건 모두 완료')).toBeTruthy();
     expect(screen.getByText('조치 필요')).toBeTruthy();
     expect(screen.getByText('대기')).toBeTruthy();
-    // No resource list under a step that has none open in its list.
-    expect(screen.queryByRole('list', { name: /남은 리소스/ })).toBeNull();
+    // No resource table under a step that has none open in its list.
+    expect(screen.queryByRole('table', { name: /남은 리소스/ })).toBeNull();
   });
 
-  it('names the resources still open under the step to act on: address, DB, and 조치 필요', () => {
+  it('names the resources still open under the step to act on, in a fold with a table, in the step\'s own words', () => {
     renderHead({
       install: {
         kind: 'svc',
@@ -125,6 +126,7 @@ describe('InfraStatusHead — 설치 상태', () => {
           step('firewall', '접근 허용', '서비스', 'now', {
             done: 3,
             total: 5,
+            openLabel: '서비스측 방화벽 확인 요청 필요',
             open: [
               { resourceId: 'idc-res-002', resourceName: null, failed: false, guide: null },
               { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
@@ -139,14 +141,17 @@ describe('InfraStatusHead — 설치 상태', () => {
 
     expect(screen.getByText('5건 모두 완료')).toBeTruthy();
     expect(screen.getByText('5건 중 2건 남음')).toBeTruthy();
-    const list = screen.getByRole('list', { name: '접근 허용 남은 리소스' });
-    const rows = within(list).getAllByRole('listitem');
+    expect(screen.getByText('남은 리소스')).toBeTruthy();
+    expect(screen.getByText('2건')).toBeTruthy();
+    const table = screen.getByRole('table', { name: '접근 허용 남은 리소스' });
+    const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText('10.20.31.10:1521')).toBeTruthy();
     expect(within(rows[0]).getByText('Oracle')).toBeTruthy();
-    expect(within(rows[0]).getByText('조치 필요')).toBeTruthy();
-    // Not in the join: the wire id stands in.
+    expect(within(rows[0]).getByText('서비스측 방화벽 확인 요청 필요')).toBeTruthy();
+    // Not in the join: the wire id stands in, the DB cell is empty.
     expect(within(rows[1]).getByText('idc-res-004')).toBeTruthy();
+    expect(within(rows[1]).getByText('-')).toBeTruthy();
     // Nothing failed: no note about the developer.
     expect(screen.queryByText(/개발자에게 연락/)).toBeNull();
   });
@@ -223,7 +228,7 @@ describe('InfraStatusHead — 설치 상태', () => {
       },
     });
 
-    expect(screen.queryByRole('list', { name: /남은 리소스/ })).toBeNull();
+    expect(screen.queryByRole('table', { name: /남은 리소스/ })).toBeNull();
     expect(screen.queryByText('orders-db')).toBeNull();
     expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
     expect(screen.getByText('timeout')).toBeTruthy();

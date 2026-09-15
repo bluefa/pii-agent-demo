@@ -64,8 +64,10 @@ export interface InstallStateStep {
   failed: number;
   /** Resources not yet settled on this step, in wire order. Empty for the role check. */
   open: InstallOpenResource[];
-  /** Whether the card draws `open` as rows. False: AWS, GCP, IDC BDP — the count and the guides only. */
+  /** Whether the card draws `open` as rows. True for Azure and IDC 접근 허용 only. */
   listResources: boolean;
+  /** The state an open (not failed) resource row prints. */
+  openLabel: string;
 }
 
 export interface InstallStateView {
@@ -101,8 +103,10 @@ interface ChainStep {
   side: InstallSide;
   /** The verdict sentence when THIS step is the first unsettled one. */
   sentence: string;
-  /** False: the card lists no resources under this step (AWS, GCP, IDC BDP) — counts and guides only. */
+  /** False: the card lists no resources under this step (AWS, GCP, IDC BDC side) — counts and guides only. */
   listResources?: false;
+  /** What an open resource row says for THIS step when it is not 조치 필요 (owner wording). */
+  openLabel?: string;
 }
 
 const ME = '관리자가 Terraform을 적용할 차례입니다';
@@ -178,15 +182,17 @@ const CHAINS: Record<string, ChainStep[]> = {
   ],
   // The contract fixes no order here; BDC first is the owner's reading (the
   // firewall opens toward a source IP that exists only after BDC's apply).
+  // The BDC side says done / not done only — no database IPs under it (owner 2026-09-15).
+  // The IPs belong to 접근 허용: that is where the service owner opens one at a time.
   idc: [
-    { id: 'cx', title: 'BDC CX 영역', side: '관리자', sentence: ME_IDC },
-    // BDP is one apply, not one per database — the IPs mean nothing there (owner 2026-09-15).
+    { id: 'cx', title: 'BDC CX 영역', side: '관리자', sentence: ME_IDC, listResources: false },
     { id: 'bdp', title: 'BDC BDP 영역', side: '관리자', sentence: ME_IDC, listResources: false },
     {
       id: 'firewall',
       title: '접근 허용',
       side: '서비스',
       sentence: '서비스 담당자가 접근 허용을 확인해야 합니다',
+      openLabel: '서비스측 방화벽 확인 요청 필요',
     },
   ],
 };
@@ -243,6 +249,7 @@ export function installStateView({
       total: cells.length,
       failed: openCells.filter((c) => c.status === 'FAIL').length,
       listResources: step.listResources !== false,
+      openLabel: step.openLabel ?? '조치 필요',
       open: openCells.flatMap((c) =>
         c.resource
           ? [
