@@ -70,7 +70,9 @@ const SORTABLE: Record<string, SortableColumn> = {
 const ts = {
   head: 'flex flex-wrap items-end justify-between gap-4',
   title: 'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[var(--pl-text-strong)]',
-  lede: 'mt-1.5 max-w-[68ch] text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
+  // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
+  // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
+  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
   filters:
     'mt-5 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
   group: 'flex items-center gap-2',
