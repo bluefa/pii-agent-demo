@@ -26,7 +26,8 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '@/lib/theme';
-import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { operationMark } from '@/app/admin/pipelines/_components/taskMark';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
@@ -40,7 +41,7 @@ import {
   connectorClass,
   nodeStateClass,
 } from '@/app/admin/pipelines/_detail/flowClasses';
-import type { CloudProvider, TaskOperation, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
+import type { CloudProvider, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
 
 /** Exported so CustomBuildStep's canvas (LIN-22) reuses the same grid/node grammar. */
 export const FLOW_CSS = `
@@ -167,17 +168,6 @@ export function ProviderMark({ provider }: { provider: CloudProvider }): ReactEl
     </span>
   );
 }
-
-/**
- * Kind mark for the two ADR-023 HTTP_REQUEST tasks, keyed by `operation` — `kind`
- * alone lumps them with the polling gates. Anything not listed falls through to the
- * Terraform / condition branch below. `trash` is the DELETE type tile's glyph and
- * `clipboard-check` the 확정 lineage, so task and pipeline type say the same word.
- */
-const OPERATION_MARK: Partial<Record<TaskOperation, { icon: IconName; cls: string; title: string }>> = {
-  DELETE_CONFIRMED_RESOURCES: { icon: 'trash', cls: 'm-delete', title: '확정 정보 삭제' },
-  CONFIRM_RESOURCES_FROM_RECOMMENDATION: { icon: 'clipboard-check', cls: 'm-reconfirm', title: '확정 정보 등록' },
-};
 
 /** n8n-style corner status badge: DONE ✓ / FAILED ✕ / spinner / CANCELLED ⊘ / seq. */
 function nodeBadge(status: TaskStatus, sequence: number): ReactElement {
@@ -322,7 +312,7 @@ export function TaskFlow({
           // Status stays a stroke/badge signal on the card (owner) — but a border color
           // is silent, so the accessible name is where the verdict gets spelled out.
           const verdict = statusKo(task.status);
-          const opMark = task.operation ? OPERATION_MARK[task.operation] : undefined;
+          const opMark = operationMark(task.operation);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (

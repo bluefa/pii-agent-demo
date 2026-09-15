@@ -59,6 +59,7 @@ import type {
   RecipePreview,
   TaskCatalogEntry,
   TaskKind,
+  TaskOperation,
   TerraformAction,
 } from '@/lib/pipeline/types';
 
@@ -125,6 +126,7 @@ function SeqFlow({
   steps: ReadonlyArray<{
     key: string;
     kind: TaskKind;
+    operation?: TaskOperation | null;
     name: string;
     desc?: string | null;
     action?: TerraformAction | null;
@@ -140,6 +142,7 @@ function SeqFlow({
             {i > 0 && <FlowArrow />}
             <R24TaskNode
               kind={s.kind}
+              operation={s.operation}
               name={s.name}
               desc={s.desc}
               action={s.action}
@@ -517,6 +520,7 @@ export function PreviewModal({
                 steps={preview.steps.map((s) => ({
                   key: String(s.sequence),
                   kind: s.kind,
+                  operation: s.operation,
                   name: s.display_name,
                   desc: s.definition?.description,
                   action: s.terraform_action,
