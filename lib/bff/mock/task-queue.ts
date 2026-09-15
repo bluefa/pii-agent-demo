@@ -14,8 +14,14 @@ import {
   TS_DESCRIPTION,
 } from '@/lib/bff/mock/approval-queue-fixtures';
 import type { ApprovalHistoryFixture, RequestRow } from '@/lib/bff/mock/approval-queue-fixtures';
-import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider } from '@/lib/types';
-import type { AlertTargetKind } from '@/lib/types/task-queue';
+import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider, ProcessStatus } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import type {
+  AlertTargetKind,
+  IntegrationTimelineCsvQuery,
+  IntegrationTimelineQuery,
+  IntegrationTimelineWire,
+} from '@/lib/types/task-queue';
 
 /**
  * Admin Task Queue mocks. Ported from the prototype consts in
@@ -786,6 +792,131 @@ function toTcWire(s: TcState) {
   };
 }
 
+// ── P6 연동 시점 ────────────────────────────────────────────────────────────
+//
+// The screen never filters client-side, so the mock does the whole job the endpoint
+// declares (api-spec §P6): cut by axis window, by 최초 연동 여부, by service/confirm
+// status, sort on one of the four contract props, then page. Rows come from the
+// target-source CATALOGUE (store.projects), the same seeds the other admin lists
+// read, so one target never gets two different creation dates across screens.
+//
+// The seeds decide what the screen shows: 6 of them carry
+// `piiAgentFirstInstalledAt` (the 완료 rows, with a real lead time) and the rest do
+// not. Nothing is invented here to fatten the demo — an invented date would be the
+// one number on this screen nobody could trace back to a target.
+
+/**
+ * confirm_status for a catalogue row. The approval queue owns this fact for the
+ * targets it holds, so read it there FIRST — the two admin screens must not disagree
+ * about one target. Everything else derives from the step the target stands on.
+ */
+const timelineConfirmStatus = (project: Project): string => {
+  const queued = tq().requestsAll.find((r) => r.ts === project.targetSourceId);
+  if (queued) return queued.cs;
+  if (project.isRejected) return 'REJECTED';
+  if (project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION) return 'NO_REQUEST';
+  if (project.processStatus === ProcessStatus.WAITING_APPROVAL) return 'PENDING';
+  return 'CONFIRMED';
+};
+
+/**
+ * lead_time_seconds is computed by the BACKEND in the real contract, precisely so it can
+ * be sorted on. The mock computes it here for the same reason — a client that derived it
+ * could not ask the server to order by it.
+ */
+const leadTimeSeconds = (createdAt: string, firstInstalledAt: string | null): number | null => {
+  if (!firstInstalledAt) return null;
+  const from = Date.parse(createdAt);
+  const to = Date.parse(firstInstalledAt);
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  return Math.max(0, Math.round((to - from) / 1000));
+};
+
+const toTimelineWire = (project: Project): IntegrationTimelineWire => {
+  const firstInstalledAt = project.piiAgentFirstInstalledAt ?? null;
+  return {
+    target_source_id: project.targetSourceId,
+    service_code: project.serviceCode,
+    service_name:
+      mockData.mockServiceCodes.find((s) => s.code === project.serviceCode)?.name
+        ?? project.serviceCode,
+    cloud_provider: cloudProviderToWireProvider(project.cloudProvider),
+    confirm_status: timelineConfirmStatus(project),
+    created_at: project.createdAt,
+    pii_agent_first_installed_at: firstInstalledAt,
+    lead_time_seconds: leadTimeSeconds(project.createdAt, firstInstalledAt),
+  };
+};
+
+/** The date the axis cuts on — `null` means this row cannot be in ANY window. */
+const timelineAxisDate = (row: IntegrationTimelineWire, axis: string): string | null =>
+  axis === 'FIRST_INSTALLED' ? row.pii_agent_first_installed_at ?? null : row.created_at ?? null;
+
+/**
+ * `from`/`to` are calendar dates, inclusive. Comparing the wire value's own
+ * `YYYY-MM-DD` prefix keeps the cut in the zone the server wrote — parsing to an
+ * instant would move a 09:00+09:00 row into the previous day.
+ */
+const withinWindow = (value: string, from: string, to: string): boolean => {
+  const day = value.slice(0, 10);
+  return day >= from && day <= to;
+};
+
+const TIMELINE_SORT_VALUE: Record<string, (row: IntegrationTimelineWire) => number> = {
+  createdAt: (row) => Date.parse(row.created_at ?? '') || 0,
+  piiAgentFirstInstalledAt: (row) =>
+    row.pii_agent_first_installed_at ? Date.parse(row.pii_agent_first_installed_at) : -Infinity,
+  leadTimeSeconds: (row) => row.lead_time_seconds ?? -Infinity,
+  targetSourceId: (row) => row.target_source_id ?? 0,
+};
+
+function timelineRows(query: IntegrationTimelineCsvQuery): IntegrationTimelineWire[] {
+  const rows = getStore()
+    .projects.map(toTimelineWire)
+    .filter((row) => {
+      const axisDate = timelineAxisDate(row, query.axis);
+      if (!axisDate || !withinWindow(axisDate, query.from, query.to)) return false;
+      const installed = row.pii_agent_first_installed_at != null;
+      if (query.installed === 'YES' && !installed) return false;
+      if (query.installed === 'NO' && installed) return false;
+      if (query.serviceCode && row.service_code !== query.serviceCode) return false;
+      if (query.confirmStatus && row.confirm_status !== query.confirmStatus) return false;
+      return true;
+    });
+
+  const [prop, dir = 'desc'] = query.sort.split(',');
+  const value = TIMELINE_SORT_VALUE[prop] ?? TIMELINE_SORT_VALUE.createdAt;
+  const sign = dir === 'asc' ? 1 : -1;
+  // id breaks every tie so the same query always answers with the same page.
+  return rows.sort(
+    (a, b) => (value(a) - value(b)) * sign || (a.target_source_id ?? 0) - (b.target_source_id ?? 0),
+  );
+}
+
+/** Fixed column order (api-spec §P6 CSV) — a downstream sheet reads by position. */
+const TIMELINE_CSV_COLUMNS = [
+  'target_source_id',
+  'service_code',
+  'service_name',
+  'cloud_provider',
+  'confirm_status',
+  'created_at',
+  'pii_agent_first_installed_at',
+  'lead_time_seconds',
+] as const;
+
+const csvCell = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const timelineCsv = (rows: IntegrationTimelineWire[]): string =>
+  [
+    TIMELINE_CSV_COLUMNS.join(','),
+    ...rows.map((row) => TIMELINE_CSV_COLUMNS.map((column) => csvCell(row[column])).join(',')),
+  ].join('\n');
+
 export const mockTaskQueue = {
   // GET /dashboard/summary
   getDashboardSummary: async () =>
@@ -925,6 +1056,14 @@ export const mockTaskQueue = {
   // GET …/{id}/approval-requests/latest/nlb-index-mappings — off-contract wire.
   getNlbIndexMappings: async (id: number) =>
     NextResponse.json(NLB_INDEX_MAPPINGS.get(id) ?? []),
+
+  // GET /admin/target-sources/integration-timeline — P6 연동 시점 (contract gap G8).
+  getIntegrationTimeline: async (query: IntegrationTimelineQuery) =>
+    NextResponse.json(wirePage(timelineRows(query), query.page, query.size)),
+
+  // Same query with `Accept: text/csv` — the whole filtered set, no pager (api-spec §P6).
+  getIntegrationTimelineCsv: async (query: IntegrationTimelineCsvQuery): Promise<string> =>
+    timelineCsv(timelineRows(query)),
 
   // GET /target-sources/test-connection/status?status=&page=&size=
   getTestConnectionPage: async (query: { status: string; page: number; size: number }) => {

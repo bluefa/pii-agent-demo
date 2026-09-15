@@ -26,7 +26,12 @@ import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
  * (`{aws|gcp|azure|idc}-resources`) 같은 조작을 선언한다. SDU 는 그 path 가 없다.
  */
 export type ConfirmedResourceProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC';
-import type { AlertTargetKind } from '@/lib/types/task-queue';
+import type {
+  AlertTargetKind,
+  IntegrationTimelineCsvQuery,
+  IntegrationTimelinePageWire,
+  IntegrationTimelineQuery,
+} from '@/lib/types/task-queue';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type {
   SduAckRequestWire,
@@ -316,6 +321,14 @@ export interface BffClient {
     // [{ service_code, nlb_index }] }]. Raw passthrough; the CSR adapter owns
     // the camel boundary.
     getNlbIndexMappings: (id: number) => Promise<unknown>;
+    // GET /admin/target-sources/integration-timeline — P6 연동 시점. NOT in
+    // install-v1.yaml (contract gap G8, api-spec §P6 is the SSOT): the wire type is
+    // hand-declared in lib/types/task-queue.ts, same as G7 above.
+    getIntegrationTimeline: (
+      query: IntegrationTimelineQuery,
+    ) => Promise<IntegrationTimelinePageWire>;
+    /** Same path + query with `Accept: text/csv`; page/size are ignored by the contract. */
+    getIntegrationTimelineCsv: (query: IntegrationTimelineCsvQuery) => Promise<string>;
   };
 
   logicalDb: {

@@ -340,3 +340,122 @@ export function toApprovalHistoryPage(
 ): Paged<ApprovalHistoryRow> {
   return toPaged(wire, (row) => toApprovalHistoryRow(row as ApprovalHistoryItemWire));
 }
+
+// ── P6 연동 시점 (integration timeline) ─────────────────────────────────────
+//
+// CONTRACT GAP G8: `GET /install/v1/admin/target-sources/integration-timeline` is a
+// NEW backend endpoint (requested 2026-09-15) and is absent from install-v1.yaml, so
+// there is no generated schema to parse against. `design/pipeline/admin-taskqueue-api-spec.md`
+// §P6 is the SSOT and the wire types below are its SINGLE correction point — the same
+// treatment G7 (nlb-index-mappings) gets. Swap them for `schemas.*` once the BE drop lands;
+// nothing else in this feature names the wire shape.
+
+/** Which date the period cuts on. */
+export const TIMELINE_AXES = ['CREATED', 'FIRST_INSTALLED'] as const;
+export type TimelineAxis = (typeof TIMELINE_AXES)[number];
+export const isTimelineAxis = (value: string): value is TimelineAxis =>
+  (TIMELINE_AXES as readonly string[]).includes(value);
+
+/** Whether the target has ever finished its first integration. */
+export const TIMELINE_INSTALLED_FILTERS = ['ALL', 'YES', 'NO'] as const;
+export type TimelineInstalledFilter = (typeof TIMELINE_INSTALLED_FILTERS)[number];
+export const isTimelineInstalledFilter = (value: string): value is TimelineInstalledFilter =>
+  (TIMELINE_INSTALLED_FILTERS as readonly string[]).includes(value);
+
+/** Sortable properties (api-spec §P6) — everything else is a 400. */
+export const TIMELINE_SORT_PROPS = [
+  'createdAt',
+  'piiAgentFirstInstalledAt',
+  'leadTimeSeconds',
+  'targetSourceId',
+] as const;
+export type TimelineSortProp = (typeof TIMELINE_SORT_PROPS)[number];
+export const isTimelineSortProp = (value: string): value is TimelineSortProp =>
+  (TIMELINE_SORT_PROPS as readonly string[]).includes(value);
+
+export type TimelineSortDir = 'asc' | 'desc';
+
+/** `prop,dir` — the Spring sort spelling the endpoint takes. */
+export interface TimelineSort {
+  prop: TimelineSortProp;
+  dir: TimelineSortDir;
+}
+
+export const timelineSortParam = (sort: TimelineSort): string => `${sort.prop},${sort.dir}`;
+
+/** Parses `prop,dir`; returns null when either half is outside the contract. */
+export function parseTimelineSort(value: string): TimelineSort | null {
+  const [prop, dir = 'desc'] = value.split(',');
+  if (!isTimelineSortProp(prop)) return null;
+  if (dir !== 'asc' && dir !== 'desc') return null;
+  return { prop, dir };
+}
+
+/** Every query the endpoint takes. `from`/`to` are date-only `YYYY-MM-DD` (inclusive). */
+export interface IntegrationTimelineQuery {
+  axis: TimelineAxis;
+  from: string;
+  to: string;
+  installed: TimelineInstalledFilter;
+  serviceCode?: string;
+  confirmStatus?: string;
+  sort: string;
+  page: number;
+  size: number;
+}
+
+/** CSV takes the same query minus the pager — the contract ignores page/size there. */
+export type IntegrationTimelineCsvQuery = Omit<IntegrationTimelineQuery, 'page' | 'size'>;
+
+/** One wire row (snake, api-spec §P6). Loose like the generated schemas. */
+export interface IntegrationTimelineWire {
+  target_source_id?: number | null;
+  service_code?: string | null;
+  service_name?: string | null;
+  cloud_provider?: string | null;
+  confirm_status?: string | null;
+  created_at?: string | null;
+  pii_agent_first_installed_at?: string | null;
+  lead_time_seconds?: number | null;
+}
+
+export type IntegrationTimelinePageWire = WirePageMeta & {
+  content?: IntegrationTimelineWire[] | null;
+};
+
+export interface IntegrationTimelineRow {
+  targetSourceId: number | null;
+  serviceCode: string | null;
+  serviceName: string | null;
+  /** Not a column — the CSV carries it (api-spec §P6 CSV). */
+  cloudProvider: string | null;
+  confirmStatus: string | null;
+  /**
+   * date-time WITH the offset the server wrote. Never re-zoned here: the BFF sends
+   * the offset, so any UTC "correction" on this side moves a date the server already
+   * placed (memory 09-11).
+   */
+  createdAt: string | null;
+  piiAgentFirstInstalledAt: string | null;
+  /** Server-computed (`pii_agent_first_installed_at − created_at`); null until installed. */
+  leadTimeSeconds: number | null;
+}
+
+function toIntegrationTimelineRow(row: IntegrationTimelineWire): IntegrationTimelineRow {
+  return {
+    targetSourceId: row.target_source_id ?? null,
+    serviceCode: row.service_code ?? null,
+    serviceName: row.service_name ?? null,
+    cloudProvider: row.cloud_provider ?? null,
+    confirmStatus: row.confirm_status ?? null,
+    createdAt: row.created_at ?? null,
+    piiAgentFirstInstalledAt: row.pii_agent_first_installed_at ?? null,
+    leadTimeSeconds: typeof row.lead_time_seconds === 'number' ? row.lead_time_seconds : null,
+  };
+}
+
+export function toIntegrationTimelinePage(
+  wire: IntegrationTimelinePageWire,
+): Paged<IntegrationTimelineRow> {
+  return toPaged(wire, toIntegrationTimelineRow);
+}

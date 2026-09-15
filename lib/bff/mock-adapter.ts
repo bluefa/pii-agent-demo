@@ -12,6 +12,7 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
+import type { IntegrationTimelinePageWire } from '@/lib/types/task-queue';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
@@ -274,6 +275,9 @@ export const mockBff: BffClient = {
       unwrap<z.infer<typeof schemas.ApprovalRequestDetailDto>>(
         await mockTaskQueue.putNlbIndex(id, body),
       ),
+    getIntegrationTimeline: async (query) =>
+      unwrap<IntegrationTimelinePageWire>(await mockTaskQueue.getIntegrationTimeline(query)),
+    getIntegrationTimelineCsv: async (query) => mockTaskQueue.getIntegrationTimelineCsv(query),
     getTestConnectionPage: async (query) =>
       unwrap<z.infer<typeof schemas.PageTestConnectionRejectStatusResponse>>(
         await mockTaskQueue.getTestConnectionPage(query),
