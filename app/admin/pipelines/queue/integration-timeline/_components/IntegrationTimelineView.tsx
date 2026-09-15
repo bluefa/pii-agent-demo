@@ -75,19 +75,24 @@ const ts = {
   /**
    * The table's toolbar (benchmark 2, 시안 3, owner 2026-09-15): the filters live on the
    * table they cut, in the gray-100 band the resource tables already use
-   * (ResourceFilterBar). Order: 기준 · 기간 · what is being shown · (right) CSV.
+   * (ResourceFilterBar). Order: 날짜 기준 · divider · 기간 · (right) Excel — benchmark 3 시안 1
+   * (owner, 2026-09-15): the two groups are told apart by a 12/700 label each and one strong
+   * divider, not by shape; the 「… 기준 · N건」 caption is gone (the segment and the footer
+   * already say both).
    */
   band:
     'flex flex-wrap items-center gap-4 rounded-t-[11px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-4 py-[14px]',
+  /** Group label — the table-header size (12/semibold), medium so it holds on the gray-100 band. */
+  label: 'text-[12px] font-bold leading-[1.2] text-[var(--pl-text-medium)]',
+  /** The one line between 날짜 기준 and 기간 — strong on purpose (owner: 구분선만 찐하게). */
+  divider: 'h-6 w-0.5 bg-[var(--pl-border-strong)]',
   /** Quick spans and the calendar field share one border: the date IS the pressed span. */
   compound:
     'inline-flex h-8 items-stretch rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
   compoundSeg:
     'inline-flex items-center gap-0.5 rounded-l-[7px] border-r border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
-  // medium, not weak: this line stands on the gray-100 band.
-  caption: 'text-[14px] leading-[1.4] tabular-nums text-[var(--pl-text-medium)]',
-  captionSkeleton: 'inline-block h-3.5 w-8 animate-pulse rounded-[6px] bg-[var(--pl-gray-200)] align-middle',
   bandEnd: 'ml-auto flex items-center gap-2',
+  downloadError: 'text-[12px] text-[var(--pl-err-text)]',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
   cellMono: 'tabular-nums [font-family:var(--pl-font-mono)]',
@@ -153,7 +158,7 @@ export function IntegrationTimelineView(): ReactElement {
     setCsvError(null);
     downloadIntegrationTimelineCsv(query)
       .then((blob) => saveCsv(blob, `integration-timeline_${range.from}_${range.to}.csv`))
-      .catch(() => setCsvError('CSV를 내려받지 못했습니다.'));
+      .catch(() => setCsvError('Excel 파일을 내려받지 못했습니다.'));
   };
 
   const rows = paged?.content ?? [];
@@ -175,14 +180,15 @@ export function IntegrationTimelineView(): ReactElement {
 
       <section className={ts.card}>
         <div className={ts.band} aria-label="조회 조건">
-          {/* No 기준/기간 labels: the axis segment repeats the column names it switches
-              between, and the 기간 compound carries its own dates. */}
+          <span className={ts.label}>날짜 기준</span>
           <Segment
-            ariaLabel="기간 기준"
+            ariaLabel="날짜 기준"
             options={AXIS_OPTIONS}
             value={axis}
             onChange={(next) => refilter(() => setAxis(next))}
           />
+          <span className={ts.divider} aria-hidden="true" />
+          <span className={ts.label}>기간</span>
           {/* One click for the windows people actually ask for; the calendar is for
               everything else. Both write the same applied range. A calendar range lights
               직접 선택 instead of a span, so the compound always says which kind of window
@@ -204,13 +210,14 @@ export function IntegrationTimelineView(): ReactElement {
               onApply={(next) => refilter(() => setRange(next))}
             />
           </div>
-          <span className={ts.caption} aria-live="polite">
-            {AXIS_OPTIONS.find((option) => option.value === axis)?.label} 기준 ·{' '}
-            {paged ? `${paged.totalElements}건` : <span className={ts.captionSkeleton} />}
-          </span>
           <div className={ts.bandEnd}>
-            {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
-            <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
+            {csvError && <span className={ts.downloadError}>{csvError}</span>}
+            {/* The file is still text/csv; the label names the tool the operator opens it in
+                (owner, 2026-09-15). A generic sheet glyph, not a vendor logo. */}
+            <PlButton variant="ok" onClick={onCsv}>
+              <SheetGlyph />
+              Excel 내려받기
+            </PlButton>
           </div>
         </div>
         <div className={ts.tableWrap}>
@@ -408,6 +415,23 @@ function SkeletonRows(): ReactElement {
         </tr>
       ))}
     </>
+  );
+}
+
+function SheetGlyph(): ReactElement {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="12" height="12" rx="2" />
+      <path d="M2 6.5h12M2 10.5h12M6.5 2v12" />
+    </svg>
   );
 }
 

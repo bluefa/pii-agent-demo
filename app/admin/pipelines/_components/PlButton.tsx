@@ -4,7 +4,7 @@
  * dangerSolid / dangerMuted / warnSolid / ghost (dangerSolid = R18 destructive
  * CTA, improvement-r18.md §7-1; dangerMuted = desaturated-red close, 확정 정보
  * 편집기 v2.4 [취소]; warnSolid = 확정 정보 [재확정]; outline = brand-stroke tool
- * CTA).
+ * CTA; ok = pale-green spreadsheet export, 연동 시점 [Excel 내려받기]).
  */
 import type { ButtonHTMLAttributes, ReactElement } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
@@ -13,6 +13,7 @@ export type PlButtonVariant =
   | 'primary'
   | 'secondary'
   | 'outline'
+  | 'ok'
   | 'danger'
   | 'dangerSolid'
   | 'dangerMuted'
