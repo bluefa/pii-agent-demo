@@ -19,6 +19,7 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import {
   addDays,
   dayCount,
+  formatDayRange,
   parseDayString,
   toDayString,
 } from '@/app/admin/pipelines/queue/integration-timeline/_format';
@@ -28,6 +29,8 @@ export interface DateRangePickerProps {
   from: string;
   to: string;
   onApply: (range: { from: string; to: string }) => void;
+  /** Rendered as the right half of the 기간 compound: the wrapper owns the border. */
+  attached?: boolean;
 }
 
 type PresetSpan = number | 'month' | 'prev-month' | 'year';
@@ -39,6 +42,8 @@ interface Preset {
 
 const PRESETS: readonly Preset[] = [
   { label: '최근 7일', span: 6 },
+  { label: '최근 14일', span: 13 },
+  { label: '최근 21일', span: 20 },
   { label: '최근 30일', span: 29 },
   { label: '최근 90일', span: 89 },
   { label: '이번 달', span: 'month' },
@@ -68,15 +73,41 @@ export function presetRange(span: PresetSpan, today: Date): { from: string; to: 
   return { from: toDayString(new Date(today.getFullYear(), 0, 1)), to: toDayString(today) };
 }
 
-/** The screen's default window — 최근 90일, so the picker opens on a named preset. */
+/**
+ * Quick spans offered as one-click buttons in the filter row (owner, 2026-09-15: 7 · 14 ·
+ * 21 days, plus 30). `span` is days minus one — today counts, so 최근 7일 is today−6 … today.
+ */
+export const QUICK_SPANS: ReadonlyArray<{ label: string; span: number }> = [
+  { label: '7일', span: 6 },
+  { label: '14일', span: 13 },
+  { label: '21일', span: 20 },
+  { label: '30일', span: 29 },
+];
+
+/** Which quick span the applied range IS, if any — the custom calendar leaves none pressed. */
+export function quickSpanOf(range: { from: string; to: string }, today: Date): number | null {
+  const hit = QUICK_SPANS.find((quick) => {
+    const preset = presetRange(quick.span, today);
+    return preset.from === range.from && preset.to === range.to;
+  });
+  return hit ? hit.span : null;
+}
+
+/** The screen's default window — 최근 7일, the first quick button. */
 export const defaultRange = (today: Date): { from: string; to: string } =>
-  presetRange(89, today);
+  presetRange(6, today);
 
 const styles = {
   wrap: 'relative',
-  label: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-text-faint)]',
+  // A date field, not a button with a date in it: glyph first, then the span, no forced
+  // width — the dates set it. Same 32px and border family as the segments beside it.
   trigger:
-    'inline-flex h-8 min-w-[250px] items-center justify-between gap-2 rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2.5 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+    'inline-flex h-8 items-center gap-2 rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  // Inside the compound: no border of its own, full height of the wrapper, right corners
+  // one notch tighter than the wrapper's so the two radii nest.
+  triggerAttached:
+    'inline-flex h-full items-center gap-2 rounded-r-[7px] px-3 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:bg-[var(--pl-bg-inner)]',
+  triggerGlyph: 'text-[var(--pl-text-weak)]',
   pop: 'absolute left-0 top-[38px] z-20 grid grid-cols-[128px_1fr] gap-3.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-3.5 shadow-[var(--pl-shadow-lg)]',
   presets: 'grid content-start gap-0.5 border-r border-[var(--pl-border)] pr-2.5',
   preset:
@@ -136,7 +167,12 @@ const drawnSpan = (draft: Draft): { lo: string; hi: string } => {
   return a <= b ? { lo: a, hi: b } : { lo: b, hi: a };
 };
 
-export function DateRangePicker({ from, to, onApply }: DateRangePickerProps): ReactElement {
+export function DateRangePicker({
+  from,
+  to,
+  onApply,
+  attached = false,
+}: DateRangePickerProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => openingDraft(from, to));
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -185,21 +221,21 @@ export function DateRangePicker({ from, to, onApply }: DateRangePickerProps): Re
     : `${span.lo} – ${span.hi} · ${dayCount(span.lo, span.hi)}일`;
 
   return (
-    <div className={styles.wrap} ref={wrapRef}>
-      <div className="flex items-center gap-2">
-        <span className={styles.label}>기간</span>
+    <div className={cn(styles.wrap, attached && 'flex')} ref={wrapRef}>
+      <div className="flex h-full items-center gap-2">
         <button
           type="button"
           ref={triggerRef}
-          className={styles.trigger}
+          className={attached ? styles.triggerAttached : styles.trigger}
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => (open ? close() : openPop())}
         >
-          <span>
-            {from} – {to}
+          <span className={styles.triggerGlyph}>
+            <CalendarGlyph />
           </span>
-          <CalendarGlyph />
+          <span>{formatDayRange(from, to)}</span>
+          <ChevronGlyph />
         </button>
       </div>
 
@@ -364,6 +400,23 @@ function MonthGrid({
         })}
       </div>
     </div>
+  );
+}
+
+function ChevronGlyph(): ReactElement {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+      className="text-[var(--pl-text-weak)]"
+    >
+      <path d="M4 6l4 4 4-4" />
+    </svg>
   );
 }
 

@@ -6,7 +6,7 @@
  *   1. the first read carries the contract defaults (CREATED · ALL · createdAt,desc);
  *   2. 기준 and 최초 연동 go to the SERVER — the table never narrows rows itself;
  *   3. a preset inside the picker moves nothing until 적용 is pressed (Cloudscape rule);
- *   4. a header click re-asks with a server sort and flips on the second click;
+ *   4. no header sorts — the order is the server's default (owner, 09-15);
  *   5. changing what is asked for returns to the first page.
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -69,19 +69,64 @@ const renderView = async () => {
 };
 
 describe('IntegrationTimelineView', () => {
-  it('opens on the contract defaults over a 90-day window', async () => {
+  it('opens on the contract defaults over a 7-day window', async () => {
     await renderView();
     const query = lastQuery();
-    // The 최초 연동 filter left the screen (owner, 09-15): the route defaults it to ALL.
+    // The 최초 연동 filter and sort left the screen (owner, 09-15): the route defaults
+    // them to ALL and createdAt,desc.
     expect(query).not.toHaveProperty('installed');
+    expect(query).not.toHaveProperty('sort');
     expect(query).toMatchObject({
       axis: 'CREATED',
-      sort: 'createdAt,desc',
       page: 0,
       size: 20,
     });
     expect(query.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(query.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(6 * 86_400_000);
+    expect(segment('최근 기간').getByRole('button', { name: '7일' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('a quick span applies at once and starts from the first page', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('button', { name: /다음/ }));
+    await waitFor(() => expect(lastQuery().page).toBe(1));
+
+    fireEvent.click(segment('최근 기간').getByRole('button', { name: '21일' }));
+    await waitFor(() => expect(lastQuery().page).toBe(0));
+    const query = lastQuery();
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(20 * 86_400_000);
+    expect(segment('최근 기간').getByRole('button', { name: '21일' }).getAttribute('aria-pressed')).toBe('true');
+    expect(segment('최근 기간').getByRole('button', { name: '7일' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('a custom range lights 직접 선택 instead of a quick span', async () => {
+    await renderView();
+    expect(segment('최근 기간').getByRole('button', { name: '직접 선택' }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: /–/ }));
+    fireEvent.click(screen.getByRole('button', { name: '이번 달' }));
+    fireEvent.click(screen.getByRole('button', { name: '적용' }));
+    await waitFor(() => expect(lastQuery().from).toMatch(/-01$/));
+    const pressed = segment('최근 기간')
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('aria-pressed') === 'true')
+      .map((button) => button.textContent);
+    // Unless today happens to make 이번 달 exactly one of the quick spans.
+    const monthSpan = Math.round((Date.parse(String(lastQuery().to)) - Date.parse(String(lastQuery().from))) / 86_400_000);
+    expect(pressed).toEqual([6, 13, 20, 29].includes(monthSpan) ? [`${monthSpan + 1}일`] : ['직접 선택']);
+  });
+
+  it('직접 선택 opens the calendar', async () => {
+    await renderView();
+    fireEvent.click(segment('최근 기간').getByRole('button', { name: '직접 선택' }));
+    expect(screen.getByRole('dialog', { name: '기간 선택' })).toBeTruthy();
+  });
+
+  it('says which axis and how many rows the table holds', async () => {
+    await renderView();
+    await screen.findByText('연동 시작 날짜 기준 · 41건');
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
+    await screen.findByText('최초 연동 완료확인 날짜 기준 · 41건');
   });
 
   it('renders the row as the server wrote it', async () => {
@@ -116,22 +161,21 @@ describe('IntegrationTimelineView', () => {
     const opened = getIntegrationTimeline.mock.calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: /–/ }));
-    fireEvent.click(screen.getByRole('button', { name: '최근 7일' }));
+    fireEvent.click(screen.getByRole('button', { name: '최근 14일' }));
     // A preset is a draft: the table still shows the window it was opened with.
     expect(getIntegrationTimeline.mock.calls.length).toBe(opened);
 
     fireEvent.click(screen.getByRole('button', { name: '적용' }));
     await waitFor(() => expect(getIntegrationTimeline.mock.calls.length).toBeGreaterThan(opened));
     const query = lastQuery();
-    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(6 * 86_400_000);
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(13 * 86_400_000);
   });
 
-  it('sorts on the server and flips on the second click', async () => {
+  it('offers no sort — no header is a button (owner, 2026-09-15)', async () => {
     await renderView();
-    fireEvent.click(screen.getByRole('button', { name: /리드타임/ }));
-    await waitFor(() => expect(lastQuery().sort).toBe('leadTimeSeconds,desc'));
-    fireEvent.click(screen.getByRole('button', { name: /리드타임/ }));
-    await waitFor(() => expect(lastQuery().sort).toBe('leadTimeSeconds,asc'));
+    expect(table().getAllByRole('columnheader').length).toBe(7);
+    expect(table().getAllByRole('columnheader').some((th) => th.querySelector('button'))).toBe(false);
+    expect(table().getAllByRole('columnheader').some((th) => th.hasAttribute('aria-sort'))).toBe(false);
   });
 
   it('returns to the first page when the question changes', async () => {
@@ -152,7 +196,8 @@ describe('IntegrationTimelineView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'CSV 내려받기' }));
     await waitFor(() => expect(downloadIntegrationTimelineCsv).toHaveBeenCalled());
     const csvQuery = downloadIntegrationTimelineCsv.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED', sort: 'createdAt,desc' });
+    expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED' });
+    expect(csvQuery).not.toHaveProperty('sort');
     expect(csvQuery.page).toBeUndefined();
     expect(csvQuery.size).toBeUndefined();
   });

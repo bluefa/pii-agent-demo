@@ -58,6 +58,22 @@ export function addDays(date: Date, days: number): Date {
   return next;
 }
 
+/**
+ * The applied range as the trigger says it — `9월 9일 – 15일`, across months
+ * `8월 28일 – 9월 3일`, across years `2025년 12월 30일 – 2026년 1월 5일`. Only the trigger
+ * speaks this way; table cells stay `YYYY-MM-DD` because they are a sortable column.
+ */
+export function formatDayRange(from: string, to: string): string {
+  const a = parseDayString(from);
+  const b = parseDayString(to);
+  const md = (d: Date): string => `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const ymd = (d: Date): string => `${d.getFullYear()}년 ${md(d)}`;
+  if (a.getFullYear() !== b.getFullYear()) return `${ymd(a)} – ${ymd(b)}`;
+  if (a.getMonth() !== b.getMonth()) return `${md(a)} – ${md(b)}`;
+  if (a.getDate() === b.getDate()) return md(a);
+  return `${md(a)} – ${b.getDate()}일`;
+}
+
 /** Inclusive day count of `from`–`to` (the picker's footer hint). */
 export function dayCount(from: string, to: string): number {
   const ms = parseDayString(to).getTime() - parseDayString(from).getTime();

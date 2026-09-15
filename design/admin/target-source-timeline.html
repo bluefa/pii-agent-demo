@@ -57,7 +57,11 @@
 
   /* controls */
   .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
-  .filters { padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  .band { padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: #F2F4F7; border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; }
+  .compound { gap: 0; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+  .compound .seg { height: 30px; border: 0; border-right: 1px solid var(--border); border-radius: 7px 0 0 7px; }
+  .ctl.attached { border: 0; height: 30px; border-radius: 0 7px 7px 0; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 14px; }
+  .cap { font-size: 14px; color: #344054; font-variant-numeric: tabular-nums; }
   .group { display: flex; align-items: center; gap: 8px; }
   .lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; }
   .ctl { height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-strong);
@@ -148,22 +152,30 @@
       <h1>TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜</h1>
       <p class="lede">TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다. 최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.</p>
     </div>
-    <button class="btn" id="csv" type="button">CSV 내려받기</button>
   </header>
 
-  <section class="card filters" aria-label="조회 조건">
+
+
+  <section class="card">
+  <div class="band" aria-label="조회 조건">
     <div class="group">
-      <span class="lbl">기준</span>
       <div class="seg" role="radiogroup" aria-label="기간 기준">
         <label><input type="radio" name="axis" value="created" id="axis-created" checked>연동 시작 날짜</label>
         <label><input type="radio" name="axis" value="installed" id="axis-installed">최초 연동 완료확인 날짜</label>
       </div>
     </div>
-    <div class="group range">
-      <span class="lbl">기간</span>
-      <button class="ctl mono" id="range-btn" type="button" aria-haspopup="dialog" aria-expanded="false">
-        <span id="range-text">2026-06-16 – 2026-09-14</span>
+    <div class="group compound">
+      <div class="seg" role="radiogroup" aria-label="최근 기간" id="quick">
+        <label><input type="radio" name="quick" value="6" checked>7일</label>
+        <label><input type="radio" name="quick" value="13">14일</label>
+        <label><input type="radio" name="quick" value="20">21일</label>
+        <label><input type="radio" name="quick" value="29">30일</label>
+        <label><input type="radio" name="quick" value="custom" id="quick-custom">직접 선택</label>
+      </div>
+      <button class="ctl attached" id="range-btn" type="button" aria-haspopup="dialog" aria-expanded="false">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5 1.5v3M11 1.5v3"/></svg>
+        <span id="range-text">9월 9일 – 15일</span>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
       </button>
       <div class="pop" id="pop" hidden role="dialog" aria-label="기간 선택">
         <div class="presets" id="presets"></div>
@@ -176,19 +188,18 @@
         </div>
       </div>
     </div>
-  </section>
-
-
-  <section class="card">
+    <span class="cap" id="cap">연동 시작 날짜 기준 · 0건</span>
+    <button class="btn" id="csv" type="button" style="margin-left:auto">CSV 내려받기</button>
+  </div>
     <div class="tbl-wrap">
       <table>
         <thead>
           <tr>
-            <th><button type="button" data-key="id">ID</button></th>
+            <th>ID</th>
             <th>서비스</th>
-            <th><button type="button" data-key="created">연동 시작 날짜</button></th>
-            <th><button type="button" data-key="installed">최초 연동 완료확인 날짜</button></th>
-            <th class="num"><button type="button" data-key="lead">리드타임</button></th>
+            <th>연동 시작 날짜</th>
+            <th>최초 연동 완료확인 날짜</th>
+            <th class="num">리드타임</th>
             <th>최초 연동</th>
           </tr>
         </thead>
@@ -211,7 +222,7 @@ Query
   installed      ALL | YES | NO   (기본 ALL)
   serviceCode    string
   confirmStatus  기존 enum 그대로
-  page, size, sort   (sort=leadTimeSeconds,desc 등)
+  page, size        (sort 는 FE 미사용 · 서버 기본 createdAt,desc)
 
 axis=FIRST_INSTALLED 이면 installed=NO 는 빈 결과.
 축이 최초 연동 완료확인 날짜이면 미완료 행은 구간에 들어올 수 없기 때문.</pre>
@@ -258,10 +269,12 @@ FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 �
   });
 
   // ---- state ----
-  const state = { axis: 'created', from: day(TODAY, -90), to: TODAY, installed: 'all', sort: { key: 'created', dir: 'desc' } };
+  const state = { axis: 'created', from: day(TODAY, -6), to: TODAY, installed: 'all', sort: { key: 'created', dir: 'desc' } };
   let draft = { from: state.from, to: state.to, hover: null, anchor: null, view: new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1) };
 
   document.querySelectorAll('input[name=axis]').forEach(r => r.onchange = () => { state.axis = r.value; render(); });
+  document.querySelectorAll('input[name=quick]').forEach(r => r.onchange = () => { if (r.value === 'custom') { document.getElementById('range-btn').click(); return; } state.from = day(TODAY, -Number(r.value)); state.to = TODAY; render(); });
+  const human = (a, b) => { const md = d => `${d.getMonth()+1}월 ${d.getDate()}일`, ymd = d => `${d.getFullYear()}년 ${md(d)}`; if (a.getFullYear() !== b.getFullYear()) return `${ymd(a)} – ${ymd(b)}`; if (a.getMonth() !== b.getMonth()) return `${md(a)} – ${md(b)}`; if (a.getDate() === b.getDate()) return md(a); return `${md(a)} – ${b.getDate()}일`; };
   document.querySelectorAll('th button[data-key]').forEach(b => b.onclick = () => {
     const k = b.dataset.key; state.sort = { key: k, dir: state.sort.key === k && state.sort.dir === 'desc' ? 'asc' : 'desc' }; render();
   });
@@ -269,7 +282,7 @@ FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 �
 
   // ---- range picker ----
   const pop = document.getElementById('pop'), rangeBtn = document.getElementById('range-btn');
-  const PRESETS = [['최근 7일', 6], ['최근 30일', 29], ['최근 90일', 89], ['이번 달', 'month'], ['지난 달', 'prev'], ['올해', 'year']];
+  const PRESETS = [['최근 7일', 6], ['최근 14일', 13], ['최근 21일', 20], ['최근 30일', 29], ['최근 90일', 89], ['이번 달', 'month'], ['지난 달', 'prev'], ['올해', 'year']];
   const presetRange = v => {
     if (typeof v === 'number') return [day(TODAY, -v), TODAY];
     if (v === 'month') return [new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), TODAY];
@@ -332,9 +345,13 @@ FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 �
   const fmtLead = sec => { const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
     return d ? `${d}일 ${h}시간` : h ? `${h}시간` : '1시간 미만'; };
   function render() {
-    document.getElementById('range-text').textContent = `${iso(state.from)} – ${iso(state.to)}`;
+    document.getElementById('range-text').textContent = human(state.from, state.to);
+    let anyQuick = false;
+    document.querySelectorAll('input[name=quick]').forEach(r => { if (r.value === 'custom') return; r.checked = iso(day(TODAY, -Number(r.value))) === iso(state.from) && iso(TODAY) === iso(state.to); anyQuick = anyQuick || r.checked; });
+    document.getElementById('quick-custom').checked = !anyQuick;
     const axisDate = r => state.axis === 'created' ? r.created : r.installed;
     let rows = ROWS.filter(r => { const d = axisDate(r); return d && d >= state.from && d <= state.to; })
+    document.getElementById('cap').textContent = `${state.axis === 'created' ? '연동 시작 날짜' : '최초 연동 완료확인 날짜'} 기준 · ${rows.length}건`;
     const { key, dir } = state.sort, sgn = dir === 'asc' ? 1 : -1;
     const val = r => key === 'id' ? r.id : key === 'created' ? +r.created : key === 'installed' ? (r.installed ? +r.installed : -Infinity) : (r.lead ?? -Infinity);
     rows.sort((a, b) => (val(a) - val(b)) * sgn || a.id - b.id);

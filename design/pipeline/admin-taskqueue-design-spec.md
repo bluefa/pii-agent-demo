@@ -135,27 +135,38 @@ page-head: h1 + head-sub(ProvTag·mono 코드·상태 pill: 연결 테스트 완
 
 ```
 breadcrumb: Task Queue / 연동 시점
-page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (pageHeaderTitleStyle 24/800)
+바닥(09-15 오너): 연동 요청 페이지와 같은 full-bleed gray-200 캔버스(`rq.page`/`opsStyles.page`) — 카드가 바닥에서 떠 보여야 한다
+page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (연동 요청 h1 과 같은 24/700/-0.02em) · 리드 문장은 medium 잉크(gray-200 위 weak 는 AA 미달)
   + sub 14 weak "TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
                  최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다."
-  actions: [CSV 내려받기] (secondary, h32)
-필터 카드 (Card, 한 행, gap 14, 컨트롤 높이 전부 32):
-  기준   seg(segmentedControlStyles): [연동 시작 날짜 | 최초 연동 완료확인 날짜]        → axis
-  기간   range 버튼(mono "2026-06-16 – 2026-09-14" + 캘린더 아이콘) → 팝오버
-         팝오버: 좌 프리셋 레일(최근 7일·30일·90일·이번 달·지난 달·올해) + 우 두 달 캘린더
+  (헤더에 액션 없음 — CSV 는 표 툴바 밴드 우단, 09-15 벤치 2차 시안 3)
+필터 카드 없음 (09-15 벤치 2차: 1640 카드에 콘텐츠 784 → 빈 띠 856). 필터는 표 카드의 **툴바 밴드**에 산다:
+  밴드 = ResourceFilterBar 와 같은 gray-100 · px16 py14 · border-b · 카드 상단 r11(카드는 overflow-hidden 아님, 팝오버 때문) · 간격 16 · 라벨 없음
+  순서: 기준 seg → 기간 컴파운드 → 캡션 → (ml-auto) [CSV 내려받기]
+  기준   seg(segmentedControlStyles): [연동 시작 날짜 | 최초 연동 완료확인 날짜]        → axis (열 이름과 같은 낱말이라 라벨 불필요)
+  기간   컴파운드 32 · r8 · border gray-300 · 흰 바닥 — 세그먼트와 날짜 필드가 테두리 하나를 공유(눌린 세그먼트의 결과가 오른쪽 날짜):
+         좌 빠른 기간 seg(gray-50, 30, 좌 r7): [7일 | 14일 | 21일 | 30일 | 직접 선택] — N일 클릭 즉시 적용,
+         오늘 포함 N개 달력일(today−(N−1) … today). 적용 구간이 그 중 하나와 같을 때만 그 N일 눌림,
+         달력으로 고른 구간이면 「직접 선택」 눌림(항상 하나는 눌림). 직접 선택 클릭 = 달력 열기. 기본값 = 7일.
+         ⛔ 세그먼트는 5개가 상한 — 더 늘리면 드롭다운(벤치 1차 시안 3).
+         우 날짜 트리거(attached: 테두리 없음, 우 r7, 캘린더 아이콘 · 사람 말 날짜 · 셰브론):
+         같은 해 「9월 9일 – 15일」 · 다른 달 「8월 28일 – 9월 3일」 · 해가 걸치면 「2025년 12월 30일 – 2026년 1월 5일」 · 하루면 「9월 15일」
+         (`formatDayRange`; 표 셀은 ISO 유지 — 데이터 열)
+  캡션   14/400 medium(gray-100 위라 weak 금지) tabular: 「{기준} 기준 · N건」(totalElements, 로딩 중 건수 자리 스켈레톤) — style-guide §4 스코프 캡션
+         팝오버: 좌 프리셋 레일(최근 7일·14일·21일·30일·90일·이번 달·지난 달·올해) + 우 두 달 캘린더
                  시작 클릭 → 끝 클릭, 호버 미리보기, 오늘 점, 미래 날짜 faint
                  푸터: 힌트(mono "from – to · N일") … [닫기] [적용](primary)
                  프리셋도 즉시 적용 아님 — 적용을 눌러야 표에 반영 (Cloudscape 방식)
-표 카드 (tableStyles: thead 12/600 #4E5968 on #F7F8FA · td 18/16):
+표 카드 (같은 r12 · border-strong · shadow-sm 카드 · tableStyles: thead 12/600 #4E5968 on #F7F8FA · td 18/16):
   열: ID(mono, 링크 → ops target-source 상세) · 서비스 이름 · 서비스 코드(mono, 별도 열 — 오너 09-15)
       · 연동 시작 날짜(mono, `created_at`) · 최초 연동 완료확인 날짜(mono, `pii_agent_first_installed_at`, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
       · 최초 연동(tag: 완료=green / 미완료=gray)
-  정렬: ID·연동 시작 날짜·최초 연동 완료확인 날짜·리드타임 헤더 클릭(서버 sort)
+  정렬: 없음(오너 09-15) — 헤더는 버튼 아님, 순서는 서버 기본 `createdAt,desc`(연동 시작 날짜 내림차순)
   empty: "조건에 맞는 TargetSource 가 없습니다."
   푸터: PlPagination + "N건 · 전체 M건 중"(totalElements)
 ```
 
-금지: 확정 상태 열(오너 09-15 제외) · 최초 연동 완료/미완료 필터(오너 09-15 제외) · 요약 문장·타일, 중앙값/평균/P90, 경과일 태그, 상태 테두리, CSP 칩, 셀 막대.
+금지: 필터를 별도 카드로 되돌리기 · 기준/기간 라벨 · 트리거 ISO 날짜 · 확정 상태 열(오너 09-15 제외) · 최초 연동 완료/미완료 필터(오너 09-15 제외) · 요약 문장·타일, 중앙값/평균/P90, 경과일 태그, 상태 테두리, CSP 칩, 셀 막대.
 
 ## 6. 모달 5종 — 앱 모달 문법 (`.modal.app`)
 

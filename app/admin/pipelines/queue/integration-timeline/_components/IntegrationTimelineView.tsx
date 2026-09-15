@@ -4,16 +4,17 @@
  * P6 연동 시점 (`/admin/pipelines/queue/integration-timeline`) — one question, one table:
  * when was a TargetSource made, and when did it first finish integrating.
  *
- * Every filter is a QUERY. axis / 기간 / sort / page all go to the server
- * and come back as a page of rows; nothing is narrowed or re-sorted here. That is what
- * makes the 건수 in the footer and the CSV the same set of rows as the table.
+ * Every filter is a QUERY. axis / 기간 / page all go to the server and come back as a
+ * page of rows; nothing is narrowed or re-sorted here. That is what makes the 건수 in the
+ * footer and the CSV the same set of rows as the table. The order is the server's default
+ * (연동 시작 날짜 내림차순) — the screen offers no sort (owner, 2026-09-15).
  *
  * What this screen deliberately does NOT have (owner, 2026-09-14): summary tiles, median /
  * average / percentile, an "elapsed so far" column, a CSP filter, bars inside cells. The
  * statistics belong to whatever tool receives the CSV — this screen cuts the period and
  * shows the rows.
  */
-import { useCallback, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 
 import { cn, segmentedControlStyles, tableStyles, tagStyles } from '@/lib/theme';
@@ -26,17 +27,13 @@ import {
   downloadIntegrationTimelineCsv,
   getIntegrationTimeline,
 } from '@/app/lib/api/task-queue-timeline';
-import {
-  timelineSortParam,
-  type IntegrationTimelineRow,
-  type Paged,
-  type TimelineAxis,
-  type TimelineSort,
-  type TimelineSortProp,
-} from '@/lib/types/task-queue';
+import type { IntegrationTimelineRow, Paged, TimelineAxis } from '@/lib/types/task-queue';
 import {
   DateRangePicker,
+  QUICK_SPANS,
   defaultRange,
+  presetRange,
+  quickSpanOf,
 } from '@/app/admin/pipelines/queue/integration-timeline/_components/DateRangePicker';
 import {
   EMPTY_CELL,
@@ -51,33 +48,46 @@ const AXIS_OPTIONS: ReadonlyArray<{ value: TimelineAxis; label: string }> = [
   { value: 'FIRST_INSTALLED', label: '최초 연동 완료확인 날짜' },
 ];
 
-interface SortableColumn {
-  label: string;
-  prop: TimelineSortProp;
-  numeric?: boolean;
-}
-
-const SORTABLE: Record<string, SortableColumn> = {
-  id: { label: 'ID', prop: 'targetSourceId' },
-  created: { label: '연동 시작 날짜', prop: 'createdAt' },
-  installed: { label: '최초 연동 완료확인 날짜', prop: 'piiAgentFirstInstalledAt' },
-  lead: { label: '리드타임', prop: 'leadTimeSeconds', numeric: true },
-};
-
 const ts = {
+  /**
+   * Ground — full-bleed --pl-gray-200, the same escape hatch the sibling 연동 요청 page
+   * (RequestsView.rq.page) and the ops detail (opsStyles.page) use: negative margins
+   * cancel the shell padding, `body` re-applies it. White cards read as cards on it;
+   * on --pl-bg-page they barely separated from the ground (owner, 2026-09-15).
+   */
+  page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-gray-200)]',
+  body: 'px-8 pt-6 pb-12',
   head: 'flex flex-wrap items-end justify-between gap-4',
-  title: 'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[var(--pl-text-strong)]',
-  lede: 'mt-1.5 max-w-[68ch] text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
-  filters:
-    'mt-5 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
-  group: 'flex items-center gap-2',
-  label: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-text-faint)]',
+  title: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+  // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
+  // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
+  // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
+  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-medium)]',
+  /**
+   * The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. No
+   * `overflow-hidden` — the 기간 popover opens from inside the band and must not be
+   * clipped; the band rounds its own top corners instead.
+   */
   card:
-    'mt-4 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
+    'mt-5 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
+  /**
+   * The table's toolbar (benchmark 2, 시안 3, owner 2026-09-15): the filters live on the
+   * table they cut, in the gray-100 band the resource tables already use
+   * (ResourceFilterBar). Order: 기준 · 기간 · what is being shown · (right) CSV.
+   */
+  band:
+    'flex flex-wrap items-center gap-4 rounded-t-[11px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-4 py-[14px]',
+  /** Quick spans and the calendar field share one border: the date IS the pressed span. */
+  compound:
+    'inline-flex h-8 items-stretch rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  compoundSeg:
+    'inline-flex items-center gap-0.5 rounded-l-[7px] border-r border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
+  // medium, not weak: this line stands on the gray-100 band.
+  caption: 'text-[14px] leading-[1.4] tabular-nums text-[var(--pl-text-medium)]',
+  captionSkeleton: 'inline-block h-3.5 w-8 animate-pulse rounded-[6px] bg-[var(--pl-gray-200)] align-middle',
+  bandEnd: 'ml-auto flex items-center gap-2',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
-  sortButton: 'inline-flex items-center gap-1',
-  sortMark: 'text-[var(--pl-primary)]',
   cellMono: 'tabular-nums [font-family:var(--pl-font-mono)]',
   cellNumeric: 'text-right',
   dim: 'text-[var(--pl-text-faint)]',
@@ -98,18 +108,17 @@ export function IntegrationTimelineView(): ReactElement {
   // reader.
   const [range, setRange] = useState(() => defaultRange(new Date()));
   const [axis, setAxis] = useState<TimelineAxis>('CREATED');
-  const [sort, setSort] = useState<TimelineSort>({ prop: 'createdAt', dir: 'desc' });
   const [page, setPage] = useState(0);
 
   const [paged, setPaged] = useState<Paged<IntegrationTimelineRow> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const compoundRef = useRef<HTMLDivElement>(null);
 
-  const sortParam = timelineSortParam(sort);
   const query = useMemo(
-    () => ({ axis, from: range.from, to: range.to, sort: sortParam }),
-    [axis, range.from, range.to, sortParam],
+    () => ({ axis, from: range.from, to: range.to }),
+    [axis, range.from, range.to],
   );
 
   useAbortableEffect(
@@ -138,15 +147,6 @@ export function IntegrationTimelineView(): ReactElement {
     setPage(0);
   }, []);
 
-  const toggleSort = (prop: TimelineSortProp): void => {
-    refilter(() =>
-      setSort((current) => ({
-        prop,
-        dir: current.prop === prop && current.dir === 'desc' ? 'asc' : 'desc',
-      })),
-    );
-  };
-
   const onCsv = (): void => {
     setCsvError(null);
     downloadIntegrationTimelineCsv(query)
@@ -158,7 +158,8 @@ export function IntegrationTimelineView(): ReactElement {
   const pages = Math.max(1, paged?.totalPages ?? 1);
 
   return (
-    <div>
+    <div className={ts.page}>
+    <div className={ts.body}>
       <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
@@ -168,40 +169,58 @@ export function IntegrationTimelineView(): ReactElement {
             최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
-          {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
-        </div>
       </header>
 
-      <section className={ts.filters} aria-label="조회 조건">
-        <div className={ts.group}>
-          <span className={ts.label}>기준</span>
+      <section className={ts.card}>
+        <div className={ts.band} aria-label="조회 조건">
+          {/* No 기준/기간 labels: the axis segment repeats the column names it switches
+              between, and the 기간 compound carries its own dates. */}
           <Segment
             ariaLabel="기간 기준"
             options={AXIS_OPTIONS}
             value={axis}
             onChange={(next) => refilter(() => setAxis(next))}
           />
+          {/* One click for the windows people actually ask for; the calendar is for
+              everything else. Both write the same applied range. A calendar range lights
+              직접 선택 instead of a span, so the compound always says which kind of window
+              it holds — and the dates beside it are the truth either way. */}
+          <div className={ts.compound} ref={compoundRef}>
+            <QuickSpans
+              value={quickSpanOf(range, new Date())}
+              onChange={(span) => refilter(() => setRange(presetRange(span, new Date())))}
+              onCustom={() =>
+                compoundRef.current
+                  ?.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')
+                  ?.click()
+              }
+            />
+            <DateRangePicker
+              attached
+              from={range.from}
+              to={range.to}
+              onApply={(next) => refilter(() => setRange(next))}
+            />
+          </div>
+          <span className={ts.caption} aria-live="polite">
+            {AXIS_OPTIONS.find((option) => option.value === axis)?.label} 기준 ·{' '}
+            {paged ? `${paged.totalElements}건` : <span className={ts.captionSkeleton} />}
+          </span>
+          <div className={ts.bandEnd}>
+            {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
+            <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
+          </div>
         </div>
-        <DateRangePicker
-          from={range.from}
-          to={range.to}
-          onApply={(next) => refilter(() => setRange(next))}
-        />
-      </section>
-
-      <section className={ts.card}>
         <div className={ts.tableWrap}>
           <table className={ts.table}>
             <thead>
               <tr className={tableStyles.header}>
-                <SortHeader column={SORTABLE.id} sort={sort} onSort={toggleSort} />
+                <th className={tableStyles.headerCell}>ID</th>
                 <th className={tableStyles.headerCell}>서비스 이름</th>
                 <th className={tableStyles.headerCell}>서비스 코드</th>
-                <SortHeader column={SORTABLE.created} sort={sort} onSort={toggleSort} />
-                <SortHeader column={SORTABLE.installed} sort={sort} onSort={toggleSort} />
-                <SortHeader column={SORTABLE.lead} sort={sort} onSort={toggleSort} />
+                <th className={tableStyles.headerCell}>연동 시작 날짜</th>
+                <th className={tableStyles.headerCell}>최초 연동 완료확인 날짜</th>
+                <th className={cn(tableStyles.headerCell, ts.cellNumeric)}>리드타임</th>
                 <th className={tableStyles.headerCell}>최초 연동</th>
               </tr>
             </thead>
@@ -242,6 +261,7 @@ export function IntegrationTimelineView(): ReactElement {
           />
         </div>
       </section>
+    </div>
     </div>
   );
 }
@@ -288,26 +308,49 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
   );
 }
 
-function SortHeader({
-  column,
-  sort,
-  onSort,
+function QuickSpans({
+  value,
+  onChange,
+  onCustom,
 }: {
-  column: SortableColumn;
-  sort: TimelineSort;
-  onSort: (prop: TimelineSortProp) => void;
+  value: number | null;
+  onChange: (span: number) => void;
+  /** 직접 선택 — opens the calendar; pressed while the applied range is not a quick span. */
+  onCustom: () => void;
 }): ReactElement {
-  const active = sort.prop === column.prop;
   return (
-    <th
-      className={cn(tableStyles.headerCell, column.numeric && ts.cellNumeric)}
-      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <button type="button" className={ts.sortButton} onClick={() => onSort(column.prop)}>
-        {column.label}
-        {active && <span className={ts.sortMark}>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
+    <div className={ts.compoundSeg} role="group" aria-label="최근 기간">
+      {QUICK_SPANS.map((quick) => {
+        const active = quick.span === value;
+        return (
+          <button
+            key={quick.span}
+            type="button"
+            aria-pressed={active}
+            className={cn(
+              segmentedControlStyles.itemSm,
+              active && segmentedControlStyles.itemActive,
+            )}
+            onClick={() => onChange(quick.span)}
+          >
+            {quick.label}
+          </button>
+        );
+      })}
+      {/* ponytail: 직접 선택 is the 5th and last segment. Past five, fold into a dropdown
+          (benchmark 1, 시안 3). */}
+      <button
+        type="button"
+        aria-pressed={value === null}
+        className={cn(
+          segmentedControlStyles.itemSm,
+          value === null && segmentedControlStyles.itemActive,
+        )}
+        onClick={onCustom}
+      >
+        직접 선택
       </button>
-    </th>
+    </div>
   );
 }
 
