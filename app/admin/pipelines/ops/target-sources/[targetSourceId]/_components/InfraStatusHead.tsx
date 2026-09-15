@@ -125,39 +125,48 @@ function StepRow({
       </div>
       {openTag && step.open.length > 0 && (
         <div className="mb-2 ml-3 border-l-2 border-[var(--pl-gray-200)] pl-3 text-[12px]">
-          <ul
-            className="grid grid-cols-[minmax(200px,max-content)_72px_auto] gap-x-2"
-            aria-label={`${step.title} 남은 리소스`}
-          >
-            {step.open.map((r) => {
-              const who = identity.get(r.resourceId);
-              const db = who?.databaseType ? getDatabaseShortLabel(who.databaseType) : null;
-              return (
-                // `contents`: the cells sit in the list's grid, so the address column is as
-                // wide as the longest address (a host name can run long) and every row's
-                // DB and state land on one x. Nothing is truncated — the address IS the row.
-                <li key={r.resourceId} className="contents">
-                  <span className="flex min-h-[26px] items-center break-all text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
-                    {r.resourceName ?? who?.label ?? r.resourceId}
-                  </span>
-                  <span className={cn(WEAK, 'flex min-h-[26px] items-center truncate')}>{db}</span>
-                  <span
-                    className={cn(
-                      'flex min-h-[26px] items-center',
-                      r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]',
+          {step.listResources ? (
+            <ul
+              className="grid grid-cols-[minmax(200px,max-content)_72px_auto] gap-x-2"
+              aria-label={`${step.title} 남은 리소스`}
+            >
+              {step.open.map((r) => {
+                const who = identity.get(r.resourceId);
+                const db = who?.databaseType ? getDatabaseShortLabel(who.databaseType) : null;
+                return (
+                  // `contents`: the cells sit in the list's grid, so the address column is as
+                  // wide as the longest address (a host name can run long) and every row's
+                  // DB and state land on one x. Nothing is truncated — the address IS the row.
+                  <li key={r.resourceId} className="contents">
+                    <span className="flex min-h-[26px] items-center break-all text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]">
+                      {r.resourceName ?? who?.label ?? r.resourceId}
+                    </span>
+                    <span className={cn(WEAK, 'flex min-h-[26px] items-center truncate')}>{db}</span>
+                    <span
+                      className={cn(
+                        'flex min-h-[26px] items-center',
+                        r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]',
+                      )}
+                    >
+                      {r.failed ? '조회 도중 실패' : '조치 필요'}
+                    </span>
+                    {r.guide && (
+                      <p className="col-span-3 pb-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
+                        {r.guide}
+                      </p>
                     )}
-                  >
-                    {r.failed ? '조회 도중 실패' : '조치 필요'}
-                  </span>
-                  {r.guide && (
-                    <p className="col-span-3 pb-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
-                      {r.guide}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            // No rows for this step (AWS, IDC BDP): the guides still have to be read.
+            [...new Set(step.open.flatMap((r) => (r.guide ? [r.guide] : [])))].map((guide) => (
+              <p key={guide} className="py-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
+                {guide}
+              </p>
+            ))
+          )}
           {/* Owner 2026-09-14: a failed check is said out loud, and a check that keeps
               failing is the developer's, not the operator's. */}
           {step.failed > 0 && <p className={cn(WEAK, 'min-h-[26px] leading-[26px]')}>{FAIL_NOTE}</p>}

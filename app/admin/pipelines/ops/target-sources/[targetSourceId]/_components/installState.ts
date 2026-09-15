@@ -64,6 +64,8 @@ export interface InstallStateStep {
   failed: number;
   /** Resources not yet settled on this step, in wire order. Empty for the role check. */
   open: InstallOpenResource[];
+  /** Whether the card draws `open` as rows. False: AWS, GCP, IDC BDP — the count and the guides only. */
+  listResources: boolean;
 }
 
 export interface InstallStateView {
@@ -99,7 +101,7 @@ interface ChainStep {
   side: InstallSide;
   /** The verdict sentence when THIS step is the first unsettled one. */
   sentence: string;
-  /** False: the step is one apply for the whole target, so the card lists no resources under it. */
+  /** False: the card lists no resources under this step (AWS, GCP, IDC BDP) — counts and guides only. */
   listResources?: false;
 }
 
@@ -109,9 +111,10 @@ const ME_IDC = '관리자가 BDC Terraform을 적용할 차례입니다';
 /** The role check is target-level, so it is keyed apart from the resource cells. */
 export const ROLE_STEP_ID = 'role';
 
+// AWS never lists resources under a step (owner 2026-09-15): counts and guides only.
 const AWS_BDC: ChainStep[] = [
-  { id: 'bdcCommon', title: 'BDC 공통 영역', side: '관리자', sentence: ME },
-  { id: 'bdcService', title: 'BDC 서비스 영역', side: '관리자', sentence: ME },
+  { id: 'bdcCommon', title: 'BDC 공통 영역', side: '관리자', sentence: ME, listResources: false },
+  { id: 'bdcService', title: 'BDC 서비스 영역', side: '관리자', sentence: ME, listResources: false },
 ];
 
 /** Execution order per provider (service-side TF → BDC common → BDC service is the confirmed AWS order). */
@@ -122,8 +125,9 @@ const CHAINS: Record<string, ChainStep[]> = {
       title: 'Terraform 권한 부여 확인',
       side: '서비스',
       sentence: '서비스 담당자가 Terraform 권한을 부여해야 합니다',
+      listResources: false,
     },
-    { id: 'service', title: '서비스 계정 Terraform 적용', side: '관리자', sentence: ME },
+    { id: 'service', title: '서비스 계정 Terraform 적용', side: '관리자', sentence: ME, listResources: false },
     ...AWS_BDC,
   ],
   awsManual: [
@@ -132,19 +136,22 @@ const CHAINS: Record<string, ChainStep[]> = {
       title: '서비스 측 Terraform 적용',
       side: '서비스',
       sentence: '서비스 담당자가 Terraform을 직접 적용해야 합니다',
+      listResources: false,
     },
     ...AWS_BDC,
   ],
+  // GCP lists no resources either (owner 2026-09-15); Azure is the one cloud that does.
   gcp: [
     {
       id: 'subnet',
       title: 'PSC용 Subnet 생성',
       side: '서비스',
       sentence: '서비스 담당자가 PSC용 Subnet을 만들어야 합니다',
+      listResources: false,
     },
     // Named after the project it lands in, applied by BDC — so the operator's move.
-    { id: 'service', title: '서비스측 Terraform 적용', side: '관리자', sentence: ME },
-    { id: 'bdc', title: 'BDC측 Terraform 적용', side: '관리자', sentence: ME },
+    { id: 'service', title: '서비스측 Terraform 적용', side: '관리자', sentence: ME, listResources: false },
+    { id: 'bdc', title: 'BDC측 Terraform 적용', side: '관리자', sentence: ME, listResources: false },
   ],
   azure: [
     {
@@ -235,8 +242,9 @@ export function installStateView({
       done: cells.length - openCells.length,
       total: cells.length,
       failed: openCells.filter((c) => c.status === 'FAIL').length,
+      listResources: step.listResources !== false,
       open: openCells.flatMap((c) =>
-        c.resource && step.listResources !== false
+        c.resource
           ? [
               {
                 resourceId: c.resource.resourceId,

@@ -53,6 +53,7 @@ const step = (
   total: 1,
   failed: 0,
   open: [],
+  listResources: true,
   ...extra,
 });
 
@@ -203,6 +204,30 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.')).toBeTruthy();
     expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
     expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
+  });
+
+  it('draws no resource rows under a step that does not list them, but keeps the guide and the note', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform을 직접 적용해야 합니다',
+        steps: [
+          step('service', '서비스 측 Terraform 적용', '서비스', 'fail', {
+            done: 3,
+            total: 4,
+            failed: 1,
+            listResources: false,
+            open: [{ resourceId: 'db-3', resourceName: 'orders-db', failed: true, guide: 'timeout' }],
+          }),
+        ],
+      },
+    });
+
+    expect(screen.queryByRole('list', { name: /남은 리소스/ })).toBeNull();
+    expect(screen.queryByText('orders-db')).toBeNull();
+    expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('timeout')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
   });
 
   it('writes how many are left on a step partly through', () => {

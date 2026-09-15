@@ -374,7 +374,34 @@ describe('installStateView — variants that change a row, not the state', () =>
         resource('idc-res-002', { cx: CO, bdp: IP, firewall: IP }),
       ]),
     });
-    expect(v?.steps[1]).toMatchObject({ id: 'bdp', state: 'now', done: 1, total: 2, open: [] });
+    expect(v?.steps[1]).toMatchObject({ id: 'bdp', state: 'now', done: 1, total: 2, listResources: false });
+    expect(v?.steps[1].open).toHaveLength(1);
+    expect(v?.steps.map((s) => [s.id, s.listResources])).toEqual([
+      ['cx', true],
+      ['bdp', false],
+      ['firewall', true],
+    ]);
+  });
+
+  it('AWS and GCP never list resources under a step (owner 2026-09-15); Azure does', () => {
+    const aws = installStateView({
+      provider: 'aws',
+      manualInstall: true,
+      detail: detail([resource('db-1', { service: IP, bdcCommon: IP, bdcService: IP })]),
+    });
+    expect(aws?.steps.every((s) => s.listResources === false)).toBe(true);
+    const gcp = installStateView({
+      provider: 'gcp',
+      manualInstall: false,
+      detail: detail([resource('db-1', { subnet: IP, service: IP, bdc: IP })]),
+    });
+    expect(gcp?.steps.every((s) => s.listResources === false)).toBe(true);
+    const azure = installStateView({
+      provider: 'azure',
+      manualInstall: false,
+      detail: detail([resource('db-1', { vmSubnet: IP, vmApply: IP, bdc: IP, pe: IP })]),
+    });
+    expect(azure?.steps.every((s) => s.listResources)).toBe(true);
   });
 
   it('the role check is target-level: it lists no resource', () => {
