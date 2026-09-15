@@ -65,8 +65,8 @@ BDC 측이 무엇을 했나 · 서비스 담당자가 어디서 무엇을 하나
   Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.」 + 「Azure Portal에서 승인」(Private Link
   Center → Pending connections).
 - GCP Subnet: 「BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야
-  합니다.」 「서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.」 + 「GCP Console에서
-  VPC 네트워크 보기」. 명령 자체는 기존 Subnet 안내 블록(#900)이 행 아래에 그대로 낸다.
+  합니다.」 「서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.」 링크 없음(오너
+  09-15 "GCP Console에서 VPC 네트워크 보기 없애"). 명령 자체는 기존 Subnet 안내 블록(#900)이 행 아래에 그대로 낸다.
 - IDC 접근 허용: 「BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.」 「서비스 담당자가
   방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.」 링크 없음(온프레미스
   방화벽엔 포털이 없다).

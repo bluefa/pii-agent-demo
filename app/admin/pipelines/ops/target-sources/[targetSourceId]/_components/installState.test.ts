@@ -7,7 +7,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   AZURE_PENDING_CONNECTIONS_URL,
-  GCP_VPC_NETWORKS_URL,
   DONE_SENTENCE,
   UNKNOWN_SENTENCE,
   installStateView,
@@ -169,7 +168,8 @@ describe('installStateView — GCP (4)', () => {
     ]);
     expect(v?.note?.lines).toHaveLength(2);
     expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.');
-    expect(v?.note?.link).toEqual({ label: 'GCP Console에서 VPC 네트워크 보기', href: GCP_VPC_NETWORKS_URL });
+    // No console link (owner 2026-09-15): the command block under the row is the move.
+    expect(v?.note?.link).toBeUndefined();
   });
 
   it('② Subnet done: the operator applies both sides', () => {

@@ -122,8 +122,6 @@ interface ChainStep {
 /** Azure Portal, Private Link Center → Pending connections: where the service owner approves. */
 export const AZURE_PENDING_CONNECTIONS_URL =
   'https://portal.azure.com/#view/Microsoft_Azure_Network/PrivateLinkCenterBlade/~/pendingconnections';
-/** GCP Console, VPC networks: where the service owner sees the subnets of the host project. */
-export const GCP_VPC_NETWORKS_URL = 'https://console.cloud.google.com/networking/networks/list';
 
 const ME = '관리자가 Terraform을 적용할 차례입니다';
 const ME_IDC = '관리자가 BDC Terraform을 적용할 차례입니다';
@@ -174,7 +172,6 @@ const CHAINS: Record<string, ChainStep[]> = {
           'BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야 합니다.',
           '서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.',
         ],
-        link: { label: 'GCP Console에서 VPC 네트워크 보기', href: GCP_VPC_NETWORKS_URL },
       },
     },
     // Named after the project it lands in, applied by BDC — so the operator's move.
