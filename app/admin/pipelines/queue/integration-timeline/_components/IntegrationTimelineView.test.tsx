@@ -6,7 +6,7 @@
  *   1. the first read carries the contract defaults (CREATED · ALL · createdAt,desc);
  *   2. 기준 and 최초 연동 go to the SERVER — the table never narrows rows itself;
  *   3. a preset inside the picker moves nothing until 적용 is pressed (Cloudscape rule);
- *   4. a header click re-asks with a server sort and flips on the second click;
+ *   4. no header sorts — the order is the server's default (owner, 09-15);
  *   5. changing what is asked for returns to the first page.
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -72,11 +72,12 @@ describe('IntegrationTimelineView', () => {
   it('opens on the contract defaults over a 7-day window', async () => {
     await renderView();
     const query = lastQuery();
-    // The 최초 연동 filter left the screen (owner, 09-15): the route defaults it to ALL.
+    // The 최초 연동 filter and sort left the screen (owner, 09-15): the route defaults
+    // them to ALL and createdAt,desc.
     expect(query).not.toHaveProperty('installed');
+    expect(query).not.toHaveProperty('sort');
     expect(query).toMatchObject({
       axis: 'CREATED',
-      sort: 'createdAt,desc',
       page: 0,
       size: 20,
     });
@@ -170,20 +171,11 @@ describe('IntegrationTimelineView', () => {
     expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(13 * 86_400_000);
   });
 
-  it('sorts on the server and flips on the second click', async () => {
+  it('offers no sort — no header is a button (owner, 2026-09-15)', async () => {
     await renderView();
-    // The 기준 segment carries the same label; only the header button sorts.
-    const header = () => table().getByRole('button', { name: /최초 연동 완료확인 날짜/ });
-    fireEvent.click(header());
-    await waitFor(() => expect(lastQuery().sort).toBe('piiAgentFirstInstalledAt,desc'));
-    fireEvent.click(header());
-    await waitFor(() => expect(lastQuery().sort).toBe('piiAgentFirstInstalledAt,asc'));
-  });
-
-  it('does not sort by 리드타임 (owner, 2026-09-15)', async () => {
-    await renderView();
-    expect(table().queryByRole('button', { name: /리드타임/ })).toBeNull();
-    expect(table().getByRole('columnheader', { name: '리드타임' })).toBeTruthy();
+    expect(table().getAllByRole('columnheader').length).toBe(7);
+    expect(table().getAllByRole('columnheader').some((th) => th.querySelector('button'))).toBe(false);
+    expect(table().getAllByRole('columnheader').some((th) => th.hasAttribute('aria-sort'))).toBe(false);
   });
 
   it('returns to the first page when the question changes', async () => {
@@ -204,7 +196,8 @@ describe('IntegrationTimelineView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'CSV 내려받기' }));
     await waitFor(() => expect(downloadIntegrationTimelineCsv).toHaveBeenCalled());
     const csvQuery = downloadIntegrationTimelineCsv.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED', sort: 'createdAt,desc' });
+    expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED' });
+    expect(csvQuery).not.toHaveProperty('sort');
     expect(csvQuery.page).toBeUndefined();
     expect(csvQuery.size).toBeUndefined();
   });

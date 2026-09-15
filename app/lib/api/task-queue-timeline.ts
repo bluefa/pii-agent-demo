@@ -25,8 +25,8 @@ const search = (query: IntegrationTimelineCsvQuery): URLSearchParams => {
     axis: query.axis,
     from: query.from,
     to: query.to,
-    sort: query.sort,
   });
+  if (query.sort) params.set('sort', query.sort);
   if (query.installed) params.set('installed', query.installed);
   if (query.serviceCode) params.set('serviceCode', query.serviceCode);
   if (query.confirmStatus) params.set('confirmStatus', query.confirmStatus);

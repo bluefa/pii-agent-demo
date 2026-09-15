@@ -884,7 +884,7 @@ function timelineRows(query: IntegrationTimelineCsvQuery): IntegrationTimelineWi
       return true;
     });
 
-  const [prop, dir = 'desc'] = query.sort.split(',');
+  const [prop, dir = 'desc'] = (query.sort ?? 'createdAt,desc').split(',');
   const value = TIMELINE_SORT_VALUE[prop] ?? TIMELINE_SORT_VALUE.createdAt;
   const sign = dir === 'asc' ? 1 : -1;
   // id breaks every tie so the same query always answers with the same page.

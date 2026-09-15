@@ -122,7 +122,7 @@
 | `serviceCode` | string | – | – | 기존 목록 API 와 같은 뜻 |
 | `confirmStatus` | 기존 enum | – | – | `NO_REQUEST`·`PENDING`·`CONFIRM_INFO_UPDATE_REQUIRED`·`CONFIRMED`·`REJECTED` |
 | `page` / `size` | int | – | `0` / `20` | 0-index. `size` 최대 100 |
-| `sort` | `prop,dir` | – | `createdAt,desc` | 허용 prop: `createdAt`·`piiAgentFirstInstalledAt`·`targetSourceId`(·`leadTimeSeconds` — ⚠️ 09-15 화면에서 제외, FE 는 보내지 않는다, BE 는 생략해도 무방). 반복 가능 |
+| `sort` | `prop,dir` | – | `createdAt,desc` | ⚠️ 09-15 화면에서 정렬 제외 — FE 는 `sort` 를 보내지 않는다, 기본 `createdAt,desc` 만 쓴다. BE 는 파라미터를 생략해도 무방(남긴다면 허용 prop `createdAt`·`piiAgentFirstInstalledAt`·`targetSourceId`) |
 
 - `axis=FIRST_INSTALLED` 이면 `installed=NO` 는 정의상 빈 페이지(200, `totalElements: 0`). 400 아님.
 - `pii_agent_first_installed_at` 은 초기화로 단계가 되돌아가도 바뀌지 않는 값이다(기존 `TargetSourceResponse` 와 같은 컬럼).

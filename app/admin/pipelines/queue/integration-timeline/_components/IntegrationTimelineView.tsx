@@ -4,9 +4,10 @@
  * P6 연동 시점 (`/admin/pipelines/queue/integration-timeline`) — one question, one table:
  * when was a TargetSource made, and when did it first finish integrating.
  *
- * Every filter is a QUERY. axis / 기간 / sort / page all go to the server
- * and come back as a page of rows; nothing is narrowed or re-sorted here. That is what
- * makes the 건수 in the footer and the CSV the same set of rows as the table.
+ * Every filter is a QUERY. axis / 기간 / page all go to the server and come back as a
+ * page of rows; nothing is narrowed or re-sorted here. That is what makes the 건수 in the
+ * footer and the CSV the same set of rows as the table. The order is the server's default
+ * (연동 시작 날짜 내림차순) — the screen offers no sort (owner, 2026-09-15).
  *
  * What this screen deliberately does NOT have (owner, 2026-09-14): summary tiles, median /
  * average / percentile, an "elapsed so far" column, a CSP filter, bars inside cells. The
@@ -26,14 +27,7 @@ import {
   downloadIntegrationTimelineCsv,
   getIntegrationTimeline,
 } from '@/app/lib/api/task-queue-timeline';
-import {
-  timelineSortParam,
-  type IntegrationTimelineRow,
-  type Paged,
-  type TimelineAxis,
-  type TimelineSort,
-  type TimelineSortProp,
-} from '@/lib/types/task-queue';
+import type { IntegrationTimelineRow, Paged, TimelineAxis } from '@/lib/types/task-queue';
 import {
   DateRangePicker,
   QUICK_SPANS,
@@ -53,17 +47,6 @@ const AXIS_OPTIONS: ReadonlyArray<{ value: TimelineAxis; label: string }> = [
   { value: 'CREATED', label: '연동 시작 날짜' },
   { value: 'FIRST_INSTALLED', label: '최초 연동 완료확인 날짜' },
 ];
-
-interface SortableColumn {
-  label: string;
-  prop: TimelineSortProp;
-}
-
-const SORTABLE: Record<string, SortableColumn> = {
-  id: { label: 'ID', prop: 'targetSourceId' },
-  created: { label: '연동 시작 날짜', prop: 'createdAt' },
-  installed: { label: '최초 연동 완료확인 날짜', prop: 'piiAgentFirstInstalledAt' },
-};
 
 const ts = {
   /**
@@ -105,8 +88,6 @@ const ts = {
   bandEnd: 'ml-auto flex items-center gap-2',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
-  sortButton: 'inline-flex items-center gap-1',
-  sortMark: 'text-[var(--pl-primary)]',
   cellMono: 'tabular-nums [font-family:var(--pl-font-mono)]',
   cellNumeric: 'text-right',
   dim: 'text-[var(--pl-text-faint)]',
@@ -127,7 +108,6 @@ export function IntegrationTimelineView(): ReactElement {
   // reader.
   const [range, setRange] = useState(() => defaultRange(new Date()));
   const [axis, setAxis] = useState<TimelineAxis>('CREATED');
-  const [sort, setSort] = useState<TimelineSort>({ prop: 'createdAt', dir: 'desc' });
   const [page, setPage] = useState(0);
 
   const [paged, setPaged] = useState<Paged<IntegrationTimelineRow> | null>(null);
@@ -136,10 +116,9 @@ export function IntegrationTimelineView(): ReactElement {
   const [csvError, setCsvError] = useState<string | null>(null);
   const compoundRef = useRef<HTMLDivElement>(null);
 
-  const sortParam = timelineSortParam(sort);
   const query = useMemo(
-    () => ({ axis, from: range.from, to: range.to, sort: sortParam }),
-    [axis, range.from, range.to, sortParam],
+    () => ({ axis, from: range.from, to: range.to }),
+    [axis, range.from, range.to],
   );
 
   useAbortableEffect(
@@ -167,15 +146,6 @@ export function IntegrationTimelineView(): ReactElement {
     apply();
     setPage(0);
   }, []);
-
-  const toggleSort = (prop: TimelineSortProp): void => {
-    refilter(() =>
-      setSort((current) => ({
-        prop,
-        dir: current.prop === prop && current.dir === 'desc' ? 'asc' : 'desc',
-      })),
-    );
-  };
 
   const onCsv = (): void => {
     setCsvError(null);
@@ -245,11 +215,11 @@ export function IntegrationTimelineView(): ReactElement {
           <table className={ts.table}>
             <thead>
               <tr className={tableStyles.header}>
-                <SortHeader column={SORTABLE.id} sort={sort} onSort={toggleSort} />
+                <th className={tableStyles.headerCell}>ID</th>
                 <th className={tableStyles.headerCell}>서비스 이름</th>
                 <th className={tableStyles.headerCell}>서비스 코드</th>
-                <SortHeader column={SORTABLE.created} sort={sort} onSort={toggleSort} />
-                <SortHeader column={SORTABLE.installed} sort={sort} onSort={toggleSort} />
+                <th className={tableStyles.headerCell}>연동 시작 날짜</th>
+                <th className={tableStyles.headerCell}>최초 연동 완료확인 날짜</th>
                 <th className={cn(tableStyles.headerCell, ts.cellNumeric)}>리드타임</th>
                 <th className={tableStyles.headerCell}>최초 연동</th>
               </tr>
@@ -335,29 +305,6 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
         </span>
       </td>
     </tr>
-  );
-}
-
-function SortHeader({
-  column,
-  sort,
-  onSort,
-}: {
-  column: SortableColumn;
-  sort: TimelineSort;
-  onSort: (prop: TimelineSortProp) => void;
-}): ReactElement {
-  const active = sort.prop === column.prop;
-  return (
-    <th
-      className={tableStyles.headerCell}
-      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <button type="button" className={ts.sortButton} onClick={() => onSort(column.prop)}>
-        {column.label}
-        {active && <span className={ts.sortMark}>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
-      </button>
-    </th>
   );
 }
 

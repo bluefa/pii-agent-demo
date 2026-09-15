@@ -151,7 +151,7 @@ page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 �
          ⛔ 세그먼트는 5개가 상한 — 더 늘리면 드롭다운(벤치 1차 시안 3).
          우 날짜 트리거(attached: 테두리 없음, 우 r7, 캘린더 아이콘 · 사람 말 날짜 · 셰브론):
          같은 해 「9월 9일 – 15일」 · 다른 달 「8월 28일 – 9월 3일」 · 해가 걸치면 「2025년 12월 30일 – 2026년 1월 5일」 · 하루면 「9월 15일」
-         (`formatDayRange`; 표 셀은 ISO 유지 — 정렬 열)
+         (`formatDayRange`; 표 셀은 ISO 유지 — 데이터 열)
   캡션   14/400 medium(gray-100 위라 weak 금지) tabular: 「{기준} 기준 · N건」(totalElements, 로딩 중 건수 자리 스켈레톤) — style-guide §4 스코프 캡션
          팝오버: 좌 프리셋 레일(최근 7일·14일·21일·30일·90일·이번 달·지난 달·올해) + 우 두 달 캘린더
                  시작 클릭 → 끝 클릭, 호버 미리보기, 오늘 점, 미래 날짜 faint
@@ -161,7 +161,7 @@ page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 �
   열: ID(mono, 링크 → ops target-source 상세) · 서비스 이름 · 서비스 코드(mono, 별도 열 — 오너 09-15)
       · 연동 시작 날짜(mono, `created_at`) · 최초 연동 완료확인 날짜(mono, `pii_agent_first_installed_at`, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
       · 최초 연동(tag: 완료=green / 미완료=gray)
-  정렬: ID·연동 시작 날짜·최초 연동 완료확인 날짜 헤더 클릭(서버 sort) — 리드타임은 정렬 없음(오너 09-15)
+  정렬: 없음(오너 09-15) — 헤더는 버튼 아님, 순서는 서버 기본 `createdAt,desc`(연동 시작 날짜 내림차순)
   empty: "조건에 맞는 TargetSource 가 없습니다."
   푸터: PlPagination + "N건 · 전체 M건 중"(totalElements)
 ```

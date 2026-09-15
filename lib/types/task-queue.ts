@@ -400,7 +400,8 @@ export interface IntegrationTimelineQuery {
   installed?: TimelineInstalledFilter;
   serviceCode?: string;
   confirmStatus?: string;
-  sort: string;
+  /** Optional; the route defaults it to `createdAt,desc`. The screen offers no sort (owner, 09-15). */
+  sort?: string;
   page: number;
   size: number;
 }
