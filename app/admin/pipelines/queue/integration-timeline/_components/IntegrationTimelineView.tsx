@@ -57,14 +57,12 @@ const AXIS_OPTIONS: ReadonlyArray<{ value: TimelineAxis; label: string }> = [
 interface SortableColumn {
   label: string;
   prop: TimelineSortProp;
-  numeric?: boolean;
 }
 
 const SORTABLE: Record<string, SortableColumn> = {
   id: { label: 'ID', prop: 'targetSourceId' },
   created: { label: '연동 시작 날짜', prop: 'createdAt' },
   installed: { label: '최초 연동 완료확인 날짜', prop: 'piiAgentFirstInstalledAt' },
-  lead: { label: '리드타임', prop: 'leadTimeSeconds', numeric: true },
 };
 
 const ts = {
@@ -227,7 +225,7 @@ export function IntegrationTimelineView(): ReactElement {
                 <th className={tableStyles.headerCell}>서비스 코드</th>
                 <SortHeader column={SORTABLE.created} sort={sort} onSort={toggleSort} />
                 <SortHeader column={SORTABLE.installed} sort={sort} onSort={toggleSort} />
-                <SortHeader column={SORTABLE.lead} sort={sort} onSort={toggleSort} />
+                <th className={cn(tableStyles.headerCell, ts.cellNumeric)}>리드타임</th>
                 <th className={tableStyles.headerCell}>최초 연동</th>
               </tr>
             </thead>
@@ -327,7 +325,7 @@ function SortHeader({
   const active = sort.prop === column.prop;
   return (
     <th
-      className={cn(tableStyles.headerCell, column.numeric && ts.cellNumeric)}
+      className={tableStyles.headerCell}
       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <button type="button" className={ts.sortButton} onClick={() => onSort(column.prop)}>

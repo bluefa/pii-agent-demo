@@ -154,7 +154,7 @@ page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 �
   열: ID(mono, 링크 → ops target-source 상세) · 서비스 이름 · 서비스 코드(mono, 별도 열 — 오너 09-15)
       · 연동 시작 날짜(mono, `created_at`) · 최초 연동 완료확인 날짜(mono, `pii_agent_first_installed_at`, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
       · 최초 연동(tag: 완료=green / 미완료=gray)
-  정렬: ID·연동 시작 날짜·최초 연동 완료확인 날짜·리드타임 헤더 클릭(서버 sort)
+  정렬: ID·연동 시작 날짜·최초 연동 완료확인 날짜 헤더 클릭(서버 sort) — 리드타임은 정렬 없음(오너 09-15)
   empty: "조건에 맞는 TargetSource 가 없습니다."
   푸터: PlPagination + "N건 · 전체 M건 중"(totalElements)
 ```

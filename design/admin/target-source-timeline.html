@@ -196,7 +196,7 @@
             <th>서비스</th>
             <th><button type="button" data-key="created">연동 시작 날짜</button></th>
             <th><button type="button" data-key="installed">최초 연동 완료확인 날짜</button></th>
-            <th class="num"><button type="button" data-key="lead">리드타임</button></th>
+            <th class="num">리드타임</th>
             <th>최초 연동</th>
           </tr>
         </thead>
@@ -219,7 +219,7 @@ Query
   installed      ALL | YES | NO   (기본 ALL)
   serviceCode    string
   confirmStatus  기존 enum 그대로
-  page, size, sort   (sort=leadTimeSeconds,desc 등)
+  page, size, sort   (sort=createdAt,desc 등 · leadTimeSeconds 는 FE 미사용)
 
 axis=FIRST_INSTALLED 이면 installed=NO 는 빈 결과.
 축이 최초 연동 완료확인 날짜이면 미완료 행은 구간에 들어올 수 없기 때문.</pre>

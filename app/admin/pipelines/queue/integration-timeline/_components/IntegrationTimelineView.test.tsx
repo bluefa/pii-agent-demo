@@ -157,10 +157,18 @@ describe('IntegrationTimelineView', () => {
 
   it('sorts on the server and flips on the second click', async () => {
     await renderView();
-    fireEvent.click(screen.getByRole('button', { name: /리드타임/ }));
-    await waitFor(() => expect(lastQuery().sort).toBe('leadTimeSeconds,desc'));
-    fireEvent.click(screen.getByRole('button', { name: /리드타임/ }));
-    await waitFor(() => expect(lastQuery().sort).toBe('leadTimeSeconds,asc'));
+    // The 기준 segment carries the same label; only the header button sorts.
+    const header = () => table().getByRole('button', { name: /최초 연동 완료확인 날짜/ });
+    fireEvent.click(header());
+    await waitFor(() => expect(lastQuery().sort).toBe('piiAgentFirstInstalledAt,desc'));
+    fireEvent.click(header());
+    await waitFor(() => expect(lastQuery().sort).toBe('piiAgentFirstInstalledAt,asc'));
+  });
+
+  it('does not sort by 리드타임 (owner, 2026-09-15)', async () => {
+    await renderView();
+    expect(table().queryByRole('button', { name: /리드타임/ })).toBeNull();
+    expect(table().getByRole('columnheader', { name: '리드타임' })).toBeTruthy();
   });
 
   it('returns to the first page when the question changes', async () => {
