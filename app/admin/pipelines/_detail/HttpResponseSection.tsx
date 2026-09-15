@@ -8,9 +8,7 @@
  * call failed → one line + 재시도 · ok → status line + body verbatim.
  */
 import { useEffect, useState, type ReactElement } from 'react';
-import { cn } from '@/lib/theme';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
-import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { d, Section } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import { formatJson } from '@/app/admin/pipelines/_detail/jsonFormat';
 import { getAttemptHttpResponse } from '@/app/lib/api/pipeline';
@@ -55,7 +53,7 @@ export function HttpResponseSection({
     return (
       <Section label="Infra Manager 응답">
         <div
-          className={cn(detailStyles.skeleton, 'mt-2.5 h-24 w-full')}
+          className={`${d.httpSkeleton} mt-2.5 h-24 w-full`}
           role="status"
           aria-label="Infra Manager 응답을 불러오는 중"
         />
