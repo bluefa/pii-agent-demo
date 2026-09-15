@@ -21,7 +21,6 @@ import Link from 'next/link';
 import { cn, segmentedControlStyles, tableStyles, tagStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
@@ -64,14 +63,17 @@ const ts = {
   // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
   // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
   // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
-  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-medium)]',
+  // Title → lede 4px, lede → card 24px: the same two distances the sibling 연동 요청 page
+  // uses (rq.context mt-1 / rq.split mt-6). Layers are told apart by distance, not by chrome —
+  // no breadcrumb above the title either (owner, 2026-09-15).
+  lede: 'mt-1 whitespace-nowrap text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
   /**
    * The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. No
    * `overflow-hidden` — the 기간 popover opens from inside the band and must not be
    * clipped; the band rounds its own top corners instead.
    */
   card:
-    'mt-5 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
+    'mt-6 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
   /**
    * The table's toolbar (benchmark 2, 시안 3, owner 2026-09-15): the filters live on the
    * table they cut, in the gray-100 band the resource tables already use
@@ -167,7 +169,6 @@ export function IntegrationTimelineView(): ReactElement {
   return (
     <div className={ts.page}>
     <div className={ts.body}>
-      <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
           <h1 className={ts.title}>TargetSource 연동 시점</h1>
