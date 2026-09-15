@@ -76,6 +76,18 @@ const SIDEBAR_GROUPS = [
         href: passRoutes.pipelines.queue.requests,
         exact: false,
       },
+      {
+        label: '연동 시점',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+            <path d="M3.5 9.5h17M8 2.5v4M16 2.5v4" />
+            <path d="M8 13.5h3.5M8 17h8" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.queue.integrationTimeline,
+        exact: false,
+      },
     ],
   },
   {

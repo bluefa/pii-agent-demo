@@ -13,6 +13,10 @@
  *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
 import type { BffClient, ConfirmedResourceProvider } from '@/lib/bff/types';
+import type {
+  IntegrationTimelineCsvQuery,
+  IntegrationTimelinePageWire,
+} from '@/lib/types/task-queue';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import type { OrchestratorRawResponse } from '@/lib/pipeline/types';
@@ -229,6 +233,41 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
   const qs = search.toString();
   return qs ? `?${qs}` : '';
 };
+
+/**
+ * The filter half of the 연동 시점 query — shared by the JSON page and the CSV download,
+ * which take the SAME filters and differ only in `Accept` and the pager (api-spec §P6).
+ * Written once so the two can never drift into filtering different row sets.
+ */
+const integrationTimelineQuery = (
+  query: IntegrationTimelineCsvQuery,
+  pager?: { page: number; size: number },
+): string =>
+  buildQuery({
+    axis: query.axis,
+    from: query.from,
+    to: query.to,
+    installed: query.installed,
+    serviceCode: query.serviceCode,
+    confirmStatus: query.confirmStatus,
+    sort: query.sort,
+    page: pager?.page,
+    size: pager?.size,
+  });
+
+/**
+ * GET returning the body as TEXT under a caller-chosen `Accept` — the CSV download.
+ * `get`/`getSnakeRaw` both parse JSON, and `getRaw` sends the wildcard Accept, which
+ * would let an upstream answer the download with JSON.
+ */
+async function getText(path: string, accept: string): Promise<string> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] \u2192 GET ${fullPath} (${accept})`);
+  const res = await fetch(fullPath, { headers: { Accept: accept, ...(await authHeaders()) } });
+  console.log(`[BFF] \u2190 GET ${fullPath} (${res.status}, ${accept})`);
+  if (!res.ok) await throwBffError(res);
+  return await res.text();
+}
 
 export const httpBff: BffClient = {
   // Pipeline domain (LIN-25): verbatim `{ status, body }` passthrough to the
@@ -631,6 +670,15 @@ export const httpBff: BffClient = {
       ),
     getNlbIndexMappings: (id) =>
       getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest/nlb-index-mappings`),
+    getIntegrationTimeline: (query) =>
+      getSnakeRaw<IntegrationTimelinePageWire>(
+        `/admin/target-sources/integration-timeline${integrationTimelineQuery(query, {
+          page: query.page,
+          size: query.size,
+        })}`,
+      ),
+    getIntegrationTimelineCsv: (query) =>
+      getText(`/admin/target-sources/integration-timeline${integrationTimelineQuery(query)}`, 'text/csv'),
   },
 
   // Logical-DB: the CSR client (app/lib/api/logical-db.ts) owns the single camel

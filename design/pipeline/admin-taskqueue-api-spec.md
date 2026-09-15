@@ -103,6 +103,67 @@
 - 재실행 요청: `POST /install/v1/target-sources/{id}/test-connection/reject` body=`TestConnectionRejectRequest{reason}` — **maxLength 512(계약)**.
 - 연동 승인: `POST /install/v1/target-sources/{id}/pii-agent-installation/confirm` body=`PiiAgentInstallationConfirmRequest{confirm:true}`.
 
+## P6 연동 시점 `/admin/pipelines/queue/integration-timeline` (2026-09-15 추가)
+
+목적: TargetSource 가 **언제 만들어졌고 언제 처음 연동을 마쳤는지**를 기간으로 잘라 본다.
+통계(중앙값·평균·백분위·기간 비교)는 이 화면의 일이 아니다 — CSV 를 받은 쪽 도구의 몫(오너 결정 09-14).
+목업 = `design/admin/target-source-timeline.html`.
+
+### 목록 — ⚠️ 계약 갭 **G8**: swagger 미수록, 신규 BE API 요청 (명세는 아래가 SSOT)
+
+`GET /install/v1/admin/target-sources/integration-timeline`
+
+| Query | 타입 | 필수 | 기본 | 뜻 |
+|---|---|---|---|---|
+| `axis` | `CREATED` \| `FIRST_INSTALLED` | – | `CREATED` | 기간을 자르는 축. 화면 낱말: `CREATED`=연동 시작 날짜(`created_at`) / `FIRST_INSTALLED`=최초 연동 완료확인 날짜(`pii_agent_first_installed_at`) |
+| `from` | `date` (YYYY-MM-DD) | ✅ | – | 구간 시작(포함). Asia/Seoul 자정 기준 |
+| `to` | `date` (YYYY-MM-DD) | ✅ | – | 구간 끝(포함). `from ≤ to` 아니면 400 |
+| `installed` | `ALL` \| `YES` \| `NO` | – | `ALL` | 최초 연동 완료 여부. `pii_agent_first_installed_at` 유무. ⚠️ 화면 필터는 09-15 제외 — FE 는 보내지 않는다, BE 는 유지해도 무방 |
+| `serviceCode` | string | – | – | 기존 목록 API 와 같은 뜻 |
+| `confirmStatus` | 기존 enum | – | – | `NO_REQUEST`·`PENDING`·`CONFIRM_INFO_UPDATE_REQUIRED`·`CONFIRMED`·`REJECTED` |
+| `page` / `size` | int | – | `0` / `20` | 0-index. `size` 최대 100 |
+| `sort` | `prop,dir` | – | `createdAt,desc` | 허용 prop: `createdAt`·`piiAgentFirstInstalledAt`·`leadTimeSeconds`·`targetSourceId`. 반복 가능 |
+
+- `axis=FIRST_INSTALLED` 이면 `installed=NO` 는 정의상 빈 페이지(200, `totalElements: 0`). 400 아님.
+- `pii_agent_first_installed_at` 은 초기화로 단계가 되돌아가도 바뀌지 않는 값이다(기존 `TargetSourceResponse` 와 같은 컬럼).
+
+200 → `PageTargetSourceIntegrationTimelineResponse`
+
+```json
+{
+  "content": [{
+    "target_source_id": 4130,
+    "service_code": "SVC-PAY",
+    "service_name": "결제 정산",
+    "cloud_provider": "AWS",
+    "confirm_status": "CONFIRMED",
+    "created_at": "2026-07-02T10:12:00+09:00",
+    "pii_agent_first_installed_at": "2026-07-11T16:40:00+09:00",
+    "lead_time_seconds": 800880
+  }],
+  "totalElements": 41, "totalPages": 3, "number": 0, "size": 20, "first": true, "last": false
+}
+```
+
+| 필드 | 타입 | 규칙 |
+|---|---|---|
+| `lead_time_seconds` | int64 \| null | `pii_agent_first_installed_at − created_at` (초). 최초 연동 완료 행만, 아니면 `null`. **BE 가 계산**해 정렬 가능하게 한다 |
+| `created_at` · `pii_agent_first_installed_at` | date-time(오프셋 포함) | FE 는 UTC 보정하지 않는다 — BFF 가 오프셋을 보낸다 |
+| 나머지 | 기존 `TargetSourceResponse` 부분집합 | `cloud_provider`·`confirm_status` 는 표에 안 그리지만 CSV 열로 쓴다 |
+
+4xx: `ErrorMessage` 그대로 중계(ADR-008). 400 = `from > to`, 잘못된 enum, `size > 100`.
+
+### CSV
+
+같은 경로, `Accept: text/csv`. `page`·`size` 무시, 나머지 필터·정렬 동일.
+열 순서 고정: `target_source_id, service_code, service_name, cloud_provider, confirm_status, created_at, pii_agent_first_installed_at, lead_time_seconds`.
+행 상한은 BE 재량(제안 10,000 · 초과 시 400). 클라이언트에서 페이지를 모아 만들지 않는다.
+
+### FE 표시 규칙
+- 리드타임 = `lead_time_seconds` → `N일 N시간`. 1일 미만 `N시간`, 1시간 미만 `1시간 미만`. `null` 은 `–`.
+- 최초 연동 태그 = `완료` / `미완료` 한 사실. 경과일·경고 톤 없음.
+- 3-hop: CSR → `app/api/v1/admin/queue/integration-timeline/route.ts` → `bff.taskQueue.getIntegrationTimeline`. wire 타입은 `lib/types/task-queue.ts` 의 `IntegrationTimelineWire` 가 단일 교정점(G7 과 같은 방식). swagger 는 BE 드롭 뒤에만 반영.
+
 ## 계약 갭 (구현 시 표기 유지)
 
 | # | 갭 | 처리 |
@@ -114,3 +175,4 @@
 | G5 | nlb-indices 단건 계약 | 행별 저장 UX로 흡수 (일괄 저장 없음) |
 | G6 | `/approval-history` 200이 generic `Page` — 항목 스키마 부재 | 사용자 지정 가정 shape로 구현, `ApprovalHistoryItemWire` 단일 교정점 |
 | G7 | `nlb-index-mappings` swagger 미수록 | 사용자 제공 wire로 구현, raw passthrough + 어댑터 경계 |
+| G8 | `integration-timeline` swagger 미수록 (신규 BE API, P6) | 위 P6 명세를 SSOT 로 `IntegrationTimelineWire` 손선언 + 어댑터 경계. BE 드롭이 오면 generated 타입으로 교체 |
