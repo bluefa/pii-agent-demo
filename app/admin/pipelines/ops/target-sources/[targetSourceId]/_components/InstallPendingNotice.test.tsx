@@ -49,6 +49,44 @@ const dataOf = (
 
 const TITLE = '설치가 끝나지 않아 연결 테스트가 실패합니다';
 
+describe('InstallPendingNotice — the verdict note', () => {
+  it('draws the step note under the sentence, link and all, exactly as the 인프라 작업 card does', () => {
+    const azure = installStateView({
+      provider: 'azure',
+      manualInstall: false,
+      detail: detailOf([resource('db-1', { vmSubnet: 'COMPLETED', vmApply: 'COMPLETED', bdc: 'COMPLETED', pe: 'IN_PROGRESS' })]),
+    });
+    const result = installPendingGate({
+      provider: 'azure',
+      manualInstall: false,
+      detail: detailOf([resource('db-1', { vmSubnet: 'COMPLETED', vmApply: 'COMPLETED', bdc: 'COMPLETED', pe: 'IN_PROGRESS' })]),
+    });
+    render(<InstallPendingNotice data={{ result, view: azure }} onSelectTab={vi.fn()} />);
+
+    expect(screen.getByText('서비스 담당자가 Private Endpoint 연결을 승인해야 합니다')).toBeTruthy();
+    expect(screen.getByText('BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.')).toBeTruthy();
+    const link = screen.getByRole('link', { name: /Azure Portal에서 승인/ });
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it('a GCP subnet turn names no command block here — this tab has none', () => {
+    const gcp = installStateView({
+      provider: 'gcp',
+      manualInstall: false,
+      detail: detailOf([resource('db-1', { subnet: 'IN_PROGRESS', service: 'IN_PROGRESS', bdc: 'IN_PROGRESS' })]),
+    });
+    const result = installPendingGate({
+      provider: 'gcp',
+      manualInstall: false,
+      detail: detailOf([resource('db-1', { subnet: 'IN_PROGRESS', service: 'IN_PROGRESS', bdc: 'IN_PROGRESS' })]),
+    });
+    render(<InstallPendingNotice data={{ result, view: gcp }} onSelectTab={vi.fn()} />);
+
+    expect(screen.getByText('서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.')).toBeTruthy();
+    expect(screen.queryByText(/아래 명령/)).toBeNull();
+  });
+});
+
 describe('InstallPendingNotice', () => {
   it('needed 일 때만 그린다 — done·unknown·없음은 아무것도 말하지 않는다', () => {
     const { unmount } = render(<InstallPendingNotice data={null} onSelectTab={vi.fn()} />);

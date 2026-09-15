@@ -97,7 +97,8 @@ GCP Subnet 안내 블록과 같은 children 자리. 주소 mono 12px 는 `tc/Ldb
 - 권한 부여 단계(대상 단위, 리소스 없음)의 FAIL 도 개발자 문구를 낸다.
 - 조인됐지만 주소 사실이 하나도 없는 IDC 행은 빈 칸 대신 wire id.
 - 확정 정보 조인은 표를 그리는 IDC·Azure 에서만 읽는다.
-- IDC 열 폭은 `IDC_COLUMN_WIDTHS` 원장에서.
+- IDC 열 폭은 `IDC_COLUMN_WIDTHS` 원장에서. IDC 표는 접속 주소 한 열만 flex(남는 폭은 주소로, 「상태」는 고정).
+- 정체 조인 훅(`installIdentity`)과 연결 테스트 탭 알림의 보충 문구는 테스트로 잠근다(후속 PR).
 
 ## 안 한 것
 

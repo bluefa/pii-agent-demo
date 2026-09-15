@@ -137,7 +137,9 @@ function OpenResourcesFold({
   const resize = useColumnResize({
     clampToContent: true,
     storageKey: idc ? 'pii:colw:v1:admin-install-open-idc' : 'pii:colw:v1:admin-install-open',
-    ephemeralKeys: idc ? ['endpoint', 'state'] : ['name', 'id'],
+    // The IDC table runs a single flex column on the address on purpose: slack goes to
+    // the hosts, never to a fixed status phrase. The cloud table flexes name and id.
+    ephemeralKeys: idc ? ['endpoint'] : ['name', 'id'],
   });
   const withSource = idc && step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
   const columns: ConsoleTableColumn[] = idc
@@ -148,7 +150,7 @@ function OpenResourcesFold({
         ...(withSource
           ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: IDC_COLUMN_WIDTHS.src, head: <SourceIpHeader /> }]
           : []),
-        { key: 'state', label: '상태', width: 200, flex: true },
+        { key: 'state', label: '상태', width: 200 },
       ]
     : [
         { key: 'name', label: 'Resource Name', width: APPROVAL_COLUMN_WIDTHS.name, flex: true },
@@ -169,7 +171,12 @@ function OpenResourcesFold({
         <span className="font-semibold text-[var(--pl-text-strong)]">남은 리소스</span>
         <span className={cn(WEAK, 'tabular-nums')}>{step.open.length}건</span>
       </summary>
-      <div className={cn(CONNECTED_FRAME, 'border-t border-[var(--pl-border)]')} aria-label={`${step.title} 남은 리소스`}>
+      {/* `group`: an aria-label on a bare div is ignored by assistive tech; ConsoleTable owns the <table>. */}
+      <div
+        role="group"
+        className={cn(CONNECTED_FRAME, 'border-t border-[var(--pl-border)]')}
+        aria-label={`${step.title} 남은 리소스`}
+      >
         <ConsoleTable columns={columns} resize={resize}>
           <tbody className={table.body}>
             {step.open.map((r) => {
