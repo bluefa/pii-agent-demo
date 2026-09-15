@@ -4366,6 +4366,14 @@ export const pipelineStyles = {
      *  quieter than primary (filled) yet more actionable than secondary (gray). */
     outline:
       'border border-[var(--pl-primary)] bg-[var(--pl-bg-card)] text-[var(--pl-primary)] shadow-[var(--pl-shadow-xs)] enabled:hover:bg-[var(--pl-primary-bg)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:shadow-none',
+    /**
+     * Pale-green outline — 「Excel 내려받기」 (owner, 2026-09-15; 연동 시점 benchmark 3, 시안 1).
+     * Domestic admin consoles paint the spreadsheet export green; here it stays on the
+     * `--pl-ok-*` family so no brand hex enters the code, and pale rather than solid because
+     * a download is not the page's primary action.
+     */
+    ok:
+      'border border-[var(--pl-ok-border)] bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)] shadow-[var(--pl-shadow-xs)] enabled:hover:border-[var(--pl-ok)] disabled:text-[var(--pl-text-faint)] disabled:border-[var(--pl-border)] disabled:bg-[var(--pl-bg-card)] disabled:shadow-none',
     ghost:
       'border border-transparent bg-transparent text-[var(--pl-text-weak)] enabled:hover:bg-[var(--pl-gray-100)] enabled:hover:text-[var(--pl-text-medium)] disabled:text-[var(--pl-gray-300)]',
     danger:

@@ -122,11 +122,12 @@ describe('IntegrationTimelineView', () => {
     expect(screen.getByRole('dialog', { name: '기간 선택' })).toBeTruthy();
   });
 
-  it('says which axis and how many rows the table holds', async () => {
+  it('labels the two groups and carries no 「… 기준 · N건」 caption (owner, 2026-09-15)', async () => {
     await renderView();
-    await screen.findByText('연동 시작 날짜 기준 · 41건');
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
-    await screen.findByText('최초 연동 완료확인 날짜 기준 · 41건');
+    const band = within(screen.getByLabelText('조회 조건'));
+    expect(band.getByText('날짜 기준')).toBeTruthy();
+    expect(band.getByText('기간')).toBeTruthy();
+    expect(screen.queryByText(/기준 · \d+건/)).toBeNull();
   });
 
   it('renders the row as the server wrote it', async () => {
@@ -152,7 +153,7 @@ describe('IntegrationTimelineView', () => {
 
   it('sends 기준 to the server', async () => {
     await renderView();
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
+    fireEvent.click(segment('날짜 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
   });
 
@@ -171,9 +172,15 @@ describe('IntegrationTimelineView', () => {
     expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(13 * 86_400_000);
   });
 
+  it('shows the provider as a Cloud column, the same tag as the queue table (owner, 2026-09-15)', async () => {
+    await renderView();
+    expect(table().getByRole('columnheader', { name: 'Cloud' })).toBeTruthy();
+    expect(table().getAllByText('AWS').length).toBeGreaterThan(0);
+  });
+
   it('offers no sort — no header is a button (owner, 2026-09-15)', async () => {
     await renderView();
-    expect(table().getAllByRole('columnheader').length).toBe(7);
+    expect(table().getAllByRole('columnheader').length).toBe(8);
     expect(table().getAllByRole('columnheader').some((th) => th.querySelector('button'))).toBe(false);
     expect(table().getAllByRole('columnheader').some((th) => th.hasAttribute('aria-sort'))).toBe(false);
   });
@@ -183,17 +190,17 @@ describe('IntegrationTimelineView', () => {
     fireEvent.click(screen.getByRole('button', { name: /다음/ }));
     await waitFor(() => expect(lastQuery().page).toBe(1));
 
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
+    fireEvent.click(segment('날짜 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery()).toMatchObject({ axis: 'FIRST_INSTALLED', page: 0 }));
   });
 
-  it('downloads the CSV with the filters on screen, without the pager', async () => {
+  it('downloads the sheet with the filters on screen, without the pager', async () => {
     downloadIntegrationTimelineCsv.mockResolvedValue(new Blob(['id'], { type: 'text/csv' }));
     await renderView();
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
+    fireEvent.click(segment('날짜 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'CSV 내려받기' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excel 내려받기' }));
     await waitFor(() => expect(downloadIntegrationTimelineCsv).toHaveBeenCalled());
     const csvQuery = downloadIntegrationTimelineCsv.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED' });

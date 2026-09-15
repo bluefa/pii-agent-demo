@@ -11,7 +11,8 @@
  *
  * What this screen deliberately does NOT have (owner, 2026-09-14): summary tiles, median /
  * average / percentile, an "elapsed so far" column, a CSP filter, bars inside cells. The
- * statistics belong to whatever tool receives the CSV — this screen cuts the period and
+ * provider is a COLUMN (owner, 2026-09-15), not a filter — the same `Cloud` cell the queue
+ * table shows. The statistics belong to whatever tool receives the CSV — this screen cuts the period and
  * shows the rows.
  */
 import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -20,8 +21,8 @@ import Link from 'next/link';
 import { cn, segmentedControlStyles, tableStyles, tagStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
-import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import {
   downloadIntegrationTimelineCsv,
@@ -62,30 +63,40 @@ const ts = {
   // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
   // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
   // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
-  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-medium)]',
+  // Measured on the sibling 연동 요청 page (2026-09-15): its context line carries a 32px
+  // number, so although the box margin is 4px the VISIBLE gap from the title's glyphs to the
+  // text is 18px, and text → next block is 25px. This page has no big number, so the visible
+  // distances are set directly: 16 (4px grid, nearest to 18) and 24. Layers are told apart by
+  // distance, not by chrome — no breadcrumb above the title either (owner, 2026-09-15).
+  lede: 'mt-4 whitespace-nowrap text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
   /**
    * The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. No
    * `overflow-hidden` — the 기간 popover opens from inside the band and must not be
    * clipped; the band rounds its own top corners instead.
    */
   card:
-    'mt-5 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
+    'mt-6 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
   /**
    * The table's toolbar (benchmark 2, 시안 3, owner 2026-09-15): the filters live on the
    * table they cut, in the gray-100 band the resource tables already use
-   * (ResourceFilterBar). Order: 기준 · 기간 · what is being shown · (right) CSV.
+   * (ResourceFilterBar). Order: 날짜 기준 · divider · 기간 · (right) Excel — benchmark 3 시안 1
+   * (owner, 2026-09-15): the two groups are told apart by a 12/700 label each and one strong
+   * divider, not by shape; the 「… 기준 · N건」 caption is gone (the segment and the footer
+   * already say both).
    */
   band:
     'flex flex-wrap items-center gap-4 rounded-t-[11px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-4 py-[14px]',
+  /** Group label — the table-header size (12/semibold), medium so it holds on the gray-100 band. */
+  label: 'text-[12px] font-bold leading-[1.2] text-[var(--pl-text-medium)]',
+  /** The one line between 날짜 기준 and 기간 — strong on purpose (owner: 구분선만 찐하게). */
+  divider: 'h-6 w-0.5 bg-[var(--pl-border-strong)]',
   /** Quick spans and the calendar field share one border: the date IS the pressed span. */
   compound:
     'inline-flex h-8 items-stretch rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
   compoundSeg:
     'inline-flex items-center gap-0.5 rounded-l-[7px] border-r border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
-  // medium, not weak: this line stands on the gray-100 band.
-  caption: 'text-[14px] leading-[1.4] tabular-nums text-[var(--pl-text-medium)]',
-  captionSkeleton: 'inline-block h-3.5 w-8 animate-pulse rounded-[6px] bg-[var(--pl-gray-200)] align-middle',
   bandEnd: 'ml-auto flex items-center gap-2',
+  downloadError: 'text-[12px] text-[var(--pl-err-text)]',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
   cellMono: 'tabular-nums [font-family:var(--pl-font-mono)]',
@@ -100,7 +111,7 @@ const ts = {
   skeleton: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 } as const;
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
 
 export function IntegrationTimelineView(): ReactElement {
   // The window is seeded once, from the day the screen opened — re-deriving it per render
@@ -151,7 +162,7 @@ export function IntegrationTimelineView(): ReactElement {
     setCsvError(null);
     downloadIntegrationTimelineCsv(query)
       .then((blob) => saveCsv(blob, `integration-timeline_${range.from}_${range.to}.csv`))
-      .catch(() => setCsvError('CSV를 내려받지 못했습니다.'));
+      .catch(() => setCsvError('Excel 파일을 내려받지 못했습니다.'));
   };
 
   const rows = paged?.content ?? [];
@@ -160,10 +171,9 @@ export function IntegrationTimelineView(): ReactElement {
   return (
     <div className={ts.page}>
     <div className={ts.body}>
-      <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
-          <h1 className={ts.title}>TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜</h1>
+          <h1 className={ts.title}>TargetSource 연동 시점</h1>
           <p className={ts.lede}>
             TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
             최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
@@ -173,14 +183,15 @@ export function IntegrationTimelineView(): ReactElement {
 
       <section className={ts.card}>
         <div className={ts.band} aria-label="조회 조건">
-          {/* No 기준/기간 labels: the axis segment repeats the column names it switches
-              between, and the 기간 compound carries its own dates. */}
+          <span className={ts.label}>날짜 기준</span>
           <Segment
-            ariaLabel="기간 기준"
+            ariaLabel="날짜 기준"
             options={AXIS_OPTIONS}
             value={axis}
             onChange={(next) => refilter(() => setAxis(next))}
           />
+          <span className={ts.divider} aria-hidden="true" />
+          <span className={ts.label}>기간</span>
           {/* One click for the windows people actually ask for; the calendar is for
               everything else. Both write the same applied range. A calendar range lights
               직접 선택 instead of a span, so the compound always says which kind of window
@@ -202,13 +213,14 @@ export function IntegrationTimelineView(): ReactElement {
               onApply={(next) => refilter(() => setRange(next))}
             />
           </div>
-          <span className={ts.caption} aria-live="polite">
-            {AXIS_OPTIONS.find((option) => option.value === axis)?.label} 기준 ·{' '}
-            {paged ? `${paged.totalElements}건` : <span className={ts.captionSkeleton} />}
-          </span>
           <div className={ts.bandEnd}>
-            {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
-            <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
+            {csvError && <span className={ts.downloadError}>{csvError}</span>}
+            {/* The file is still text/csv; the label names the tool the operator opens it in
+                (owner, 2026-09-15). A generic sheet glyph, not a vendor logo. */}
+            <PlButton variant="ok" onClick={onCsv}>
+              <SheetGlyph />
+              Excel 내려받기
+            </PlButton>
           </div>
         </div>
         <div className={ts.tableWrap}>
@@ -218,6 +230,7 @@ export function IntegrationTimelineView(): ReactElement {
                 <th className={tableStyles.headerCell}>ID</th>
                 <th className={tableStyles.headerCell}>서비스 이름</th>
                 <th className={tableStyles.headerCell}>서비스 코드</th>
+                <th className={tableStyles.headerCell}>Cloud</th>
                 <th className={tableStyles.headerCell}>연동 시작 날짜</th>
                 <th className={tableStyles.headerCell}>최초 연동 완료확인 날짜</th>
                 <th className={cn(tableStyles.headerCell, ts.cellNumeric)}>리드타임</th>
@@ -286,6 +299,9 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
       </td>
       <td className={tableStyles.cell}>{row.serviceName ?? EMPTY_CELL}</td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{row.serviceCode ?? EMPTY_CELL}</td>
+      <td className={tableStyles.cell}>
+        <ProvTag provider={row.cloudProvider ?? ''} />
+      </td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{formatWireDay(row.createdAt)}</td>
       <td className={cn(tableStyles.cell, ts.cellMono, !installed && ts.dim)}>{firstInstalled}</td>
       <td
@@ -402,6 +418,23 @@ function SkeletonRows(): ReactElement {
         </tr>
       ))}
     </>
+  );
+}
+
+function SheetGlyph(): ReactElement {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="12" height="12" rx="2" />
+      <path d="M2 6.5h12M2 10.5h12M6.5 2v12" />
+    </svg>
   );
 }
 
