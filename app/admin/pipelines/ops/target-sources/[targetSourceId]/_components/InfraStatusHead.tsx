@@ -26,9 +26,9 @@
  *   - the step rows — one per step in execution order: name · owner (weak text),
  *     then ONE fact: a 조치 필요 / 조회 실패 tag with the count while the step is
  *     the one to act on, plain 대기 or 「N건 모두 완료」 otherwise. Under the step to
- *     act on (Azure, IDC 접근 허용 only), a fold with a table of the resources
- *     still open — address (or name) · DB · state · guide — so the card names
- *     WHICH database is left, not only how many
+ *     act on (Azure, IDC 접근 허용 only), a fold holding the IDC resource table
+ *     (its columns and cells) of the resources still open, plus a 상태 column —
+ *     so the card names WHICH database is left, not only how many
  *     (docs/ux/benchmark/idc-install-state-rows.md). Only steps this target
  *     actually has: a step that is SKIP on every resource is not drawn.
  *
@@ -51,7 +51,22 @@ import type {
 import type { InstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
+import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/ConsoleTable';
+import { useColumnResize } from '@/app/components/ui/useColumnResize';
+import { idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
+import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import {
+  CONNECTED_FRAME,
+  ROW_BASE,
+  ROW_TARGET,
+} from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import {
+  IdcDbTypeCell,
+  IdcEndpointCell,
+  IdcSourceIpCell,
+} from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   SIDE_LABEL,
@@ -93,6 +108,95 @@ const WEAK = 'text-[12px] text-[var(--pl-text-weak)]';
 
 export const FAIL_NOTE = '조회 실패가 여러 번 이어지면 개발자에게 연락하세요.';
 
+/**
+ * The resources still open on the step, in a fold (the GCP subnet guide's, one level
+ * down — open by default: which database is left is the point of the row) holding the
+ * IDC resource table's own columns and cells (owner 2026-09-15: "기존 리소스테이블
+ * 디자인을 이용해서"): 접속 주소 · Database Type · Port · BDC측 출발지 · 상태. The 출발지
+ * column stands only where a row carries one, so Azure's table does not grow an empty
+ * column. Column widths are the IDC table's, under this fold's own storage key.
+ */
+function OpenResourcesFold({
+  step,
+  identity,
+}: {
+  step: InstallStateStep;
+  identity: InstallResourceIdentity;
+}): ReactElement {
+  const { table } = idcStyles;
+  const resize = useColumnResize({
+    clampToContent: true,
+    storageKey: 'pii:colw:v1:admin-install-open',
+    ephemeralKeys: ['endpoint', 'state'],
+  });
+  const withSource = step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
+  const columns: ConsoleTableColumn[] = [
+    { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
+    { key: 'dbType', label: 'Database Type', width: 172 },
+    { key: 'port', label: 'Port', width: 80 },
+    ...(withSource ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> }] : []),
+    { key: 'state', label: '상태', width: 200, flex: true },
+  ];
+  return (
+    <details
+      open
+      className="group/open overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]"
+    >
+      <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 list-none [&::-webkit-details-marker]:hidden hover:bg-[var(--pl-gray-50)]">
+        <ChevronDownIcon
+          className="h-3.5 w-3.5 flex-shrink-0 text-[var(--pl-text-weak)] transition-transform group-open/open:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
+        <span className="font-semibold text-[var(--pl-text-strong)]">남은 리소스</span>
+        <span className={cn(WEAK, 'tabular-nums')}>{step.open.length}건</span>
+      </summary>
+      <div className={cn(CONNECTED_FRAME, 'border-t border-[var(--pl-border)]')} aria-label={`${step.title} 남은 리소스`}>
+        <ConsoleTable columns={columns} resize={resize}>
+          <tbody className={table.body}>
+            {step.open.map((r) => {
+              const row = identity.get(r.resourceId);
+              return (
+                <tr key={r.resourceId} className={cn(ROW_BASE, ROW_TARGET)}>
+                  <td className={cn(table.approvalCell, table.consoleCell)}>
+                    {r.resourceName ?? (row ? (
+                      <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} maxWidthClass="max-w-full" />
+                    ) : (
+                      r.resourceId
+                    ))}
+                  </td>
+                  <td className={cn(table.approvalCell, table.consoleCell)}>
+                    <IdcDbTypeCell
+                      label={row?.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
+                      oracleSid={row?.oracleSid ?? null}
+                      sidMaxWidthClass="max-w-full"
+                    />
+                  </td>
+                  <td className={cn(table.approvalCell, 'font-mono text-[14px]', textColors.secondary)}>
+                    {row?.port || <span className={textColors.tertiary}>—</span>}
+                  </td>
+                  {withSource && (
+                    <td className={cn(table.approvalCell, table.consoleCell)}>
+                      <IdcSourceIpCell sourceIps={row?.sourceIps ?? []} maxWidthClass="max-w-full" />
+                    </td>
+                  )}
+                  <td className={cn(table.approvalCell, 'text-[14px]')}>
+                    <span className={r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]'}>
+                      {r.failed ? '조회 도중 실패' : step.openLabel}
+                    </span>
+                    {r.guide && (
+                      <p className="mt-0.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">{r.guide}</p>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </ConsoleTable>
+      </div>
+    </details>
+  );
+}
+
 /** One install step: what it is, who does it, where it stands. */
 function StepRow({
   step,
@@ -102,15 +206,12 @@ function StepRow({
 }: {
   step: InstallStateStep;
   first: boolean;
-  identity: ReadonlyMap<string, InstallResourceIdentity>;
+  identity: InstallResourceIdentity;
   /** Reference drawn under the row (the GCP subnet commands). */
   children?: ReactNode;
 }): ReactElement {
   const openTag = step.state === 'now' || step.state === 'fail' ? OPEN_TAG[step.state] : null;
   const count = openTag ? countOf(step) : null;
-  // BDC측 출발지 is an IDC fact (the addresses the firewall must admit); the column
-  // exists only where a row carries one, so Azure's table does not grow an empty column.
-  const withSource = step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
   return (
     <div className={cn(!first && 'border-t border-[var(--pl-border)]')}>
       <div className="flex min-h-[30px] items-center gap-2">
@@ -132,67 +233,7 @@ function StepRow({
       {openTag && step.open.length > 0 && (
         <div className="mb-3 ml-3 mt-1 text-[12px]">
           {step.listResources ? (
-            // The GCP subnet guide's fold, one level down: a native <details> that
-            // starts open (which database is left is the point of the row), a table
-            // inside in the 확정 정보 table's own cells.
-            <details
-              open
-              className="group/open overflow-hidden rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]"
-            >
-              <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 list-none [&::-webkit-details-marker]:hidden hover:bg-[var(--pl-gray-50)]">
-                <ChevronDownIcon
-                  className="h-3.5 w-3.5 flex-shrink-0 text-[var(--pl-text-weak)] transition-transform group-open/open:rotate-180 motion-reduce:transition-none"
-                  aria-hidden="true"
-                />
-                <span className="font-semibold text-[var(--pl-text-strong)]">남은 리소스</span>
-                <span className={cn(WEAK, 'tabular-nums')}>{step.open.length}건</span>
-              </summary>
-              <table className="w-full border-t border-[var(--pl-border)]" aria-label={`${step.title} 남은 리소스`}>
-                <thead>
-                  <tr>
-                    <th scope="col" className={opsStyles.table.headCell}>접속 주소</th>
-                    {withSource && (
-                      <th scope="col" className={opsStyles.table.headCell}>{IDC_SOURCE_LABEL}</th>
-                    )}
-                    <th scope="col" className={cn(opsStyles.table.headCell, 'w-[120px]')}>DB 종류</th>
-                    <th scope="col" className={opsStyles.table.headCell}>상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {step.open.map((r) => {
-                    const who = identity.get(r.resourceId);
-                    return (
-                      <tr key={r.resourceId}>
-                        <td className={cn(opsStyles.table.cell, 'break-all text-[14px] [font-family:var(--pl-font-mono)]')}>
-                          {r.resourceName ?? who?.label ?? r.resourceId}
-                        </td>
-                        {withSource && (
-                          <td className={cn(opsStyles.table.cell, 'text-[14px] [font-family:var(--pl-font-mono)]')}>
-                            {/* One address per line, as the IDC tables print 출발지. */}
-                            {(who?.sourceIps ?? []).map((ip) => (
-                              <span key={ip} className="block">
-                                {ip}
-                              </span>
-                            ))}
-                          </td>
-                        )}
-                        <td className={cn(opsStyles.table.cell, 'text-[14px] text-[var(--pl-text-medium)]')}>
-                          {who?.databaseType ? getDatabaseShortLabel(who.databaseType) : '-'}
-                        </td>
-                        <td className={cn(opsStyles.table.cell, 'text-[14px]')}>
-                          <span className={r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]'}>
-                            {r.failed ? '조회 도중 실패' : step.openLabel}
-                          </span>
-                          {r.guide && (
-                            <p className="mt-0.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">{r.guide}</p>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </details>
+            <OpenResourcesFold step={step} identity={identity} />
           ) : (
             // No rows for this step (AWS, GCP, IDC BDC side): the guides still have to be read.
             [...new Set(step.open.flatMap((r) => (r.guide ? [r.guide] : [])))].map((guide) => (
@@ -273,12 +314,12 @@ export interface InfraStatusHeadProps {
    */
   subnetGuide?: ReactNode;
   /** resource id → address / name, joined from the confirmed integration (`installIdentity`). */
-  identity?: ReadonlyMap<string, InstallResourceIdentity>;
+  identity?: InstallResourceIdentity;
   /** The 관리자 turn's one move — scrolls to the 현재 작업 card that owns 작업 시작. */
   onGoToCurrentWork: () => void;
 }
 
-const NO_IDENTITY: ReadonlyMap<string, InstallResourceIdentity> = new Map();
+const NO_IDENTITY: InstallResourceIdentity = new Map();
 
 export function InfraStatusHead({
   status,

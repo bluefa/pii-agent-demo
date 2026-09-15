@@ -14,6 +14,8 @@
  *   5. The terraform-status task rows are gone; 연동 정보 still reads that response.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedIdcRows';
+import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
@@ -113,7 +115,7 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('조치 필요')).toBeTruthy();
     expect(screen.getByText('대기')).toBeTruthy();
     // No resource table under a step that has none open in its list.
-    expect(screen.queryByRole('table', { name: /남은 리소스/ })).toBeNull();
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
   });
 
   it('names the resources still open under the step to act on, in a fold with a table, in the step\'s own words', () => {
@@ -134,28 +136,50 @@ describe('InfraStatusHead — 설치 상태', () => {
           }),
         ],
       },
-      identity: new Map([
-        ['idc-res-002', { label: '10.20.31.10:1521', databaseType: 'ORACLE', sourceIps: ['10.10.0.21', '10.10.0.22'] }],
-      ]),
+      identity: new Map(
+        confirmedToIdcRows([
+          {
+            resource_id: 'idc-res-002',
+            resource_type: 'IDC_RESOURCE',
+            database_type: 'ORACLE',
+            database_region: null,
+            resource_name: null,
+            port: 1521,
+            host: null,
+            oracle_service_id: 'ORCL',
+            network_interface_id: null,
+            ip_configuration: null,
+            idc_host_format: 'IP',
+            idc_ips: ['10.20.31.10', '10.20.31.11'],
+            idc_source_ips: ['10.10.0.21', '10.10.0.22'],
+          } as ConfirmedIntegrationResourceInfo,
+        ]).map((row) => [row.resourceId as string, row] as const),
+      ),
     });
 
     expect(screen.getByText('5건 모두 완료')).toBeTruthy();
     expect(screen.getByText('5건 중 2건 남음')).toBeTruthy();
     expect(screen.getByText('남은 리소스')).toBeTruthy();
     expect(screen.getByText('2건')).toBeTruthy();
-    const table = screen.getByRole('table', { name: '접근 허용 남은 리소스' });
-    const rows = within(table).getAllByRole('row').slice(1);
+    // The IDC resource table's own columns, plus 상태.
+    const fold = screen.getByLabelText('접근 허용 남은 리소스');
+    expect(within(fold).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
+      expect.arrayContaining(['접속 주소', 'Database Type', 'Port', '상태']),
+    );
+    expect(within(fold).getByText('BDC측 출발지')).toBeTruthy();
+    const rows = within(fold).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByText('10.20.31.10:1521')).toBeTruthy();
+    // The IDC endpoint cell as-is: the first address, the rest behind its own 더보기.
+    expect(within(rows[0]).getByText('10.20.31.10')).toBeTruthy();
+    expect(within(rows[0]).getByRole('button', { name: 'IP 1개 더보기 ▾' })).toBeTruthy();
+    expect(within(rows[0]).getByText('1521')).toBeTruthy();
     // BDC측 출발지: the addresses the firewall has to admit, one per line.
-    expect(within(table).getByRole('columnheader', { name: 'BDC측 출발지' })).toBeTruthy();
     expect(within(rows[0]).getByText('10.10.0.21')).toBeTruthy();
     expect(within(rows[0]).getByText('10.10.0.22')).toBeTruthy();
     expect(within(rows[0]).getByText('Oracle')).toBeTruthy();
     expect(within(rows[0]).getByText('서비스측 방화벽 확인 요청 필요')).toBeTruthy();
-    // Not in the join: the wire id stands in, the DB cell is empty.
+    // Not in the join: the wire id stands in.
     expect(within(rows[1]).getByText('idc-res-004')).toBeTruthy();
-    expect(within(rows[1]).getByText('-')).toBeTruthy();
     // Nothing failed: no note about the developer.
     expect(screen.queryByText(/개발자에게 연락/)).toBeNull();
   });
@@ -232,7 +256,7 @@ describe('InfraStatusHead — 설치 상태', () => {
       },
     });
 
-    expect(screen.queryByRole('table', { name: /남은 리소스/ })).toBeNull();
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
     expect(screen.queryByText('orders-db')).toBeNull();
     expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
     expect(screen.getByText('timeout')).toBeTruthy();

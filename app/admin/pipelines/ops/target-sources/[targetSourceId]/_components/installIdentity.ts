@@ -1,57 +1,28 @@
 /**
- * Who a resource id IS — the label the 설치 상태 rows print for a resource that is
- * still open on a step.
+ * Who a resource id IS — the confirmed-integration row behind an id, for the 설치 상태
+ * card's open-resource table.
  *
  * installation-status identifies a resource by `resource_id` only. Cloud wires also
  * carry a `resource_name`; the IDC wire does not — an IDC row is its endpoint
  * (design-spec §8), and that endpoint lives in the confirmed integration the 확정 정보
- * tab already reads (`confirmedIdcRows.ts` uses the same address rule). So this joins
- * the two responses by id: name when the CSP has one, else `host:port`, else the id.
+ * tab already reads. The table draws those rows with the IDC resource table's own cells,
+ * so this hands back the same row shape that table takes (`confirmedToIdcRows`).
  *
  * Best effort. A failed read leaves the map empty and the rows fall back to the wire
  * id — the verdict and the counts never depend on it.
  */
 import { useEffect, useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
-import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
+import type { RequestResourceRow } from '@/app/lib/api/task-queue-requests';
+import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedIdcRows';
 
-export interface InstallResourceIdentity {
-  label: string;
-  databaseType: string | null;
-  /** BDC측 출발지 — the PII-Agent addresses the firewall has to admit (IDC only, else empty). */
-  sourceIps: string[];
-}
+export type InstallResourceIdentity = ReadonlyMap<string, RequestResourceRow>;
 
-const strings = (values: ReadonlyArray<string | null | undefined> | null | undefined): string[] =>
-  (values ?? []).filter((value): value is string => value != null && value !== '');
+const EMPTY: InstallResourceIdentity = new Map();
 
-/** The same address rule as the 확정 정보 IDC table: IP mode → ips, HOST mode → host, else `host`. */
-export function installResourceIdentity(row: ConfirmedIntegrationResourceInfo): InstallResourceIdentity {
-  const format = row.idc_host_format ?? null;
-  const hosts =
-    format === 'IP'
-      ? strings(row.idc_ips)
-      : format === 'HOST'
-        ? strings([row.idc_host])
-        : strings([row.host]);
-  const address = hosts.map((h) => (row.port != null ? `${h}:${row.port}` : h)).join(' · ');
-  return {
-    label: row.resource_name || address || row.resource_id,
-    databaseType: row.database_type ?? null,
-    sourceIps: strings(row.idc_source_ips),
-  };
-}
-
-const EMPTY: ReadonlyMap<string, InstallResourceIdentity> = new Map();
-
-export function useInstallResourceIdentity(
-  targetSourceId: number,
-  enabled: boolean,
-): ReadonlyMap<string, InstallResourceIdentity> {
+export function useInstallResourceIdentity(targetSourceId: number, enabled: boolean): InstallResourceIdentity {
   // Keyed by target so a stale read never labels another target's rows.
-  const [loaded, setLoaded] = useState<{ id: number; map: ReadonlyMap<string, InstallResourceIdentity> } | null>(
-    null,
-  );
+  const [loaded, setLoaded] = useState<{ id: number; map: InstallResourceIdentity } | null>(null);
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
@@ -59,7 +30,11 @@ export function useInstallResourceIdentity(
       .then((data) =>
         setLoaded({
           id: targetSourceId,
-          map: new Map((data.resource_infos ?? []).map((r) => [r.resource_id, installResourceIdentity(r)])),
+          map: new Map(
+            confirmedToIdcRows(data.resource_infos ?? []).flatMap((row) =>
+              row.resourceId ? [[row.resourceId, row] as const] : [],
+            ),
+          ),
         }),
       )
       .catch(() => {
