@@ -26,7 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '@/lib/theme';
-import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
@@ -40,7 +40,7 @@ import {
   connectorClass,
   nodeStateClass,
 } from '@/app/admin/pipelines/_detail/flowClasses';
-import type { CloudProvider, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
+import type { CloudProvider, TaskOperation, TaskStatus, TaskSummary } from '@/lib/pipeline/types';
 
 /** Exported so CustomBuildStep's canvas (LIN-22) reuses the same grid/node grammar. */
 export const FLOW_CSS = `
@@ -132,6 +132,10 @@ const DETAIL_CSS = `
 .pl-flow.pl-detail .nd-icons{margin:0;flex:none}
 .pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
 .pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
+/* ADR-023 HTTP_REQUEST marks take the pipeline-type hue (globals.css: type colour on the
+   glyph, status on the badge) — never --pl-err/--pl-ok, which are the corner badges. */
+.pl-flow.pl-detail .nd-mark.m-delete{color:var(--pl-type-delete)}
+.pl-flow.pl-detail .nd-mark.m-reconfirm{color:var(--pl-type-reconfirm)}
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 /* 14px (owner 2026-08-16) — the card title stops outranking the page header's
@@ -163,6 +167,17 @@ export function ProviderMark({ provider }: { provider: CloudProvider }): ReactEl
     </span>
   );
 }
+
+/**
+ * Kind mark for the two ADR-023 HTTP_REQUEST tasks, keyed by `operation` — `kind`
+ * alone lumps them with the polling gates. Anything not listed falls through to the
+ * Terraform / condition branch below. `trash` is the DELETE type tile's glyph and
+ * `clipboard-check` the 확정 lineage, so task and pipeline type say the same word.
+ */
+const OPERATION_MARK: Partial<Record<TaskOperation, { icon: IconName; cls: string; title: string }>> = {
+  DELETE_CONFIRMED_RESOURCES: { icon: 'trash', cls: 'm-delete', title: '확정 정보 삭제' },
+  CONFIRM_RESOURCES_FROM_RECOMMENDATION: { icon: 'clipboard-check', cls: 'm-reconfirm', title: '확정 정보 등록' },
+};
 
 /** n8n-style corner status badge: DONE ✓ / FAILED ✕ / spinner / CANCELLED ⊘ / seq. */
 function nodeBadge(status: TaskStatus, sequence: number): ReactElement {
@@ -307,6 +322,7 @@ export function TaskFlow({
           // Status stays a stroke/badge signal on the card (owner) — but a border color
           // is silent, so the accessible name is where the verdict gets spelled out.
           const verdict = statusKo(task.status);
+          const opMark = task.operation ? OPERATION_MARK[task.operation] : undefined;
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -332,7 +348,11 @@ export function TaskFlow({
                 {nodeBadge(task.status, task.sequence)}
                 <div className="nd-main">
                   <div className="nd-icons">
-                    {task.kind === 'TERRAFORM_JOB' ? (
+                    {opMark ? (
+                      <span className={cn('nd-mark', opMark.cls)} title={opMark.title}>
+                        <Icon name={opMark.icon} strokeWidth={2.2} />
+                      </span>
+                    ) : task.kind === 'TERRAFORM_JOB' ? (
                       <span className="nd-mark" title="Terraform">
                         <TerraformLogo />
                       </span>
