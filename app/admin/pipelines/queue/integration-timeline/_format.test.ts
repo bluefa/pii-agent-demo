@@ -18,6 +18,7 @@ import {
   toDayString,
   parseDayString,
   addDays,
+  formatDayRange,
 } from '@/app/admin/pipelines/queue/integration-timeline/_format';
 
 describe('formatLeadTime', () => {
@@ -70,5 +71,14 @@ describe('calendar days', () => {
   it('round-trips a day string through the local calendar', () => {
     expect(toDayString(parseDayString('2026-03-01'))).toBe('2026-03-01');
     expect(toDayString(addDays(parseDayString('2026-02-28'), 1))).toBe('2026-03-01');
+  });
+});
+
+describe('formatDayRange', () => {
+  it('drops what both ends share', () => {
+    expect(formatDayRange('2026-09-09', '2026-09-15')).toBe('9월 9일 – 15일');
+    expect(formatDayRange('2026-08-28', '2026-09-03')).toBe('8월 28일 – 9월 3일');
+    expect(formatDayRange('2025-12-30', '2026-01-05')).toBe('2025년 12월 30일 – 2026년 1월 5일');
+    expect(formatDayRange('2026-09-15', '2026-09-15')).toBe('9월 15일');
   });
 });

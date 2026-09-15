@@ -13,7 +13,7 @@
  * statistics belong to whatever tool receives the CSV — this screen cuts the period and
  * shows the rows.
  */
-import { useCallback, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 
 import { cn, segmentedControlStyles, tableStyles, tagStyles } from '@/lib/theme';
@@ -80,13 +80,29 @@ const ts = {
   // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
   // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
   lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-medium)]',
-  /** The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. */
-  filters:
-    'mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-5 py-4 shadow-[var(--pl-shadow-sm)]',
-  group: 'flex items-center gap-2.5',
-  label: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
+  /**
+   * The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. No
+   * `overflow-hidden` — the 기간 popover opens from inside the band and must not be
+   * clipped; the band rounds its own top corners instead.
+   */
   card:
-    'mt-4 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
+    'mt-5 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
+  /**
+   * The table's toolbar (benchmark 2, 시안 3, owner 2026-09-15): the filters live on the
+   * table they cut, in the gray-100 band the resource tables already use
+   * (ResourceFilterBar). Order: 기준 · 기간 · what is being shown · (right) CSV.
+   */
+  band:
+    'flex flex-wrap items-center gap-4 rounded-t-[11px] border-b border-[var(--pl-border)] bg-[var(--pl-gray-100)] px-4 py-[14px]',
+  /** Quick spans and the calendar field share one border: the date IS the pressed span. */
+  compound:
+    'inline-flex h-8 items-stretch rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)]',
+  compoundSeg:
+    'inline-flex items-center gap-0.5 rounded-l-[7px] border-r border-[var(--pl-border)] bg-[var(--pl-gray-50)] p-0.5',
+  // medium, not weak: this line stands on the gray-100 band.
+  caption: 'text-[14px] leading-[1.4] tabular-nums text-[var(--pl-text-medium)]',
+  captionSkeleton: 'inline-block h-3.5 w-8 animate-pulse rounded-[6px] bg-[var(--pl-gray-200)] align-middle',
+  bandEnd: 'ml-auto flex items-center gap-2',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
   sortButton: 'inline-flex items-center gap-1',
@@ -118,6 +134,7 @@ export function IntegrationTimelineView(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const compoundRef = useRef<HTMLDivElement>(null);
 
   const sortParam = timelineSortParam(sort);
   const query = useMemo(
@@ -182,40 +199,48 @@ export function IntegrationTimelineView(): ReactElement {
             최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
-          {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
-        </div>
       </header>
 
-      <section className={ts.filters} aria-label="조회 조건">
-        <div className={ts.group}>
-          <span className={ts.label}>기준</span>
+      <section className={ts.card}>
+        <div className={ts.band} aria-label="조회 조건">
+          {/* No 기준/기간 labels: the axis segment repeats the column names it switches
+              between, and the 기간 compound carries its own dates. */}
           <Segment
             ariaLabel="기간 기준"
             options={AXIS_OPTIONS}
             value={axis}
             onChange={(next) => refilter(() => setAxis(next))}
           />
+          {/* One click for the windows people actually ask for; the calendar is for
+              everything else. Both write the same applied range. A calendar range lights
+              직접 선택 instead of a span, so the compound always says which kind of window
+              it holds — and the dates beside it are the truth either way. */}
+          <div className={ts.compound} ref={compoundRef}>
+            <QuickSpans
+              value={quickSpanOf(range, new Date())}
+              onChange={(span) => refilter(() => setRange(presetRange(span, new Date())))}
+              onCustom={() =>
+                compoundRef.current
+                  ?.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')
+                  ?.click()
+              }
+            />
+            <DateRangePicker
+              attached
+              from={range.from}
+              to={range.to}
+              onApply={(next) => refilter(() => setRange(next))}
+            />
+          </div>
+          <span className={ts.caption} aria-live="polite">
+            {AXIS_OPTIONS.find((option) => option.value === axis)?.label} 기준 ·{' '}
+            {paged ? `${paged.totalElements}건` : <span className={ts.captionSkeleton} />}
+          </span>
+          <div className={ts.bandEnd}>
+            {csvError && <span className="text-[12px] text-[var(--pl-err-text)]">{csvError}</span>}
+            <PlButton onClick={onCsv}>CSV 내려받기</PlButton>
+          </div>
         </div>
-        {/* One click for the windows people actually ask for; the calendar is for
-            everything else. Both write the same applied range, so a custom range simply
-            leaves no quick button pressed — the trigger's dates are the truth either way. */}
-        <div className={ts.group}>
-          <span className={ts.label}>기간</span>
-          <QuickSpans
-            value={quickSpanOf(range, new Date())}
-            onChange={(span) => refilter(() => setRange(presetRange(span, new Date())))}
-          />
-          <DateRangePicker
-            from={range.from}
-            to={range.to}
-            onApply={(next) => refilter(() => setRange(next))}
-          />
-        </div>
-      </section>
-
-      <section className={ts.card}>
         <div className={ts.tableWrap}>
           <table className={ts.table}>
             <thead>
@@ -339,12 +364,15 @@ function SortHeader({
 function QuickSpans({
   value,
   onChange,
+  onCustom,
 }: {
   value: number | null;
   onChange: (span: number) => void;
+  /** 직접 선택 — opens the calendar; pressed while the applied range is not a quick span. */
+  onCustom: () => void;
 }): ReactElement {
   return (
-    <div className={segmentedControlStyles.container} role="group" aria-label="최근 기간">
+    <div className={ts.compoundSeg} role="group" aria-label="최근 기간">
       {QUICK_SPANS.map((quick) => {
         const active = quick.span === value;
         return (
@@ -362,6 +390,19 @@ function QuickSpans({
           </button>
         );
       })}
+      {/* ponytail: 직접 선택 is the 5th and last segment. Past five, fold into a dropdown
+          (benchmark 1, 시안 3). */}
+      <button
+        type="button"
+        aria-pressed={value === null}
+        className={cn(
+          segmentedControlStyles.itemSm,
+          value === null && segmentedControlStyles.itemActive,
+        )}
+        onClick={onCustom}
+      >
+        직접 선택
+      </button>
     </div>
   );
 }

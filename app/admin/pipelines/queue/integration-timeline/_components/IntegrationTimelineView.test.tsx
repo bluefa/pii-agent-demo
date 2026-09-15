@@ -99,18 +99,33 @@ describe('IntegrationTimelineView', () => {
     expect(segment('최근 기간').getByRole('button', { name: '7일' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('a custom range leaves no quick span pressed', async () => {
+  it('a custom range lights 직접 선택 instead of a quick span', async () => {
     await renderView();
+    expect(segment('최근 기간').getByRole('button', { name: '직접 선택' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: /–/ }));
     fireEvent.click(screen.getByRole('button', { name: '이번 달' }));
     fireEvent.click(screen.getByRole('button', { name: '적용' }));
     await waitFor(() => expect(lastQuery().from).toMatch(/-01$/));
     const pressed = segment('최근 기간')
       .getAllByRole('button')
-      .filter((button) => button.getAttribute('aria-pressed') === 'true');
+      .filter((button) => button.getAttribute('aria-pressed') === 'true')
+      .map((button) => button.textContent);
     // Unless today happens to make 이번 달 exactly one of the quick spans.
     const monthSpan = Math.round((Date.parse(String(lastQuery().to)) - Date.parse(String(lastQuery().from))) / 86_400_000);
-    expect(pressed.length).toBe([6, 13, 20, 29].includes(monthSpan) ? 1 : 0);
+    expect(pressed).toEqual([6, 13, 20, 29].includes(monthSpan) ? [`${monthSpan + 1}일`] : ['직접 선택']);
+  });
+
+  it('직접 선택 opens the calendar', async () => {
+    await renderView();
+    fireEvent.click(segment('최근 기간').getByRole('button', { name: '직접 선택' }));
+    expect(screen.getByRole('dialog', { name: '기간 선택' })).toBeTruthy();
+  });
+
+  it('says which axis and how many rows the table holds', async () => {
+    await renderView();
+    await screen.findByText('연동 시작 날짜 기준 · 41건');
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
+    await screen.findByText('최초 연동 완료확인 날짜 기준 · 41건');
   });
 
   it('renders the row as the server wrote it', async () => {
