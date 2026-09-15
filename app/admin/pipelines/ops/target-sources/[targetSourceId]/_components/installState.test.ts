@@ -365,6 +365,18 @@ describe('installStateView — variants that change a row, not the state', () =>
     ]);
   });
 
+  it('IDC BDP is one apply for the whole target: counted, never listed by resource', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: CO, bdp: CO, firewall: IP }),
+        resource('idc-res-002', { cx: CO, bdp: IP, firewall: IP }),
+      ]),
+    });
+    expect(v?.steps[1]).toMatchObject({ id: 'bdp', state: 'now', done: 1, total: 2, open: [] });
+  });
+
   it('the role check is target-level: it lists no resource', () => {
     const v = installStateView({
       provider: 'aws',

@@ -99,6 +99,8 @@ interface ChainStep {
   side: InstallSide;
   /** The verdict sentence when THIS step is the first unsettled one. */
   sentence: string;
+  /** False: the step is one apply for the whole target, so the card lists no resources under it. */
+  listResources?: false;
 }
 
 const ME = '관리자가 Terraform을 적용할 차례입니다';
@@ -171,7 +173,8 @@ const CHAINS: Record<string, ChainStep[]> = {
   // firewall opens toward a source IP that exists only after BDC's apply).
   idc: [
     { id: 'cx', title: 'BDC CX 영역', side: '관리자', sentence: ME_IDC },
-    { id: 'bdp', title: 'BDC BDP 영역', side: '관리자', sentence: ME_IDC },
+    // BDP is one apply, not one per database — the IPs mean nothing there (owner 2026-09-15).
+    { id: 'bdp', title: 'BDC BDP 영역', side: '관리자', sentence: ME_IDC, listResources: false },
     {
       id: 'firewall',
       title: '접근 허용',
@@ -233,7 +236,7 @@ export function installStateView({
       total: cells.length,
       failed: openCells.filter((c) => c.status === 'FAIL').length,
       open: openCells.flatMap((c) =>
-        c.resource
+        c.resource && step.listResources !== false
           ? [
               {
                 resourceId: c.resource.resourceId,
