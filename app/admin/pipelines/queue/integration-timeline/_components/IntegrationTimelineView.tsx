@@ -63,10 +63,12 @@ const ts = {
   // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
   // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
   // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
-  // Title → lede 4px, lede → card 24px: the same two distances the sibling 연동 요청 page
-  // uses (rq.context mt-1 / rq.split mt-6). Layers are told apart by distance, not by chrome —
-  // no breadcrumb above the title either (owner, 2026-09-15).
-  lede: 'mt-1 whitespace-nowrap text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
+  // Measured on the sibling 연동 요청 page (2026-09-15): its context line carries a 32px
+  // number, so although the box margin is 4px the VISIBLE gap from the title's glyphs to the
+  // text is 18px, and text → next block is 25px. This page has no big number, so the visible
+  // distances are set directly: 16 (4px grid, nearest to 18) and 24. Layers are told apart by
+  // distance, not by chrome — no breadcrumb above the title either (owner, 2026-09-15).
+  lede: 'mt-4 whitespace-nowrap text-[14px] leading-[1.4] text-[var(--pl-text-medium)]',
   /**
    * The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. No
    * `overflow-hidden` — the 기간 popover opens from inside the band and must not be
