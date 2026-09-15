@@ -18,17 +18,22 @@
  */
 import { type ReactElement, type ReactNode } from 'react';
 import { JobStatus } from '@/app/admin/pipelines/_detail/JobStatus';
+import { HttpResponseSection } from '@/app/admin/pipelines/_detail/HttpResponseSection';
 import { fmtDateTime } from '@/lib/pipeline/format';
 import { d, FailureCause, j, type ViewerTarget } from '@/app/admin/pipelines/_detail/taskDrawerShared';
 import type { TaskAttemptView, TaskOperation } from '@/lib/pipeline/types';
 
 export function AttemptDetail({
+  pipelineId,
+  taskId,
   attempt,
   operation,
   runWindow,
   onOpenViewer,
   onOpenFailure,
 }: {
+  pipelineId: number;
+  taskId: number;
   attempt: TaskAttemptView;
   operation: TaskOperation | null;
   /** 시작/완료/소요 of this attempt, or null when it would repeat the flow card. */
@@ -50,6 +55,12 @@ export function AttemptDetail({
       ) : !hasJobs && attempt.status === 'FAILED' ? (
         <FailureCause attempt={attempt} onOpenFailure={onOpenFailure} />
       ) : null}
+
+      {/* The response Infra Manager returned for this attempt (#5c) — fetched for
+          every FAILED attempt, silent when nothing was stored. */}
+      {attempt.status === 'FAILED' && (
+        <HttpResponseSection pipelineId={pipelineId} taskId={taskId} attemptNumber={attempt.attempt_number} />
+      )}
 
       {/* Folded shut: these are the orchestrator's polling counters for the attempt,
           and the job rows above already say how many times each job was polled.

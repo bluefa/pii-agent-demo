@@ -35,6 +35,8 @@ const jobState = (over: Partial<TerraformJobStateSummary> = {}): TerraformJobSta
 const html = (a: TaskAttemptView, runWindow: ReactNode = null): string =>
   renderToStaticMarkup(
     <AttemptDetail
+      pipelineId={131}
+      taskId={13101}
       attempt={a}
       operation={null}
       runWindow={runWindow}

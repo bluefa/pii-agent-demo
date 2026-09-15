@@ -47,6 +47,7 @@ ESLint 경계에 따라 `@/lib/bff/client` 경유.
 | 5 | `GET /integration/api/v1/orchestrator/pipelines/{pipelineId}/tasks/{taskId}` | `GET /install/v1/pipelines/{pipelineId}/tasks/{taskId}` | Task 상세 모달·노드 meta |
 | 5a | `GET …/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/result` | `GET /install/v1/…/attempts/{n}/jobs/{jobId}/result` | Terraform job 로그 뷰어 (content=null=200 포인터, source=live=즉석 조회) |
 | 5b | `GET …/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/jobs/{jobId}/state` | `GET /install/v1/…/attempts/{n}/jobs/{jobId}/state` | Terraform job 상태 원문 (last_response 보존) |
+| 5c | `GET …/pipelines/{pipelineId}/tasks/{taskId}/attempts/{attemptNumber}/http-response` | `GET /install/v1/…/attempts/{n}/http-response` | Infra Manager 가 돌려준 HTTP 응답 원문(`HttpResponseDetail`). 실패한 시도마다 조회, 기록 없으면 204. ⚠️ swagger 미수록(BE 제공 스키마로 손선언) |
 | 6 | `POST /integration/api/v1/orchestrator/pipelines/{pipelineId}/cancel` | `POST /install/v1/pipelines/{pipelineId}/cancel` | 파이프라인 취소 |
 | 7 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines?page&size&sort` | `GET /install/v1/target-sources/{id}/pipelines?…` | 타겟 이력 (5건/페이지) |
 | 8 | `GET /integration/api/v1/orchestrator/target-sources/{targetSourceId}/pipelines/latest` | `GET /install/v1/target-sources/{id}/pipelines/latest` | 타겟 최신 실행 (없으면 204) |

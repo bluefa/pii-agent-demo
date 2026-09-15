@@ -24,6 +24,7 @@ import { SYSTEM_REQUESTER } from '@/lib/pipeline/types';
 import type {
   CloudProvider,
   ErrorCode,
+  HttpResponseDetail,
   LivePipelineStatistics,
   OrchestratorErrorBody,
   OrchestratorRawResponse,
@@ -1582,6 +1583,20 @@ const LOG_FAIL = 'aws_resource.main: Creating...\n'
 const LOG_RUNNING = 'aws_resource.main: Creating...\n'
   + 'aws_resource.main: Still creating... [30s elapsed]';
 
+/** #5c fixtures keyed `taskId:attemptNumber` — 131's two dispatch failures (400, then 503). */
+const HTTP_RESPONSE_FIXTURES: Record<string, HttpResponseDetail> = {
+  '13101:1': {
+    metadata: { operation: 'CONFIRMATION_POST', status_code: 400, content_type: 'application/json',
+      received_at: jobAgo(91), truncated: false, confirmation_input_id: 1 },
+    body: '{"timestamp":"2026-09-14T09:07:06Z","status":"BAD_REQUEST","code":"INVALID_REQUEST","message":"Invalid confirmed resource request"}',
+  },
+  '13101:2': {
+    metadata: { operation: 'CONFIRMATION_POST', status_code: 503, content_type: 'application/json',
+      received_at: jobAgo(78), truncated: false, confirmation_input_id: 1 },
+    body: '{"error":"service_unavailable","message":"upstream connect error or disconnect/reset before headers. reset reason: connection failure","trace_id":"a1b2c3d4e5f6"}',
+  },
+};
+
 /** Locate (pipeline, task, attempt) or the 404 to return. */
 const resolveAttempt = (
   pipelineId: string, taskId: string, attemptNumber: string, path: string,
@@ -1844,6 +1859,16 @@ export const mockPipeline = {
     if (synth) return ok(synth);
     return err(404, 'TERRAFORM_JOB_STATE_NOT_FOUND',
       `no state observation for job ${jobId} (task ${taskId}, attempt ${attemptNumber})`, path);
+  },
+
+  // #5c GET …/tasks/{taskId}/attempts/{attemptNumber}/http-response
+  attemptHttpResponse(pipelineId: string, taskId: string, attemptNumber: string): OrchestratorRawResponse {
+    const path = `${PATH.pipelines}/${pipelineId}/tasks/${taskId}/attempts/${attemptNumber}/http-response`;
+    const r = resolveAttempt(pipelineId, taskId, attemptNumber, path);
+    if ('error' in r) return r.error;
+    if (!r.attempt) return err(404, 'ATTEMPT_NOT_FOUND', `no attempt ${attemptNumber} (task ${taskId})`, path);
+    const fixture = HTTP_RESPONSE_FIXTURES[`${taskId}:${attemptNumber}`];
+    return fixture ? ok(fixture) : { status: 204, body: null };
   },
 
   // #6 — two-phase cancel
