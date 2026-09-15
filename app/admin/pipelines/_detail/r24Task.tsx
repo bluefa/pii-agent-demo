@@ -36,7 +36,9 @@ export const R24_CSS = `
 .r24-hscroll::-webkit-scrollbar{height:6px}
 .r24-hscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
 .r24-hscroll::-webkit-scrollbar-track{border-radius:99px;background:color-mix(in srgb,var(--pl-gray-900) 7%,transparent)}
-.r24-line{display:flex;align-items:center;gap:10px;width:max-content}
+/* stretch, not center: a card without the action/side tag row (the ADR-023 HTTP tasks)
+   would otherwise sit shorter than its Terraform neighbours (owner 2026-09-15). */
+.r24-line{display:flex;align-items:stretch;gap:10px;width:max-content}
 .r24-tnode{position:relative;display:flex;align-items:flex-start;gap:12px;width:224px;background:var(--pl-bg-card);border:1px solid var(--pl-border);border-radius:10px;padding:13px 14px;flex:none;box-shadow:var(--pl-shadow-xs)}
 .r24-tnode .r24-tx{min-width:0}
 .r24-tnode .r24-nm{font-size:13px;font-weight:700;line-height:1.35;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
@@ -62,7 +64,7 @@ export const R24_CSS = `
 .r24-rm{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:99px;background:var(--pl-bg-card);border:1px solid var(--pl-border-strong);color:var(--pl-text-weak);display:flex;align-items:center;justify-content:center;box-shadow:var(--pl-shadow-xs);cursor:pointer;padding:0}
 .r24-rm:hover{color:var(--pl-err-text);border-color:var(--pl-err-border)}
 .r24-rm:focus-visible{outline:2px solid var(--pl-primary);outline-offset:1px}
-.r24-arrow{color:var(--pl-gray-400);flex:none}
+.r24-arrow{color:var(--pl-gray-400);flex:none;align-self:center}
 `;
 
 /** Pipeline-type tone (icon-tile bg + icon color) — same color-mix recipe as
