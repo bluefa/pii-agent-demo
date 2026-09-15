@@ -155,6 +155,7 @@ describe('InfraStatusHead — 설치 상태', () => {
           } as ConfirmedIntegrationResourceInfo,
         ]).map((row) => [row.resourceId as string, row] as const),
       ),
+      idc: true,
     });
 
     expect(screen.getByText('5건 모두 완료')).toBeTruthy();
@@ -237,6 +238,35 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.')).toBeTruthy();
     expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
     expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
+  });
+
+  it('a cloud target lists its open resources by name and id, not by address (no Port column)', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
+        steps: [
+          step('pe', 'Private Endpoint 승인', '서비스', 'now', {
+            done: 1,
+            total: 2,
+            openLabel: '서비스측에 Private Endpoint 승인 요청 필요',
+            open: [{ resourceId: '/subscriptions/s1/servers/orders', resourceName: 'orders-prod', failed: false, guide: null }],
+          }),
+        ],
+      },
+    });
+
+    const fold = screen.getByLabelText('Private Endpoint 승인 남은 리소스');
+    expect(within(fold).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      'Resource Name',
+      'Resource ID',
+      'Database Type',
+      '상태',
+    ]);
+    const rows = within(fold).getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('orders-prod')).toBeTruthy();
+    expect(within(rows[0]).getByText('/subscriptions/s1/servers/orders')).toBeTruthy();
+    expect(within(rows[0]).getByText('서비스측에 Private Endpoint 승인 요청 필요')).toBeTruthy();
   });
 
   it('draws no resource rows under a step that does not list them, but keeps the guide and the note', () => {

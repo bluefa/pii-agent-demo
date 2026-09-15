@@ -58,10 +58,12 @@ import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
 import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import {
+  APPROVAL_COLUMN_WIDTHS,
   CONNECTED_FRAME,
   ROW_BASE,
   ROW_TARGET,
 } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import { ResourceIdCell } from '@/app/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import {
   IdcDbTypeCell,
   IdcEndpointCell,
@@ -111,32 +113,44 @@ export const FAIL_NOTE = '조회 실패가 여러 번 이어지면 개발자에�
 /**
  * The resources still open on the step, in a fold (the GCP subnet guide's, one level
  * down — open by default: which database is left is the point of the row) holding the
- * IDC resource table's own columns and cells (owner 2026-09-15: "기존 리소스테이블
- * 디자인을 이용해서"): 접속 주소 · Database Type · Port · BDC측 출발지 · 상태. The 출발지
- * column stands only where a row carries one, so Azure's table does not grow an empty
- * column. Column widths are the IDC table's, under this fold's own storage key.
+ * resource table this CSP already has (owner 2026-09-15: "기존 리소스테이블 디자인을
+ * 이용해서"), plus a 상태 column:
+ *   - IDC: the IDC table's 접속 주소 · Database Type · Port · BDC측 출발지 (the 출발지
+ *     column only where a row carries one).
+ *   - cloud: the cloud table's Resource Name · Resource ID · Database Type — a cloud
+ *     row is its id and name, not an address (owner 2026-09-15).
+ * Column widths are those tables' own, under this fold's own storage key.
  */
 function OpenResourcesFold({
   step,
   identity,
+  idc,
 }: {
   step: InstallStateStep;
   identity: InstallResourceIdentity;
+  idc: boolean;
 }): ReactElement {
   const { table } = idcStyles;
   const resize = useColumnResize({
     clampToContent: true,
-    storageKey: 'pii:colw:v1:admin-install-open',
-    ephemeralKeys: ['endpoint', 'state'],
+    storageKey: idc ? 'pii:colw:v1:admin-install-open-idc' : 'pii:colw:v1:admin-install-open',
+    ephemeralKeys: idc ? ['endpoint', 'state'] : ['name', 'id'],
   });
-  const withSource = step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
-  const columns: ConsoleTableColumn[] = [
-    { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
-    { key: 'dbType', label: 'Database Type', width: 172 },
-    { key: 'port', label: 'Port', width: 80 },
-    ...(withSource ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> }] : []),
-    { key: 'state', label: '상태', width: 200, flex: true },
-  ];
+  const withSource = idc && step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
+  const columns: ConsoleTableColumn[] = idc
+    ? [
+        { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
+        { key: 'dbType', label: 'Database Type', width: 172 },
+        { key: 'port', label: 'Port', width: 80 },
+        ...(withSource ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> }] : []),
+        { key: 'state', label: '상태', width: 200, flex: true },
+      ]
+    : [
+        { key: 'name', label: 'Resource Name', width: APPROVAL_COLUMN_WIDTHS.name, flex: true },
+        { key: 'id', label: 'Resource ID', width: APPROVAL_COLUMN_WIDTHS.id, flex: true },
+        { key: 'dbType', label: 'Database Type', width: APPROVAL_COLUMN_WIDTHS.dbType },
+        { key: 'state', label: '상태', width: 200 },
+      ];
   return (
     <details
       open
@@ -155,29 +169,48 @@ function OpenResourcesFold({
           <tbody className={table.body}>
             {step.open.map((r) => {
               const row = identity.get(r.resourceId);
+              const dbLabel = row?.databaseType ? getDatabaseShortLabel(row.databaseType) : '';
               return (
                 <tr key={r.resourceId} className={cn(ROW_BASE, ROW_TARGET)}>
-                  <td className={cn(table.approvalCell, table.consoleCell)}>
-                    {r.resourceName ?? (row ? (
-                      <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} maxWidthClass="max-w-full" />
-                    ) : (
-                      r.resourceId
-                    ))}
-                  </td>
-                  <td className={cn(table.approvalCell, table.consoleCell)}>
-                    <IdcDbTypeCell
-                      label={row?.databaseType ? getDatabaseShortLabel(row.databaseType) : ''}
-                      oracleSid={row?.oracleSid ?? null}
-                      sidMaxWidthClass="max-w-full"
-                    />
-                  </td>
-                  <td className={cn(table.approvalCell, 'font-mono text-[14px]', textColors.secondary)}>
-                    {row?.port || <span className={textColors.tertiary}>—</span>}
-                  </td>
-                  {withSource && (
-                    <td className={cn(table.approvalCell, table.consoleCell)}>
-                      <IdcSourceIpCell sourceIps={row?.sourceIps ?? []} maxWidthClass="max-w-full" />
-                    </td>
+                  {idc ? (
+                    <>
+                      <td className={cn(table.approvalCell, table.consoleCell)}>
+                        {row ? (
+                          <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} maxWidthClass="max-w-full" />
+                        ) : (
+                          r.resourceId
+                        )}
+                      </td>
+                      <td className={cn(table.approvalCell, table.consoleCell)}>
+                        <IdcDbTypeCell label={dbLabel} oracleSid={row?.oracleSid ?? null} sidMaxWidthClass="max-w-full" />
+                      </td>
+                      <td className={cn(table.approvalCell, 'font-mono text-[14px]', textColors.secondary)}>
+                        {row?.port || <span className={textColors.tertiary}>—</span>}
+                      </td>
+                      {withSource && (
+                        <td className={cn(table.approvalCell, table.consoleCell)}>
+                          <IdcSourceIpCell sourceIps={row?.sourceIps ?? []} maxWidthClass="max-w-full" />
+                        </td>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <td className={cn(table.approvalCell, table.consoleCell, 'text-[14px]', textColors.primary)}>
+                        {r.resourceName ?? row?.resourceName ?? '—'}
+                      </td>
+                      <td className={cn(table.approvalCell, table.consoleCell)}>
+                        <ResourceIdCell
+                          value={r.resourceId}
+                          label="Resource ID"
+                          maxWidthClass="w-[calc(100%+18px)]"
+                          sizeClass="text-[14px]"
+                          hardClip
+                        />
+                      </td>
+                      <td className={cn(table.approvalCell, table.consoleCell, 'text-[14px]', textColors.secondary)}>
+                        {dbLabel || '—'}
+                      </td>
+                    </>
                   )}
                   <td className={cn(table.approvalCell, 'text-[14px]')}>
                     <span className={r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]'}>
@@ -202,11 +235,13 @@ function StepRow({
   step,
   first,
   identity,
+  idc,
   children,
 }: {
   step: InstallStateStep;
   first: boolean;
   identity: InstallResourceIdentity;
+  idc: boolean;
   /** Reference drawn under the row (the GCP subnet commands). */
   children?: ReactNode;
 }): ReactElement {
@@ -233,7 +268,7 @@ function StepRow({
       {openTag && step.open.length > 0 && (
         <div className="mb-3 ml-3 mt-1 text-[12px]">
           {step.listResources ? (
-            <OpenResourcesFold step={step} identity={identity} />
+            <OpenResourcesFold step={step} identity={identity} idc={idc} />
           ) : (
             // No rows for this step (AWS, GCP, IDC BDC side): the guides still have to be read.
             [...new Set(step.open.flatMap((r) => (r.guide ? [r.guide] : [])))].map((guide) => (
@@ -313,8 +348,10 @@ export interface InfraStatusHeadProps {
    * service owner when it is their move. `undefined` for every other provider.
    */
   subnetGuide?: ReactNode;
-  /** resource id → address / name, joined from the confirmed integration (`installIdentity`). */
+  /** resource id → the confirmed-integration row, joined by `installIdentity`. */
   identity?: InstallResourceIdentity;
+  /** IDC target: the open-resource table takes the IDC table's columns (address, port, 출발지). */
+  idc?: boolean;
   /** The 관리자 turn's one move — scrolls to the 현재 작업 card that owns 작업 시작. */
   onGoToCurrentWork: () => void;
 }
@@ -332,6 +369,7 @@ export function InfraStatusHead({
   installLastCheck,
   subnetGuide,
   identity = NO_IDENTITY,
+  idc = false,
   onGoToCurrentWork,
 }: InfraStatusHeadProps): ReactElement {
   const confirmed = status?.has_confirmed_infra === true;
@@ -462,7 +500,7 @@ export function InfraStatusHead({
               {install.steps.length > 0 && (
                 <div className="border-t border-[var(--pl-border)] px-6 py-2">
                   {install.steps.map((s, index) => (
-                    <StepRow key={s.id} step={s} first={index === 0} identity={identity}>
+                    <StepRow key={s.id} step={s} first={index === 0} identity={identity} idc={idc}>
                       {s.id === 'subnet' && s.state !== 'done' && subnetGuide && (
                         <div className="pb-4 pt-1">{subnetGuide}</div>
                       )}

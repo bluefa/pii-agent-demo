@@ -191,6 +191,7 @@ export function PipelineTab({
         installLoading={install.loading}
         installLastCheck={install.lastCheck}
         identity={identity}
+        idc={provider === 'idc'}
         subnetGuide={subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} admin /> : undefined}
         onGoToCurrentWork={goToCurrentWork}
       />

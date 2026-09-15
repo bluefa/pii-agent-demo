@@ -47,8 +47,10 @@
 - 지금 차례 행 아래 열린 리소스 **아코디언 표**(`open`, 오너 2026-09-15 "아코디언 테이블로"): 네이티브
   `<details open>` 접기(GCP Subnet 안내와 같은 접기, 머리 「남은 리소스 N건」) 안에 **기존 IDC 리소스 표의 열과 셀**
   (오너 09-15 "기존 리소스테이블 디자인을 이용해서": `ConsoleTable` + `IdcEndpointCell`·`IdcDbTypeCell`·
-  `IdcSourceIpCell`, 열 폭도 그 표의 값): 접속 주소 · Database Type · Port · **BDC측 출발지**(오너 09-15
-  "bdc측 접속주소도 보여줘야지" — 확정 정보의 `idc_source_ips`, 출발지가 있는 표에만 열이 선다) · 상태. 상태는 「조회 도중 실패」 또는 단계 낱말 — 접근 허용은 「서비스측 방화벽
+  `IdcSourceIpCell`, 열 폭도 그 표의 값): IDC 는 접속 주소 · Database Type · Port · **BDC측 출발지**(오너 09-15
+  "bdc측 접속주소도 보여줘야지" — 확정 정보의 `idc_source_ips`, 출발지가 있는 표에만 열이 선다) · 상태,
+  클라우드(Azure)는 기존 클라우드 표의 Resource Name · Resource ID · Database Type · 상태(오너 09-15
+  "resourceId resourceName Database Type 이렇게 보여줘야지. port는 왜 넣는거야?"). 상태는 「조회 도중 실패」 또는 단계 낱말 — 접근 허용은 「서비스측 방화벽
   확인 요청 필요」, Azure Private Endpoint 승인은 「서비스측에 Private Endpoint 승인 요청 필요」(둘 다 오너
   낱말, 09-15), 그 외는 「조치 필요」. guide 는 상태 셀 둘째 줄. 정착된 리소스는 표에
   없다(건수가 이미 말한다).
