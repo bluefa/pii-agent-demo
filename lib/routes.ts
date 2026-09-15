@@ -94,6 +94,8 @@ export const passRoutes = {
       requests: '/admin/pipelines/queue/requests',
       request: (targetSourceId: number | string) =>
         `/admin/pipelines/queue/requests/${encodeURIComponent(String(targetSourceId))}`,
+      /** P6 연동 시점 — 생성일/최초 연동일을 기간으로 자른 목록. */
+      integrationTimeline: '/admin/pipelines/queue/integration-timeline',
     },
     /** 운영 콘솔 (design/pipeline/ops-target-source-app-plan.md). */
     ops: {

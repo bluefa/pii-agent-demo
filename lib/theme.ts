@@ -718,6 +718,16 @@ export const segmentedControlStyles = {
   container: 'inline-flex bg-gray-50 border border-gray-300 rounded-lg p-0.5 gap-0.5',
   item:
     'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
+  /**
+   * 32px-row variant — same faces as `item`, only the metrics differ. A filter row mixes
+   * this control with h-32 buttons and inputs, and `item`'s padding makes the container 36:
+   * one control standing a notch taller than the rest is the height mix the task-queue
+   * design spec §8 rules out. Height is set here rather than appended by the caller because
+   * `cn` only joins — `py-1.5` and a caller's `py-0` would both survive and CSS order, not
+   * the caller, would decide which wins.
+   */
+  itemSm:
+    'inline-flex h-7 items-center gap-1.5 px-3 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
   itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
 } as const;
 
