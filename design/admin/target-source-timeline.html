@@ -145,8 +145,8 @@
   <header class="head">
     <div>
       <p class="crumb"><span>운영 관리</span><span>/</span><b>TargetSource 연동 시점</b></p>
-      <h1>TargetSource 생성일과 최초 연동일</h1>
-      <p class="lede">TargetSource 가 언제 만들어졌고 언제 처음 연동을 마쳤는지 기간으로 잘라 봅니다. 최초 연동일은 초기화로 단계가 되돌아가도 바뀌지 않습니다.</p>
+      <h1>TargetSource 생성일과 최초 연동 시작날짜</h1>
+      <p class="lede">TargetSource 가 언제 만들어졌고 언제 연동을 시작했는지 기간으로 잘라 봅니다. 최초 연동 시작날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.</p>
     </div>
     <button class="btn" id="csv" type="button">CSV 내려받기</button>
   </header>
@@ -156,7 +156,7 @@
       <span class="lbl">기준</span>
       <div class="seg" role="radiogroup" aria-label="기간 기준">
         <label><input type="radio" name="axis" value="created" id="axis-created" checked>생성일</label>
-        <label><input type="radio" name="axis" value="installed" id="axis-installed">최초 연동일</label>
+        <label><input type="radio" name="axis" value="installed" id="axis-installed">최초 연동 시작날짜</label>
       </div>
     </div>
     <div class="group range">
@@ -176,14 +176,6 @@
         </div>
       </div>
     </div>
-    <div class="group">
-      <span class="lbl">최초 연동</span>
-      <div class="seg" role="radiogroup" aria-label="최초 연동 여부">
-        <label><input type="radio" name="inst" value="all" id="inst-all" checked>전체</label>
-        <label><input type="radio" name="inst" value="yes" id="inst-yes">완료</label>
-        <label><input type="radio" name="inst" value="no" id="inst-no">미완료</label>
-      </div>
-    </div>
   </section>
 
 
@@ -195,7 +187,7 @@
             <th><button type="button" data-key="id">ID</button></th>
             <th>서비스</th>
             <th><button type="button" data-key="created">생성일</button></th>
-            <th><button type="button" data-key="installed">최초 연동일</button></th>
+            <th><button type="button" data-key="installed">최초 연동 시작날짜</button></th>
             <th class="num"><button type="button" data-key="lead">리드타임</button></th>
             <th>최초 연동</th>
             <th>확정 상태</th>
@@ -223,7 +215,7 @@ Query
   page, size, sort   (sort=leadTimeSeconds,desc 등)
 
 axis=FIRST_INSTALLED 이면 installed=NO 는 빈 결과.
-축이 최초 연동일이면 미완료 행은 구간에 들어올 수 없기 때문.</pre>
+축이 최초 연동 시작날짜이면 미완료 행은 구간에 들어올 수 없기 때문.</pre>
 <pre>200  PageTargetSourceIntegrationTimelineResponse
 {
   "content": [{
@@ -271,7 +263,6 @@ FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 �
   let draft = { from: state.from, to: state.to, hover: null, anchor: null, view: new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1) };
 
   document.querySelectorAll('input[name=axis]').forEach(r => r.onchange = () => { state.axis = r.value; render(); });
-  document.querySelectorAll('input[name=inst]').forEach(r => r.onchange = () => { state.installed = r.value; render(); });
   document.querySelectorAll('th button[data-key]').forEach(b => b.onclick = () => {
     const k = b.dataset.key; state.sort = { key: k, dir: state.sort.key === k && state.sort.dir === 'desc' ? 'asc' : 'desc' }; render();
   });
@@ -345,7 +336,6 @@ FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 �
     document.getElementById('range-text').textContent = `${iso(state.from)} – ${iso(state.to)}`;
     const axisDate = r => state.axis === 'created' ? r.created : r.installed;
     let rows = ROWS.filter(r => { const d = axisDate(r); return d && d >= state.from && d <= state.to; })
-      .filter(r => state.installed === 'all' || (state.installed === 'yes') === !!r.installed);
     const { key, dir } = state.sort, sgn = dir === 'asc' ? 1 : -1;
     const val = r => key === 'id' ? r.id : key === 'created' ? +r.created : key === 'installed' ? (r.installed ? +r.installed : -Infinity) : (r.lead ?? -Infinity);
     rows.sort((a, b) => (val(a) - val(b)) * sgn || a.id - b.id);

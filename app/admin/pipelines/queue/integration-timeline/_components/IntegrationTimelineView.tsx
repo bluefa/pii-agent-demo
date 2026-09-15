@@ -31,7 +31,6 @@ import {
   type IntegrationTimelineRow,
   type Paged,
   type TimelineAxis,
-  type TimelineInstalledFilter,
   type TimelineSort,
   type TimelineSortProp,
 } from '@/lib/types/task-queue';
@@ -49,13 +48,7 @@ const PAGE_SIZE = 20;
 
 const AXIS_OPTIONS: ReadonlyArray<{ value: TimelineAxis; label: string }> = [
   { value: 'CREATED', label: '생성일' },
-  { value: 'FIRST_INSTALLED', label: '최초 연동일' },
-];
-
-const INSTALLED_OPTIONS: ReadonlyArray<{ value: TimelineInstalledFilter; label: string }> = [
-  { value: 'ALL', label: '전체' },
-  { value: 'YES', label: '완료' },
-  { value: 'NO', label: '미완료' },
+  { value: 'FIRST_INSTALLED', label: '최초 연동 시작날짜' },
 ];
 
 /** 확정 상태 enum → the Korean word the other admin screens use for it. */
@@ -76,7 +69,7 @@ interface SortableColumn {
 const SORTABLE: Record<string, SortableColumn> = {
   id: { label: 'ID', prop: 'targetSourceId' },
   created: { label: '생성일', prop: 'createdAt' },
-  installed: { label: '최초 연동일', prop: 'piiAgentFirstInstalledAt' },
+  installed: { label: '최초 연동 시작날짜', prop: 'piiAgentFirstInstalledAt' },
   lead: { label: '리드타임', prop: 'leadTimeSeconds', numeric: true },
 };
 
@@ -97,9 +90,6 @@ const ts = {
   cellMono: 'tabular-nums [font-family:var(--pl-font-mono)]',
   cellNumeric: 'text-right',
   dim: 'text-[var(--pl-text-faint)]',
-  serviceName: 'block leading-[1.25]',
-  serviceCode:
-    'block text-[12px] leading-[1.25] text-[var(--pl-text-weak)] [font-family:var(--pl-font-mono)]',
   link: 'font-medium text-[var(--pl-primary)] hover:underline',
   tag: 'inline-flex h-[22px] items-center rounded-[var(--pl-r-badge)] px-2 text-[12px] font-medium',
   state: 'px-[18px] py-9 text-center text-[14px] text-[var(--pl-text-weak)]',
@@ -109,7 +99,7 @@ const ts = {
   skeleton: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 } as const;
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
 
 export function IntegrationTimelineView(): ReactElement {
   // The window is seeded once, from the day the screen opened — re-deriving it per render
@@ -117,7 +107,6 @@ export function IntegrationTimelineView(): ReactElement {
   // reader.
   const [range, setRange] = useState(() => defaultRange(new Date()));
   const [axis, setAxis] = useState<TimelineAxis>('CREATED');
-  const [installed, setInstalled] = useState<TimelineInstalledFilter>('ALL');
   const [sort, setSort] = useState<TimelineSort>({ prop: 'createdAt', dir: 'desc' });
   const [page, setPage] = useState(0);
 
@@ -128,8 +117,8 @@ export function IntegrationTimelineView(): ReactElement {
 
   const sortParam = timelineSortParam(sort);
   const query = useMemo(
-    () => ({ axis, from: range.from, to: range.to, installed, sort: sortParam }),
-    [axis, range.from, range.to, installed, sortParam],
+    () => ({ axis, from: range.from, to: range.to, sort: sortParam }),
+    [axis, range.from, range.to, sortParam],
   );
 
   useAbortableEffect(
@@ -182,10 +171,10 @@ export function IntegrationTimelineView(): ReactElement {
       <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
-          <h1 className={ts.title}>TargetSource 생성일과 최초 연동일</h1>
+          <h1 className={ts.title}>TargetSource 생성일과 최초 연동 시작날짜</h1>
           <p className={ts.lede}>
-            TargetSource 가 언제 만들어졌고 언제 처음 연동을 마쳤는지 기간으로 잘라 봅니다.
-            최초 연동일은 초기화로 단계가 되돌아가도 바뀌지 않습니다.
+            TargetSource 가 언제 만들어졌고 언제 연동을 시작했는지 기간으로 잘라 봅니다.
+            최초 연동 시작날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -209,15 +198,6 @@ export function IntegrationTimelineView(): ReactElement {
           to={range.to}
           onApply={(next) => refilter(() => setRange(next))}
         />
-        <div className={ts.group}>
-          <span className={ts.label}>최초 연동</span>
-          <Segment
-            ariaLabel="최초 연동 여부"
-            options={INSTALLED_OPTIONS}
-            value={installed}
-            onChange={(next) => refilter(() => setInstalled(next))}
-          />
-        </div>
       </section>
 
       <section className={ts.card}>
@@ -226,7 +206,8 @@ export function IntegrationTimelineView(): ReactElement {
             <thead>
               <tr className={tableStyles.header}>
                 <SortHeader column={SORTABLE.id} sort={sort} onSort={toggleSort} />
-                <th className={tableStyles.headerCell}>서비스</th>
+                <th className={tableStyles.headerCell}>서비스 이름</th>
+                <th className={tableStyles.headerCell}>서비스 코드</th>
                 <SortHeader column={SORTABLE.created} sort={sort} onSort={toggleSort} />
                 <SortHeader column={SORTABLE.installed} sort={sort} onSort={toggleSort} />
                 <SortHeader column={SORTABLE.lead} sort={sort} onSort={toggleSort} />
@@ -293,10 +274,8 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
           EMPTY_CELL
         )}
       </td>
-      <td className={tableStyles.cell}>
-        <span className={ts.serviceName}>{row.serviceName ?? EMPTY_CELL}</span>
-        <span className={ts.serviceCode}>{row.serviceCode ?? ''}</span>
-      </td>
+      <td className={tableStyles.cell}>{row.serviceName ?? EMPTY_CELL}</td>
+      <td className={cn(tableStyles.cell, ts.cellMono)}>{row.serviceCode ?? EMPTY_CELL}</td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{formatWireDay(row.createdAt)}</td>
       <td className={cn(tableStyles.cell, ts.cellMono, !installed && ts.dim)}>{firstInstalled}</td>
       <td

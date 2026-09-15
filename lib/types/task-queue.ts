@@ -396,7 +396,8 @@ export interface IntegrationTimelineQuery {
   axis: TimelineAxis;
   from: string;
   to: string;
-  installed: TimelineInstalledFilter;
+  /** Optional on the way in; the route defaults it to ALL. The screen no longer offers it (owner, 09-15). */
+  installed?: TimelineInstalledFilter;
   serviceCode?: string;
   confirmStatus?: string;
   sort: string;

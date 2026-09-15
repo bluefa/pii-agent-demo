@@ -49,7 +49,7 @@ const paged = (content: IntegrationTimelineRow[]): Paged<IntegrationTimelineRow>
   empty: content.length === 0,
 });
 
-/** Segment buttons and table cells share words (완료 · 최초 연동일), so every assertion
+/** Segment buttons and table cells share words (최초 연동 시작날짜), so every assertion
  *  names the control it is about rather than searching the whole screen. */
 const segment = (name: string) => within(screen.getByRole('group', { name }));
 const table = () => within(screen.getByRole('table'));
@@ -72,9 +72,10 @@ describe('IntegrationTimelineView', () => {
   it('opens on the contract defaults over a 90-day window', async () => {
     await renderView();
     const query = lastQuery();
+    // The 최초 연동 filter left the screen (owner, 09-15): the route defaults it to ALL.
+    expect(query).not.toHaveProperty('installed');
     expect(query).toMatchObject({
       axis: 'CREATED',
-      installed: 'ALL',
       sort: 'createdAt,desc',
       page: 0,
       size: 20,
@@ -100,20 +101,14 @@ describe('IntegrationTimelineView', () => {
     await renderView();
     await screen.findByText('결제 정산');
     expect(table().getByText('미완료')).toBeTruthy();
-    // 최초 연동일 and 리드타임 both have nothing to say — and say exactly that.
+    // 최초 연동 시작날짜 and 리드타임 both have nothing to say — and say exactly that.
     expect(table().getAllByText('–').length).toBe(2);
   });
 
   it('sends 기준 to the server', async () => {
     await renderView();
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동일' }));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
     await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
-  });
-
-  it('sends 최초 연동 여부 to the server', async () => {
-    await renderView();
-    fireEvent.click(segment('최초 연동 여부').getByRole('button', { name: '미완료' }));
-    await waitFor(() => expect(lastQuery().installed).toBe('NO'));
   });
 
   it('does not re-read until 적용 is pressed', async () => {
@@ -144,20 +139,20 @@ describe('IntegrationTimelineView', () => {
     fireEvent.click(screen.getByRole('button', { name: /다음/ }));
     await waitFor(() => expect(lastQuery().page).toBe(1));
 
-    fireEvent.click(segment('최초 연동 여부').getByRole('button', { name: '완료' }));
-    await waitFor(() => expect(lastQuery()).toMatchObject({ installed: 'YES', page: 0 }));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
+    await waitFor(() => expect(lastQuery()).toMatchObject({ axis: 'FIRST_INSTALLED', page: 0 }));
   });
 
   it('downloads the CSV with the filters on screen, without the pager', async () => {
     downloadIntegrationTimelineCsv.mockResolvedValue(new Blob(['id'], { type: 'text/csv' }));
     await renderView();
-    fireEvent.click(segment('최초 연동 여부').getByRole('button', { name: '미완료' }));
-    await waitFor(() => expect(lastQuery().installed).toBe('NO'));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
+    await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
 
     fireEvent.click(screen.getByRole('button', { name: 'CSV 내려받기' }));
     await waitFor(() => expect(downloadIntegrationTimelineCsv).toHaveBeenCalled());
     const csvQuery = downloadIntegrationTimelineCsv.mock.calls.at(-1)?.[0] as Record<string, unknown>;
-    expect(csvQuery).toMatchObject({ axis: 'CREATED', installed: 'NO', sort: 'createdAt,desc' });
+    expect(csvQuery).toMatchObject({ axis: 'FIRST_INSTALLED', sort: 'createdAt,desc' });
     expect(csvQuery.page).toBeUndefined();
     expect(csvQuery.size).toBeUndefined();
   });

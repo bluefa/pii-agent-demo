@@ -118,7 +118,7 @@
 | `axis` | `CREATED` \| `FIRST_INSTALLED` | – | `CREATED` | 기간을 자르는 축. 생성일 / 최초 연동일 |
 | `from` | `date` (YYYY-MM-DD) | ✅ | – | 구간 시작(포함). Asia/Seoul 자정 기준 |
 | `to` | `date` (YYYY-MM-DD) | ✅ | – | 구간 끝(포함). `from ≤ to` 아니면 400 |
-| `installed` | `ALL` \| `YES` \| `NO` | – | `ALL` | 최초 연동 완료 여부. `pii_agent_first_installed_at` 유무 |
+| `installed` | `ALL` \| `YES` \| `NO` | – | `ALL` | 최초 연동 완료 여부. `pii_agent_first_installed_at` 유무. ⚠️ 화면 필터는 09-15 제외 — FE 는 보내지 않는다, BE 는 유지해도 무방 |
 | `serviceCode` | string | – | – | 기존 목록 API 와 같은 뜻 |
 | `confirmStatus` | 기존 enum | – | – | `NO_REQUEST`·`PENDING`·`CONFIRM_INFO_UPDATE_REQUIRED`·`CONFIRMED`·`REJECTED` |
 | `page` / `size` | int | – | `0` / `20` | 0-index. `size` 최대 100 |
