@@ -13,7 +13,9 @@
  *   4. The card head carries 확인 시각 from installation-status, not terraform-status.
  *   5. The terraform-status task rows are gone; 연동 정보 still reads that response.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { confirmedToIdcRows } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/confirm/confirmedIdcRows';
+import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 import { describe, it, expect, vi } from 'vitest';
 
 import {
@@ -52,7 +54,11 @@ const step = (
   done: state === 'done' ? 1 : 0,
   total: 1,
   failed: 0,
-  guides: [],
+  open: [],
+  listResources: true,
+  // The step to act on is the open one; a lone 'fail' fixture is that step too.
+  current: state === 'now' || state === 'fail',
+  openLabel: '조치 필요',
   ...extra,
 });
 
@@ -98,17 +104,105 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('관리자 조치 필요')).toBeTruthy();
   });
 
-  it('renders one row per step with its owner and its own state', () => {
+  it('renders one row per step with its owner and ONE state fact: tag only on the step to act on', () => {
     renderHead();
 
     expect(screen.getByText('서비스 측 Terraform 적용')).toBeTruthy();
     expect(screen.getByText('BDC 공통 영역')).toBeTruthy();
     expect(screen.getByText('BDC 서비스 영역')).toBeTruthy();
-    expect(screen.getByText('서비스')).toBeTruthy();
-    expect(screen.getAllByText('관리자')).toHaveLength(2);
-    expect(screen.getByText('완료')).toBeTruthy();
+    // The owner is weak text after the title, not a tag of its own.
+    expect(screen.getByText('· 서비스')).toBeTruthy();
+    expect(screen.getAllByText('· 관리자')).toHaveLength(2);
+    expect(screen.getByText('1건 모두 완료')).toBeTruthy();
     expect(screen.getByText('조치 필요')).toBeTruthy();
     expect(screen.getByText('대기')).toBeTruthy();
+    // No resource table under a step that has none open in its list.
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+  });
+
+  it('names the resources still open under the step to act on, in a fold with a table, in the step\'s own words', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 접근 허용을 확인해야 합니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'done', { done: 5, total: 5 }),
+          step('firewall', '접근 허용', '서비스', 'now', {
+            done: 2,
+            total: 5,
+            openLabel: '서비스측 방화벽 확인 요청 필요',
+            open: [
+              // A guide on a cell that merely waits is not an error and must not print.
+              { resourceId: 'idc-res-002', resourceName: null, failed: false, guide: '자동 진행됩니다.' },
+              { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
+              { resourceId: 'idc-res-005', resourceName: null, failed: false, guide: null },
+            ],
+          }),
+        ],
+      },
+      identity: new Map(
+        confirmedToIdcRows([
+          {
+            resource_id: 'idc-res-002',
+            resource_type: 'IDC_RESOURCE',
+            database_type: 'ORACLE',
+            database_region: null,
+            resource_name: null,
+            port: 1521,
+            host: null,
+            oracle_service_id: 'ORCL',
+            network_interface_id: null,
+            ip_configuration: null,
+            idc_host_format: 'IP',
+            idc_ips: ['10.20.31.10', '10.20.31.11'],
+            idc_source_ips: ['10.10.0.21', '10.10.0.22'],
+          } as ConfirmedIntegrationResourceInfo,
+          // Joined, but no address fact at all (every idc_* and host optional on the wire).
+          {
+            resource_id: 'idc-res-005',
+            resource_type: 'IDC_RESOURCE',
+            database_type: 'MYSQL',
+            database_region: null,
+            resource_name: null,
+            port: 3306,
+            host: null,
+            oracle_service_id: null,
+            network_interface_id: null,
+            ip_configuration: null,
+          } as ConfirmedIntegrationResourceInfo,
+        ]).map((row) => [row.resourceId as string, row] as const),
+      ),
+      idc: true,
+    });
+
+    expect(screen.getByText('5건 모두 완료')).toBeTruthy();
+    expect(screen.getByText('5건 중 3건 남음')).toBeTruthy();
+    expect(screen.getByText('남은 리소스')).toBeTruthy();
+    expect(screen.getByText('3건')).toBeTruthy();
+    // The IDC resource table's own columns, plus 상태.
+    const fold = screen.getByLabelText('접근 허용 남은 리소스');
+    expect(within(fold).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
+      expect.arrayContaining(['접속 주소', 'Database Type', 'Port', '상태']),
+    );
+    expect(within(fold).getByText('BDC측 출발지')).toBeTruthy();
+    const rows = within(fold).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(3);
+    expect(screen.queryByText('자동 진행됩니다.')).toBeNull();
+    // Joined but address-less: the wire id stands in rather than a blank cell.
+    expect(within(rows[2]).getByText('idc-res-005')).toBeTruthy();
+    // The IDC endpoint cell as-is: the first address, the rest behind its own 더보기.
+    expect(within(rows[0]).getByText('10.20.31.10')).toBeTruthy();
+    expect(within(rows[0]).getByRole('button', { name: 'IP 1개 더보기 ▾' })).toBeTruthy();
+    expect(within(rows[0]).getByText('1521')).toBeTruthy();
+    // BDC측 출발지: the addresses the firewall has to admit, one per line.
+    expect(within(rows[0]).getByText('10.10.0.21')).toBeTruthy();
+    expect(within(rows[0]).getByText('10.10.0.22')).toBeTruthy();
+    expect(within(rows[0]).getByText('Oracle')).toBeTruthy();
+    expect(within(rows[0]).getByText('서비스측 방화벽 확인 요청 필요')).toBeTruthy();
+    // Not in the join: the wire id stands in.
+    expect(within(rows[1]).getByText('idc-res-004')).toBeTruthy();
+    // Nothing failed: no note about the developer.
+    expect(screen.queryByText(/개발자에게 연락/)).toBeNull();
   });
 
   it('offers the 관리자 turn a link to 현재 작업, never a 작업 시작 button', () => {
@@ -143,16 +237,165 @@ describe('InfraStatusHead — 설치 상태', () => {
             done: 3,
             total: 4,
             failed: 1,
-            guides: ['서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.'],
+            open: [
+              {
+                resourceId: 'db-3',
+                resourceName: 'orders-db',
+                failed: true,
+                guide: '서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.',
+              },
+            ],
           }),
         ],
       },
     });
 
-    expect(screen.getByText('실패')).toBeTruthy();
-    expect(screen.getByText('4건 중 1건 실패')).toBeTruthy();
+    // FAIL is 조회 실패 (owner's word): the step tag, the count, and the resource row.
+    expect(screen.getByText('조회 실패')).toBeTruthy();
+    expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('orders-db')).toBeTruthy();
+    expect(screen.getByText('조회 도중 실패')).toBeTruthy();
     expect(screen.getByText('서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
     expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
+  });
+
+  it('writes the note under the verdict when the step carries one, with its link opening in a new tab', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
+        note: {
+          lines: ['BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.'],
+          link: { label: 'Azure Portal에서 승인', href: 'https://portal.azure.com/#pending' },
+        },
+        steps: [step('pe', 'Private Endpoint 승인', '서비스', 'now')],
+      },
+    });
+
+    expect(screen.getByText('BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.')).toBeTruthy();
+    const link = screen.getByRole('link', { name: /Azure Portal에서 승인/ });
+    expect(link.getAttribute('href')).toBe('https://portal.azure.com/#pending');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it('a cloud target lists its open resources by name and id, not by address (no Port column)', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
+        steps: [
+          step('pe', 'Private Endpoint 승인', '서비스', 'now', {
+            done: 1,
+            total: 2,
+            openLabel: '서비스측에 Private Endpoint 승인 요청 필요',
+            open: [{ resourceId: '/subscriptions/s1/servers/orders', resourceName: 'orders-prod', failed: false, guide: null }],
+          }),
+        ],
+      },
+    });
+
+    const fold = screen.getByLabelText('Private Endpoint 승인 남은 리소스');
+    expect(within(fold).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      'Resource Name',
+      'Resource ID',
+      'Database Type',
+      '상태',
+    ]);
+    const rows = within(fold).getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('orders-prod')).toBeTruthy();
+    expect(within(rows[0]).getByText('/subscriptions/s1/servers/orders')).toBeTruthy();
+    expect(within(rows[0]).getByText('서비스측에 Private Endpoint 승인 요청 필요')).toBeTruthy();
+  });
+
+  it('a later step with open rows draws no fold: only the step to act on hands out a worklist', () => {
+    renderHead({
+      install: {
+        kind: 'me',
+        sentence: '관리자가 BDC Terraform을 적용할 차례입니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'now', { done: 4, total: 5, listResources: false, open: [{ resourceId: 'r', resourceName: null, failed: false, guide: null }] }),
+          step('firewall', '접근 허용', '서비스', 'wait', {
+            total: 5,
+            current: false,
+            open: [{ resourceId: 'idc-res-002', resourceName: null, failed: false, guide: null }],
+          }),
+        ],
+      },
+      idc: true,
+    });
+
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+    expect(screen.queryByText('idc-res-002')).toBeNull();
+    expect(screen.getByText('대기')).toBeTruthy();
+  });
+
+  it('a FAIL on a later step keeps its tag, count, guide and the note, but opens no table and speaks no 요청 필요', () => {
+    renderHead({
+      install: {
+        kind: 'me',
+        sentence: '관리자가 BDC Terraform을 적용할 차례입니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'now', { done: 4, total: 5, listResources: false, open: [{ resourceId: 'r', resourceName: null, failed: false, guide: null }] }),
+          step('firewall', '접근 허용', '서비스', 'fail', {
+            done: 3,
+            total: 5,
+            failed: 1,
+            current: false,
+            openLabel: '서비스측 방화벽 확인 요청 필요',
+            open: [
+              { resourceId: 'idc-res-002', resourceName: null, failed: true, guide: 'timeout' },
+              { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
+            ],
+          }),
+        ],
+      },
+      idc: true,
+    });
+
+    expect(screen.getByText('조회 실패')).toBeTruthy();
+    expect(screen.getByText('5건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('timeout')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+    expect(screen.queryByText('서비스측 방화벽 확인 요청 필요')).toBeNull();
+  });
+
+  it('a FAIL on the target-level role check still ends with the developer note', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform 권한을 부여해야 합니다',
+        steps: [step('role', 'Terraform 권한 부여 확인', '서비스', 'fail', { total: 1, failed: 1, listResources: false, open: [] })],
+      },
+    });
+
+    expect(screen.getByText('1건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
+  });
+
+  it('draws no resource rows under a step that does not list them, but keeps the guide and the note', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform을 직접 적용해야 합니다',
+        steps: [
+          step('service', '서비스 측 Terraform 적용', '서비스', 'fail', {
+            done: 3,
+            total: 4,
+            failed: 1,
+            listResources: false,
+            open: [{ resourceId: 'db-3', resourceName: 'orders-db', failed: true, guide: 'timeout' }],
+          }),
+        ],
+      },
+    });
+
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+    expect(screen.queryByText('orders-db')).toBeNull();
+    expect(screen.getByText('4건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('timeout')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
   });
 
   it('writes how many are left on a step partly through', () => {

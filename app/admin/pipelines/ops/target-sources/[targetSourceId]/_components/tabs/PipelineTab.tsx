@@ -28,6 +28,7 @@ import { InfraStatusHead } from '@/app/admin/pipelines/ops/target-sources/[targe
 import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
 import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
 import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
+import { useInstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
 import { installStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
 import { CURRENT_WORK_ID } from '@/app/admin/pipelines/_detail/TargetPipelineSections';
 import type { ServiceWorkNoticeData } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/ServiceWorkNotice';
@@ -141,6 +142,10 @@ export function PipelineTab({
   // 현재 작업 카드의 서비스 측 경고가 같은 스냅샷을 읽는다.
   const manualInstall = isManualInstall(detail);
   const install = useInstallCheck(targetSourceId, provider, manualInstall);
+  // The rows under the open step name each resource; the IDC wire has no name, so
+  // the address comes from the confirmed integration (the 확정 정보 tab's own read).
+  // Only the providers whose steps list resources read it (AWS and GCP never do).
+  const identity = useInstallResourceIdentity(targetSourceId, provider === 'idc' || provider === 'azure');
   // GCP: the subnet commands the service side runs, same rows and same block as the
   // user's step-4 card, so the operator and the owner read one thing.
   const subnetTargets = usePscSubnetTargets(targetSourceId, provider === 'gcp');
@@ -186,6 +191,8 @@ export function PipelineTab({
         install={installView}
         installLoading={install.loading}
         installLastCheck={install.lastCheck}
+        identity={identity}
+        idc={provider === 'idc'}
         subnetGuide={subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} admin /> : undefined}
         onGoToCurrentWork={goToCurrentWork}
       />

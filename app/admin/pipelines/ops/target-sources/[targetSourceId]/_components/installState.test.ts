@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  AZURE_PENDING_CONNECTIONS_URL,
   DONE_SENTENCE,
   UNKNOWN_SENTENCE,
   installStateView,
@@ -165,12 +166,18 @@ describe('installStateView — GCP (4)', () => {
       ['서비스측 Terraform 적용', '관리자', 'wait'],
       ['BDC측 Terraform 적용', '관리자', 'wait'],
     ]);
+    expect(v?.note?.lines).toHaveLength(2);
+    // No "아래 명령으로": the same note rides the 연결 테스트 tab, which has no command block.
+    expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.');
+    // No console link (owner 2026-09-15): the command block under the row is the move.
+    expect(v?.note?.link).toBeUndefined();
   });
 
   it('② Subnet done: the operator applies both sides', () => {
     const v = gcp(resource('sql-1', { subnet: CO, service: IP, bdc: IP }));
     expect(v?.kind).toBe('me');
     expect(rows(v)?.[1]).toEqual(['서비스측 Terraform 적용', '관리자', 'now']);
+    expect(installStateView({ provider: 'gcp', manualInstall: false, detail: detail([resource('db-1', { subnet: CO, service: IP, bdc: IP })]) })?.note).toBeUndefined();
   });
 
   it('③ everything settled', () => {
@@ -242,6 +249,12 @@ describe('installStateView — Azure (5)', () => {
     expect(v?.kind).toBe('svc');
     expect(v?.sentence).toBe('서비스 담당자가 Private Endpoint 연결을 승인해야 합니다');
     expect(rows(v)?.[3]).toEqual(['Private Endpoint 승인', '서비스', 'now']);
+    // The verdict carries the note: what BDC did, where the service owner approves.
+    expect(v?.note?.lines).toEqual([
+      'BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.',
+      '서비스 담당자가 Azure Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.',
+    ]);
+    expect(v?.note?.link).toEqual({ label: 'Azure Portal에서 승인', href: AZURE_PENDING_CONNECTIONS_URL });
   });
 
   it('④ everything settled', () => {
@@ -281,6 +294,11 @@ describe('installStateView — IDC (4)', () => {
     const v = idc({ cx: CO, bdp: CO, firewall: IP });
     expect(v?.kind).toBe('svc');
     expect(v?.sentence).toBe('서비스 담당자가 접근 허용을 확인해야 합니다');
+    expect(v?.note?.lines).toEqual([
+      'BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.',
+      '서비스 담당자가 방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.',
+    ]);
+    expect(v?.note?.link).toBeUndefined();
   });
 
   it('③ everything settled', () => {
@@ -311,7 +329,14 @@ describe('installStateView — variants that change a row, not the state', () =>
       done: 3,
       total: 4,
       failed: 1,
-      guides: ['서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.'],
+      open: [
+        {
+          resourceId: 'db-3',
+          resourceName: 'db-3',
+          failed: true,
+          guide: '서브넷 가용 IP 부족으로 ENI 생성에 실패했습니다.',
+        },
+      ],
     });
   });
 
@@ -328,7 +353,107 @@ describe('installStateView — variants that change a row, not the state', () =>
       ),
     });
     expect(v?.kind).toBe('me');
-    expect(v?.steps[2]).toMatchObject({ id: 'bdcCommon', state: 'fail', failed: 2, guides: ['timeout'] });
+    expect(v?.steps[2]).toMatchObject({ id: 'bdcCommon', state: 'fail', failed: 2 });
+    expect(v?.steps[2].open.map((r) => [r.resourceId, r.failed, r.guide])).toEqual([
+      ['db-1', true, 'timeout'],
+      ['db-2', true, 'timeout'],
+    ]);
+  });
+
+  it('the open list names the resources still on the step, in wire order; settled ones are not in it', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: CO, bdp: CO, firewall: CO }),
+        resource('idc-res-002', { cx: CO, bdp: CO, firewall: IP }),
+        resource('idc-res-003', { cx: CO, bdp: CO, firewall: CO }),
+        resource('idc-res-004', { cx: CO, bdp: CO, firewall: ['FAIL', null as unknown as string] }),
+      ]),
+    });
+    expect(v?.kind).toBe('svc');
+    expect(v?.steps.map((s) => [s.id, s.state, s.open.length])).toEqual([
+      ['cx', 'done', 0],
+      ['bdp', 'done', 0],
+      ['firewall', 'fail', 2],
+    ]);
+    expect(v?.steps[2].open).toEqual([
+      { resourceId: 'idc-res-002', resourceName: 'idc-res-002', failed: false, guide: null },
+      { resourceId: 'idc-res-004', resourceName: 'idc-res-004', failed: true, guide: null },
+    ]);
+    // The firewall row speaks in the owner's words; every other step says 조치 필요.
+    expect(v?.steps.map((s) => s.openLabel)).toEqual(['조치 필요', '조치 필요', '서비스측 방화벽 확인 요청 필요']);
+  });
+
+  it('the IDC BDC side says done / not done only: counted, never listed by resource', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: CO, bdp: CO, firewall: IP }),
+        resource('idc-res-002', { cx: CO, bdp: IP, firewall: IP }),
+      ]),
+    });
+    expect(v?.steps[1]).toMatchObject({ id: 'bdp', state: 'now', done: 1, total: 2, listResources: false });
+    expect(v?.steps[1].open).toHaveLength(1);
+    expect(v?.steps.map((s) => [s.id, s.listResources])).toEqual([
+      ['cx', false],
+      ['bdp', false],
+      ['firewall', true],
+    ]);
+  });
+
+  it('AWS, GCP and every BDC-side step list no resources (owner 2026-09-15); the Azure service steps do', () => {
+    const aws = installStateView({
+      provider: 'aws',
+      manualInstall: true,
+      detail: detail([resource('db-1', { service: IP, bdcCommon: IP, bdcService: IP })]),
+    });
+    expect(aws?.steps.every((s) => s.listResources === false)).toBe(true);
+    const gcp = installStateView({
+      provider: 'gcp',
+      manualInstall: false,
+      detail: detail([resource('db-1', { subnet: IP, service: IP, bdc: IP })]),
+    });
+    expect(gcp?.steps.every((s) => s.listResources === false)).toBe(true);
+    const azure = installStateView({
+      provider: 'azure',
+      manualInstall: false,
+      detail: detail([resource('db-1', { vmSubnet: IP, vmApply: IP, bdc: IP, pe: IP })]),
+    });
+    expect(azure?.steps.map((s) => [s.id, s.listResources, s.openLabel])).toEqual([
+      ['vmSubnet', true, '조치 필요'],
+      ['vmApply', true, '조치 필요'],
+      ['bdc', false, '조치 필요'],
+      // The PE row speaks in the owner's words, like the IDC firewall row.
+      ['pe', true, '서비스측에 Private Endpoint 승인 요청 필요'],
+    ]);
+  });
+
+  it('only the first open step is current: a FAIL on a later step is fail but not current', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: IP, bdp: IP, firewall: ['FAIL', 'timeout'] }),
+        resource('idc-res-002', { cx: CO, bdp: IP, firewall: IP }),
+      ]),
+    });
+    expect(v?.kind).toBe('me');
+    expect(v?.steps.map((s) => [s.id, s.state, s.current])).toEqual([
+      ['cx', 'now', true],
+      ['bdp', 'wait', false],
+      ['firewall', 'fail', false],
+    ]);
+  });
+
+  it('the role check is target-level: it lists no resource', () => {
+    const v = installStateView({
+      provider: 'aws',
+      manualInstall: false,
+      detail: detail([resource('db-1', { service: IP, bdcCommon: IP, bdcService: IP })], IP),
+    });
+    expect(v?.steps[0]).toMatchObject({ id: 'role', state: 'now', open: [] });
   });
 
   it('a step with no cell on any resource is dropped, not counted as done', () => {

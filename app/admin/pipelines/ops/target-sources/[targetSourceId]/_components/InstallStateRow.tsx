@@ -20,6 +20,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import { TcPill } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import type { TcTone } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/tc/bits';
 import type {
@@ -59,7 +60,7 @@ export function InstallStateRow({ view, action, className }: InstallStateRowProp
   return (
     <section
       className={cn(
-        'flex items-center gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3',
+        'flex items-start gap-2.5 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3',
         className,
       )}
       aria-label="설치 상태 판정"
@@ -67,10 +68,34 @@ export function InstallStateRow({ view, action, className }: InstallStateRowProp
       <span className="flex-none">
         <Mark kind={view.kind} />
       </span>
-      <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-[1.4] break-keep text-[var(--pl-text-strong)]">
-        {view.sentence}
-        <TcPill tone={tag.tone} label={tag.label} />
-      </p>
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-[1.4] break-keep text-[var(--pl-text-strong)]">
+          {view.sentence}
+          <TcPill tone={tag.tone} label={tag.label} />
+        </p>
+        {/* What already happened and where the move is made — one fact per line, the
+            link on its own (owner 2026-09-15, Azure PE). */}
+        {view.note && (
+          <div className="mt-1 text-[12px] font-normal leading-[1.5] text-[var(--pl-text-weak)]">
+            {view.note.lines.map((line) => (
+              <p key={line} className="break-keep">
+                {line}
+              </p>
+            ))}
+            {view.note.link && (
+              <a
+                href={view.note.link.href}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(opsStyles.detailLink, 'mt-1 text-[12px]')}
+              >
+                {view.note.link.label}
+                <Icon name="arrow-up-right" size="sm" strokeWidth={2.2} />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
       {action && <span className="flex-none">{action}</span>}
     </section>
   );
