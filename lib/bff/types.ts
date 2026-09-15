@@ -91,6 +91,12 @@ export interface PipelineBffClient {
     attemptNumber: string,
     jobId: string,
   ) => Promise<OrchestratorRawResponse>;
+  /** #5c GET …/tasks/{taskId}/attempts/{attemptNumber}/http-response (204 when none stored) */
+  attemptHttpResponse: (
+    pipelineId: string,
+    taskId: string,
+    attemptNumber: string,
+  ) => Promise<OrchestratorRawResponse>;
   /** #6 POST /api/v1/pipelines/{pipelineId}/cancel */
   cancel: (pipelineId: string) => Promise<OrchestratorRawResponse>;
   /** #7 GET /api/v1/target-sources/{targetSourceId}/pipelines?<query> */

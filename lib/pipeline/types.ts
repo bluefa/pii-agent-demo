@@ -358,6 +358,24 @@ export interface TerraformJobStateDetail {
   last_polled_at: string | null;
 }
 
+/**
+ * GET …/attempts/{n}/http-response — the HTTP response Infra Manager returned for
+ * the attempt's call (BE-supplied schema, not in install-v1 swagger yet). 204 when
+ * nothing was stored.
+ */
+export interface HttpResponseDetail {
+  metadata: {
+    operation: string;
+    status_code: number | null;
+    content_type: string | null;
+    received_at: string | null;
+    truncated: boolean | null;
+    confirmation_input_id: number | null;
+  };
+  /** Infra Manager 가 반환한 원문 HTTP response body. */
+  body: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Statistics
 // ---------------------------------------------------------------------------

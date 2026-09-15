@@ -264,6 +264,9 @@ export const improvedStyles = {
     failReasonClamp: 'mt-2.5 text-[14px] leading-[1.6] text-[var(--pl-err-text)] break-words line-clamp-2',
     /** "자세히" link under a clamped failure cause — opens the full-message modal. */
     failReasonMore: 'mt-1.5 text-[12px] font-semibold text-[var(--pl-primary)] hover:underline transition-colors',
+    /** Infra Manager 응답 (#5c) — status line + the body verbatim. */
+    httpHead: 'mt-2.5 text-[12px] text-[var(--pl-err-text)] [font-family:var(--pl-font-mono)]',
+    httpPre: 'mt-2 max-h-[230px] overflow-auto rounded-[6px] border border-[var(--pl-err-border)] bg-[var(--pl-gray-50)] px-[15px] py-[13px] text-[12px] leading-[1.55] text-[var(--pl-text-medium)] [font-family:var(--pl-font-mono)] whitespace-pre-wrap break-all',
     /** Verdict hero (design-benchmark 2026-08-14 시안 A) — the first thing the
      *  exec tab says, now that the card carries the progress log. The judgment is
      *  type size + a dot, never a tinted plate, and the supporting facts drop a

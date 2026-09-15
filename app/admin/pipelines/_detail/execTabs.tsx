@@ -162,6 +162,8 @@ export function TerraformExec({
 
       {current ? (
         <AttemptDetail
+          pipelineId={detail.pipeline_id}
+          taskId={detail.task_id}
           attempt={current}
           operation={detail.operation}
           runWindow={runWindow}
