@@ -39,6 +39,8 @@ interface Preset {
 
 const PRESETS: readonly Preset[] = [
   { label: '최근 7일', span: 6 },
+  { label: '최근 14일', span: 13 },
+  { label: '최근 21일', span: 20 },
   { label: '최근 30일', span: 29 },
   { label: '최근 90일', span: 89 },
   { label: '이번 달', span: 'month' },
@@ -68,13 +70,32 @@ export function presetRange(span: PresetSpan, today: Date): { from: string; to: 
   return { from: toDayString(new Date(today.getFullYear(), 0, 1)), to: toDayString(today) };
 }
 
-/** The screen's default window — 최근 90일, so the picker opens on a named preset. */
+/**
+ * Quick spans offered as one-click buttons in the filter row (owner, 2026-09-15: 7 · 14 ·
+ * 21 days, plus 30). `span` is days minus one — today counts, so 최근 7일 is today−6 … today.
+ */
+export const QUICK_SPANS: ReadonlyArray<{ label: string; span: number }> = [
+  { label: '7일', span: 6 },
+  { label: '14일', span: 13 },
+  { label: '21일', span: 20 },
+  { label: '30일', span: 29 },
+];
+
+/** Which quick span the applied range IS, if any — the custom calendar leaves none pressed. */
+export function quickSpanOf(range: { from: string; to: string }, today: Date): number | null {
+  const hit = QUICK_SPANS.find((quick) => {
+    const preset = presetRange(quick.span, today);
+    return preset.from === range.from && preset.to === range.to;
+  });
+  return hit ? hit.span : null;
+}
+
+/** The screen's default window — 최근 7일, the first quick button. */
 export const defaultRange = (today: Date): { from: string; to: string } =>
-  presetRange(89, today);
+  presetRange(6, today);
 
 const styles = {
   wrap: 'relative',
-  label: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-text-faint)]',
   trigger:
     'inline-flex h-8 min-w-[250px] items-center justify-between gap-2 rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2.5 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
   pop: 'absolute left-0 top-[38px] z-20 grid grid-cols-[128px_1fr] gap-3.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-3.5 shadow-[var(--pl-shadow-lg)]',
@@ -187,7 +208,6 @@ export function DateRangePicker({ from, to, onApply }: DateRangePickerProps): Re
   return (
     <div className={styles.wrap} ref={wrapRef}>
       <div className="flex items-center gap-2">
-        <span className={styles.label}>기간</span>
         <button
           type="button"
           ref={triggerRef}

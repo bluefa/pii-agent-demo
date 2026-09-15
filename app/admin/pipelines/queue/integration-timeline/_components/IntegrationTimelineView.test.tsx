@@ -69,7 +69,7 @@ const renderView = async () => {
 };
 
 describe('IntegrationTimelineView', () => {
-  it('opens on the contract defaults over a 90-day window', async () => {
+  it('opens on the contract defaults over a 7-day window', async () => {
     await renderView();
     const query = lastQuery();
     // The 최초 연동 filter left the screen (owner, 09-15): the route defaults it to ALL.
@@ -82,6 +82,35 @@ describe('IntegrationTimelineView', () => {
     });
     expect(query.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(query.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(6 * 86_400_000);
+    expect(segment('최근 기간').getByRole('button', { name: '7일' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('a quick span applies at once and starts from the first page', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('button', { name: /다음/ }));
+    await waitFor(() => expect(lastQuery().page).toBe(1));
+
+    fireEvent.click(segment('최근 기간').getByRole('button', { name: '21일' }));
+    await waitFor(() => expect(lastQuery().page).toBe(0));
+    const query = lastQuery();
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(20 * 86_400_000);
+    expect(segment('최근 기간').getByRole('button', { name: '21일' }).getAttribute('aria-pressed')).toBe('true');
+    expect(segment('최근 기간').getByRole('button', { name: '7일' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('a custom range leaves no quick span pressed', async () => {
+    await renderView();
+    fireEvent.click(screen.getByRole('button', { name: /–/ }));
+    fireEvent.click(screen.getByRole('button', { name: '이번 달' }));
+    fireEvent.click(screen.getByRole('button', { name: '적용' }));
+    await waitFor(() => expect(lastQuery().from).toMatch(/-01$/));
+    const pressed = segment('최근 기간')
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('aria-pressed') === 'true');
+    // Unless today happens to make 이번 달 exactly one of the quick spans.
+    const monthSpan = Math.round((Date.parse(String(lastQuery().to)) - Date.parse(String(lastQuery().from))) / 86_400_000);
+    expect(pressed.length).toBe([6, 13, 20, 29].includes(monthSpan) ? 1 : 0);
   });
 
   it('renders the row as the server wrote it', async () => {
@@ -116,14 +145,14 @@ describe('IntegrationTimelineView', () => {
     const opened = getIntegrationTimeline.mock.calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: /–/ }));
-    fireEvent.click(screen.getByRole('button', { name: '최근 7일' }));
+    fireEvent.click(screen.getByRole('button', { name: '최근 14일' }));
     // A preset is a draft: the table still shows the window it was opened with.
     expect(getIntegrationTimeline.mock.calls.length).toBe(opened);
 
     fireEvent.click(screen.getByRole('button', { name: '적용' }));
     await waitFor(() => expect(getIntegrationTimeline.mock.calls.length).toBeGreaterThan(opened));
     const query = lastQuery();
-    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(6 * 86_400_000);
+    expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(13 * 86_400_000);
   });
 
   it('sorts on the server and flips on the second click', async () => {

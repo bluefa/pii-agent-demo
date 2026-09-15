@@ -36,7 +36,10 @@ import {
 } from '@/lib/types/task-queue';
 import {
   DateRangePicker,
+  QUICK_SPANS,
   defaultRange,
+  presetRange,
+  quickSpanOf,
 } from '@/app/admin/pipelines/queue/integration-timeline/_components/DateRangePicker';
 import {
   EMPTY_CELL,
@@ -184,11 +187,21 @@ export function IntegrationTimelineView(): ReactElement {
             onChange={(next) => refilter(() => setAxis(next))}
           />
         </div>
-        <DateRangePicker
-          from={range.from}
-          to={range.to}
-          onApply={(next) => refilter(() => setRange(next))}
-        />
+        {/* One click for the windows people actually ask for; the calendar is for
+            everything else. Both write the same applied range, so a custom range simply
+            leaves no quick button pressed — the trigger's dates are the truth either way. */}
+        <div className={ts.group}>
+          <span className={ts.label}>기간</span>
+          <QuickSpans
+            value={quickSpanOf(range, new Date())}
+            onChange={(span) => refilter(() => setRange(presetRange(span, new Date())))}
+          />
+          <DateRangePicker
+            from={range.from}
+            to={range.to}
+            onApply={(next) => refilter(() => setRange(next))}
+          />
+        </div>
       </section>
 
       <section className={ts.card}>
@@ -308,6 +321,36 @@ function SortHeader({
         {active && <span className={ts.sortMark}>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
       </button>
     </th>
+  );
+}
+
+function QuickSpans({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (span: number) => void;
+}): ReactElement {
+  return (
+    <div className={segmentedControlStyles.container} role="group" aria-label="최근 기간">
+      {QUICK_SPANS.map((quick) => {
+        const active = quick.span === value;
+        return (
+          <button
+            key={quick.span}
+            type="button"
+            aria-pressed={active}
+            className={cn(
+              segmentedControlStyles.itemSm,
+              active && segmentedControlStyles.itemActive,
+            )}
+            onClick={() => onChange(quick.span)}
+          >
+            {quick.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
