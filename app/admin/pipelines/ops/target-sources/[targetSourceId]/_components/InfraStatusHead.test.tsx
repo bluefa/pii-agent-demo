@@ -135,7 +135,7 @@ describe('InfraStatusHead — 설치 상태', () => {
         ],
       },
       identity: new Map([
-        ['idc-res-002', { label: '10.20.31.10:1521', databaseType: 'ORACLE' }],
+        ['idc-res-002', { label: '10.20.31.10:1521', databaseType: 'ORACLE', sourceIps: ['10.10.0.21', '10.10.0.22'] }],
       ]),
     });
 
@@ -147,6 +147,10 @@ describe('InfraStatusHead — 설치 상태', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText('10.20.31.10:1521')).toBeTruthy();
+    // BDC측 출발지: the addresses the firewall has to admit, one per line.
+    expect(within(table).getByRole('columnheader', { name: 'BDC측 출발지' })).toBeTruthy();
+    expect(within(rows[0]).getByText('10.10.0.21')).toBeTruthy();
+    expect(within(rows[0]).getByText('10.10.0.22')).toBeTruthy();
     expect(within(rows[0]).getByText('Oracle')).toBeTruthy();
     expect(within(rows[0]).getByText('서비스측 방화벽 확인 요청 필요')).toBeTruthy();
     // Not in the join: the wire id stands in, the DB cell is empty.

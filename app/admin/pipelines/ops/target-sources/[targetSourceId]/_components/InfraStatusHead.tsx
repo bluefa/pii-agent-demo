@@ -51,6 +51,7 @@ import type {
 import type { InstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { ChevronDownIcon } from '@/app/components/ui/icons';
+import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import type { InstallLastCheck } from '@/app/components/features/process-status/install-status-detail/model';
 import {
   SIDE_LABEL,
@@ -107,6 +108,9 @@ function StepRow({
 }): ReactElement {
   const openTag = step.state === 'now' || step.state === 'fail' ? OPEN_TAG[step.state] : null;
   const count = openTag ? countOf(step) : null;
+  // BDC측 출발지 is an IDC fact (the addresses the firewall must admit); the column
+  // exists only where a row carries one, so Azure's table does not grow an empty column.
+  const withSource = step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
   return (
     <div className={cn(!first && 'border-t border-[var(--pl-border)]')}>
       <div className="flex min-h-[30px] items-center gap-2">
@@ -147,6 +151,9 @@ function StepRow({
                 <thead>
                   <tr>
                     <th scope="col" className={opsStyles.table.headCell}>접속 주소</th>
+                    {withSource && (
+                      <th scope="col" className={opsStyles.table.headCell}>{IDC_SOURCE_LABEL}</th>
+                    )}
                     <th scope="col" className={cn(opsStyles.table.headCell, 'w-[120px]')}>DB 종류</th>
                     <th scope="col" className={opsStyles.table.headCell}>상태</th>
                   </tr>
@@ -159,6 +166,16 @@ function StepRow({
                         <td className={cn(opsStyles.table.cell, 'break-all text-[14px] [font-family:var(--pl-font-mono)]')}>
                           {r.resourceName ?? who?.label ?? r.resourceId}
                         </td>
+                        {withSource && (
+                          <td className={cn(opsStyles.table.cell, 'text-[14px] [font-family:var(--pl-font-mono)]')}>
+                            {/* One address per line, as the IDC tables print 출발지. */}
+                            {(who?.sourceIps ?? []).map((ip) => (
+                              <span key={ip} className="block">
+                                {ip}
+                              </span>
+                            ))}
+                          </td>
+                        )}
                         <td className={cn(opsStyles.table.cell, 'text-[14px] text-[var(--pl-text-medium)]')}>
                           {who?.databaseType ? getDatabaseShortLabel(who.databaseType) : '-'}
                         </td>

@@ -18,6 +18,8 @@ import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 export interface InstallResourceIdentity {
   label: string;
   databaseType: string | null;
+  /** BDC측 출발지 — the PII-Agent addresses the firewall has to admit (IDC only, else empty). */
+  sourceIps: string[];
 }
 
 const strings = (values: ReadonlyArray<string | null | undefined> | null | undefined): string[] =>
@@ -36,6 +38,7 @@ export function installResourceIdentity(row: ConfirmedIntegrationResourceInfo): 
   return {
     label: row.resource_name || address || row.resource_id,
     databaseType: row.database_type ?? null,
+    sourceIps: strings(row.idc_source_ips),
   };
 }
 

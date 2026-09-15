@@ -20,8 +20,14 @@ const row = (over: Partial<ConfirmedIntegrationResourceInfo>): ConfirmedIntegrat
 describe('installResourceIdentity — what the open-resource row prints for an id', () => {
   it('IDC IP mode: every ip with the port, the DB type alongside', () => {
     expect(
-      installResourceIdentity(row({ idc_host_format: 'IP', idc_ips: ['10.20.31.10', '10.20.31.11'] })),
-    ).toEqual({ label: '10.20.31.10:1521 · 10.20.31.11:1521', databaseType: 'ORACLE' });
+      installResourceIdentity(
+        row({ idc_host_format: 'IP', idc_ips: ['10.20.31.10', '10.20.31.11'], idc_source_ips: ['10.10.0.21', '10.10.0.22'] }),
+      ),
+    ).toEqual({
+      label: '10.20.31.10:1521 · 10.20.31.11:1521',
+      databaseType: 'ORACLE',
+      sourceIps: ['10.10.0.21', '10.10.0.22'],
+    });
   });
 
   it('IDC HOST mode: the host with the port', () => {
@@ -40,7 +46,7 @@ describe('installResourceIdentity — what the open-resource row prints for an i
     ).toBe('prod-orders');
   });
 
-  it('nothing to print but the id: the id', () => {
-    expect(installResourceIdentity(row({})).label).toBe('idc-res-002');
+  it('nothing to print but the id: the id, and no source addresses', () => {
+    expect(installResourceIdentity(row({}))).toMatchObject({ label: 'idc-res-002', sourceIps: [] });
   });
 });
