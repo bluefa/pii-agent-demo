@@ -3,7 +3,7 @@
 - 날짜: 2026-09-15
 - 대상 화면: admin › Task Queue › 연동 시점 (`/admin/pipelines/queue/integration-timeline`) 의 기간 필터
 - 아티팩트: https://claude.ai/code/artifact/62a67651-84bd-4d22-8fbb-549994853007
-- 구현 PR: feat/quick-range (번호는 PR 생성 후 본문에 기재)
+- 구현 PR: #904 (https://github.com/bluefa/pii-agent-demo/pull/904)
 
 ## 문제 (증거 등급)
 
