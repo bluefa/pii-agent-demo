@@ -727,7 +727,7 @@ export const segmentedControlStyles = {
    * the caller, would decide which wins.
    */
   itemSm:
-    'inline-flex h-7 items-center gap-1.5 px-3 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
+    'inline-flex h-[26px] items-center gap-1.5 px-3 text-sm font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
   itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
 } as const;
 
