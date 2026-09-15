@@ -135,12 +135,12 @@ page-head: h1 + head-sub(ProvTag·mono 코드·상태 pill: 연결 테스트 완
 
 ```
 breadcrumb: Task Queue / 연동 시점
-page-head: h1 "TargetSource 생성일과 최초 연동 시작날짜" (pageHeaderTitleStyle 24/800)
-  + sub 14 weak "TargetSource 가 언제 만들어졌고 언제 연동을 시작했는지 기간으로 잘라 봅니다.
-                 최초 연동일은 초기화로 단계가 되돌아가도 바뀌지 않습니다."
+page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (pageHeaderTitleStyle 24/800)
+  + sub 14 weak "TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
+                 최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다."
   actions: [CSV 내려받기] (secondary, h32)
 필터 카드 (Card, 한 행, gap 14, 컨트롤 높이 전부 32):
-  기준   seg(segmentedControlStyles): [생성일 | 최초 연동 시작날짜]        → axis
+  기준   seg(segmentedControlStyles): [연동 시작 날짜 | 최초 연동 완료확인 날짜]        → axis
   기간   range 버튼(mono "2026-06-16 – 2026-09-14" + 캘린더 아이콘) → 팝오버
          팝오버: 좌 프리셋 레일(최근 7일·30일·90일·이번 달·지난 달·올해) + 우 두 달 캘린더
                  시작 클릭 → 끝 클릭, 호버 미리보기, 오늘 점, 미래 날짜 faint
@@ -148,14 +148,14 @@ page-head: h1 "TargetSource 생성일과 최초 연동 시작날짜" (pageHeader
                  프리셋도 즉시 적용 아님 — 적용을 눌러야 표에 반영 (Cloudscape 방식)
 표 카드 (tableStyles: thead 12/600 #4E5968 on #F7F8FA · td 18/16):
   열: ID(mono, 링크 → ops target-source 상세) · 서비스 이름 · 서비스 코드(mono, 별도 열 — 오너 09-15)
-      · 생성일(mono) · 최초 연동 시작날짜(mono, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
-      · 최초 연동(tag: 완료=green / 미완료=gray) · 확정 상태(tag gray, 기존 enum 한글)
-  정렬: ID·생성일·최초 연동일·리드타임 헤더 클릭(서버 sort)
+      · 연동 시작 날짜(mono, `created_at`) · 최초 연동 완료확인 날짜(mono, `pii_agent_first_installed_at`, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
+      · 최초 연동(tag: 완료=green / 미완료=gray)
+  정렬: ID·연동 시작 날짜·최초 연동 완료확인 날짜·리드타임 헤더 클릭(서버 sort)
   empty: "조건에 맞는 TargetSource 가 없습니다."
   푸터: PlPagination + "N건 · 전체 M건 중"(totalElements)
 ```
 
-금지: 최초 연동 완료/미완료 필터(오너 09-15 제외) · 요약 문장·타일, 중앙값/평균/P90, 경과일 태그, 상태 테두리, CSP 칩, 셀 막대.
+금지: 확정 상태 열(오너 09-15 제외) · 최초 연동 완료/미완료 필터(오너 09-15 제외) · 요약 문장·타일, 중앙값/평균/P90, 경과일 태그, 상태 테두리, CSP 칩, 셀 막대.
 
 ## 6. 모달 5종 — 앱 모달 문법 (`.modal.app`)
 

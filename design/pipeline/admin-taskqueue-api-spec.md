@@ -115,7 +115,7 @@
 
 | Query | 타입 | 필수 | 기본 | 뜻 |
 |---|---|---|---|---|
-| `axis` | `CREATED` \| `FIRST_INSTALLED` | – | `CREATED` | 기간을 자르는 축. 생성일 / 최초 연동일 |
+| `axis` | `CREATED` \| `FIRST_INSTALLED` | – | `CREATED` | 기간을 자르는 축. 화면 낱말: `CREATED`=연동 시작 날짜(`created_at`) / `FIRST_INSTALLED`=최초 연동 완료확인 날짜(`pii_agent_first_installed_at`) |
 | `from` | `date` (YYYY-MM-DD) | ✅ | – | 구간 시작(포함). Asia/Seoul 자정 기준 |
 | `to` | `date` (YYYY-MM-DD) | ✅ | – | 구간 끝(포함). `from ≤ to` 아니면 400 |
 | `installed` | `ALL` \| `YES` \| `NO` | – | `ALL` | 최초 연동 완료 여부. `pii_agent_first_installed_at` 유무. ⚠️ 화면 필터는 09-15 제외 — FE 는 보내지 않는다, BE 는 유지해도 무방 |
@@ -149,7 +149,7 @@
 |---|---|---|
 | `lead_time_seconds` | int64 \| null | `pii_agent_first_installed_at − created_at` (초). 최초 연동 완료 행만, 아니면 `null`. **BE 가 계산**해 정렬 가능하게 한다 |
 | `created_at` · `pii_agent_first_installed_at` | date-time(오프셋 포함) | FE 는 UTC 보정하지 않는다 — BFF 가 오프셋을 보낸다 |
-| 나머지 | 기존 `TargetSourceResponse` 부분집합 | `cloud_provider` 는 표에 안 그리지만 CSV 열로 쓴다 |
+| 나머지 | 기존 `TargetSourceResponse` 부분집합 | `cloud_provider`·`confirm_status` 는 표에 안 그리지만 CSV 열로 쓴다 |
 
 4xx: `ErrorMessage` 그대로 중계(ADR-008). 400 = `from > to`, 잘못된 enum, `size > 100`.
 

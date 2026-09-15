@@ -4,7 +4,7 @@
  * P6 연동 시점 (`/admin/pipelines/queue/integration-timeline`) — one question, one table:
  * when was a TargetSource made, and when did it first finish integrating.
  *
- * Every filter is a QUERY. axis / 기간 / 최초 연동 여부 / sort / page all go to the server
+ * Every filter is a QUERY. axis / 기간 / sort / page all go to the server
  * and come back as a page of rows; nothing is narrowed or re-sorted here. That is what
  * makes the 건수 in the footer and the CSV the same set of rows as the table.
  *
@@ -47,18 +47,9 @@ import {
 const PAGE_SIZE = 20;
 
 const AXIS_OPTIONS: ReadonlyArray<{ value: TimelineAxis; label: string }> = [
-  { value: 'CREATED', label: '생성일' },
-  { value: 'FIRST_INSTALLED', label: '최초 연동 시작날짜' },
+  { value: 'CREATED', label: '연동 시작 날짜' },
+  { value: 'FIRST_INSTALLED', label: '최초 연동 완료확인 날짜' },
 ];
-
-/** 확정 상태 enum → the Korean word the other admin screens use for it. */
-const CONFIRM_STATUS_LABELS: Record<string, string> = {
-  NO_REQUEST: '요청 없음',
-  PENDING: '승인 대기',
-  CONFIRM_INFO_UPDATE_REQUIRED: '재확정 필요',
-  CONFIRMED: '확정',
-  REJECTED: '반려',
-};
 
 interface SortableColumn {
   label: string;
@@ -68,8 +59,8 @@ interface SortableColumn {
 
 const SORTABLE: Record<string, SortableColumn> = {
   id: { label: 'ID', prop: 'targetSourceId' },
-  created: { label: '생성일', prop: 'createdAt' },
-  installed: { label: '최초 연동 시작날짜', prop: 'piiAgentFirstInstalledAt' },
+  created: { label: '연동 시작 날짜', prop: 'createdAt' },
+  installed: { label: '최초 연동 완료확인 날짜', prop: 'piiAgentFirstInstalledAt' },
   lead: { label: '리드타임', prop: 'leadTimeSeconds', numeric: true },
 };
 
@@ -99,7 +90,7 @@ const ts = {
   skeleton: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 } as const;
 
-const COLUMN_COUNT = 8;
+const COLUMN_COUNT = 7;
 
 export function IntegrationTimelineView(): ReactElement {
   // The window is seeded once, from the day the screen opened — re-deriving it per render
@@ -171,10 +162,10 @@ export function IntegrationTimelineView(): ReactElement {
       <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
-          <h1 className={ts.title}>TargetSource 생성일과 최초 연동 시작날짜</h1>
+          <h1 className={ts.title}>TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜</h1>
           <p className={ts.lede}>
-            TargetSource 가 언제 만들어졌고 언제 연동을 시작했는지 기간으로 잘라 봅니다.
-            최초 연동 시작날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
+            TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
+            최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -212,7 +203,6 @@ export function IntegrationTimelineView(): ReactElement {
                 <SortHeader column={SORTABLE.installed} sort={sort} onSort={toggleSort} />
                 <SortHeader column={SORTABLE.lead} sort={sort} onSort={toggleSort} />
                 <th className={tableStyles.headerCell}>최초 연동</th>
-                <th className={tableStyles.headerCell}>확정 상태</th>
               </tr>
             </thead>
             <tbody className={tableStyles.body}>
@@ -292,11 +282,6 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
         {/* 한 사실만 말한다 — 완료/미완료. 경과일도, 경고 톤도, 테두리도 없다. */}
         <span className={cn(ts.tag, installed ? tagStyles.green : tagStyles.gray)}>
           {installed ? '완료' : '미완료'}
-        </span>
-      </td>
-      <td className={tableStyles.cell}>
-        <span className={cn(ts.tag, tagStyles.gray)}>
-          {(row.confirmStatus && CONFIRM_STATUS_LABELS[row.confirmStatus]) ?? EMPTY_CELL}
         </span>
       </td>
     </tr>

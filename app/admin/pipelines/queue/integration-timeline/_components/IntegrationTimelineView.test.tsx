@@ -49,7 +49,7 @@ const paged = (content: IntegrationTimelineRow[]): Paged<IntegrationTimelineRow>
   empty: content.length === 0,
 });
 
-/** Segment buttons and table cells share words (최초 연동 시작날짜), so every assertion
+/** Segment buttons and table cells share words (최초 연동 완료확인 날짜), so every assertion
  *  names the control it is about rather than searching the whole screen. */
 const segment = (name: string) => within(screen.getByRole('group', { name }));
 const table = () => within(screen.getByRole('table'));
@@ -101,13 +101,13 @@ describe('IntegrationTimelineView', () => {
     await renderView();
     await screen.findByText('결제 정산');
     expect(table().getByText('미완료')).toBeTruthy();
-    // 최초 연동 시작날짜 and 리드타임 both have nothing to say — and say exactly that.
+    // 최초 연동 완료확인 날짜 and 리드타임 both have nothing to say — and say exactly that.
     expect(table().getAllByText('–').length).toBe(2);
   });
 
   it('sends 기준 to the server', async () => {
     await renderView();
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
   });
 
@@ -139,14 +139,14 @@ describe('IntegrationTimelineView', () => {
     fireEvent.click(screen.getByRole('button', { name: /다음/ }));
     await waitFor(() => expect(lastQuery().page).toBe(1));
 
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery()).toMatchObject({ axis: 'FIRST_INSTALLED', page: 0 }));
   });
 
   it('downloads the CSV with the filters on screen, without the pager', async () => {
     downloadIntegrationTimelineCsv.mockResolvedValue(new Blob(['id'], { type: 'text/csv' }));
     await renderView();
-    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 시작날짜' }));
+    fireEvent.click(segment('기간 기준').getByRole('button', { name: '최초 연동 완료확인 날짜' }));
     await waitFor(() => expect(lastQuery().axis).toBe('FIRST_INSTALLED'));
 
     fireEvent.click(screen.getByRole('button', { name: 'CSV 내려받기' }));
