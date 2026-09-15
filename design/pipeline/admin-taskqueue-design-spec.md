@@ -135,11 +135,12 @@ page-head: h1 + head-sub(ProvTag·mono 코드·상태 pill: 연결 테스트 완
 
 ```
 breadcrumb: Task Queue / 연동 시점
-page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (pageHeaderTitleStyle 24/800)
+바닥(09-15 오너): 연동 요청 페이지와 같은 full-bleed gray-200 캔버스(`rq.page`/`opsStyles.page`) — 카드가 바닥에서 떠 보여야 한다
+page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 날짜" (연동 요청 h1 과 같은 24/700/-0.02em) · 리드 문장은 medium 잉크(gray-200 위 weak 는 AA 미달)
   + sub 14 weak "TargetSource 가 언제 연동을 시작했고 언제 최초 연동 완료가 확인됐는지 기간으로 잘라 봅니다.
                  최초 연동 완료확인 날짜는 초기화로 단계가 되돌아가도 바뀌지 않습니다."
   actions: [CSV 내려받기] (secondary, h32)
-필터 카드 (Card, 한 행, gap 14, 컨트롤 높이 전부 32):
+필터 카드 (확정 정보 탭 카드와 같은 r12 · border-strong · shadow-sm · px20 py16, 그룹 간 24, 라벨 12 medium weak(대문자·자간 없음), 컨트롤 높이 전부 32):
   기준   seg(segmentedControlStyles): [연동 시작 날짜 | 최초 연동 완료확인 날짜]        → axis
   기간   빠른 기간 seg(segmentedControlStyles, 09-15 추가): [7일 | 14일 | 21일 | 30일] — 클릭 즉시 적용,
          오늘 포함 N개 달력일(today−(N−1) … today). 적용된 구간이 그 중 하나와 정확히 같을 때만 눌림,
@@ -149,7 +150,7 @@ page-head: h1 "TargetSource 연동 시작 날짜와 최초 연동 완료확인 �
                  시작 클릭 → 끝 클릭, 호버 미리보기, 오늘 점, 미래 날짜 faint
                  푸터: 힌트(mono "from – to · N일") … [닫기] [적용](primary)
                  프리셋도 즉시 적용 아님 — 적용을 눌러야 표에 반영 (Cloudscape 방식)
-표 카드 (tableStyles: thead 12/600 #4E5968 on #F7F8FA · td 18/16):
+표 카드 (같은 r12 · border-strong · shadow-sm 카드 · tableStyles: thead 12/600 #4E5968 on #F7F8FA · td 18/16):
   열: ID(mono, 링크 → ops target-source 상세) · 서비스 이름 · 서비스 코드(mono, 별도 열 — 오너 09-15)
       · 연동 시작 날짜(mono, `created_at`) · 최초 연동 완료확인 날짜(mono, `pii_agent_first_installed_at`, 없으면 dim –) · 리드타임(우정렬 mono "9일 6시간", 없으면 dim –)
       · 최초 연동(tag: 완료=green / 미완료=gray)

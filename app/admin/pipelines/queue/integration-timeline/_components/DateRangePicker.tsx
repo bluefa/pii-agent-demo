@@ -96,8 +96,11 @@ export const defaultRange = (today: Date): { from: string; to: string } =>
 
 const styles = {
   wrap: 'relative',
+  // A date field, not a button with a date in it: glyph first, then the span, no forced
+  // width — the dates set it. Same 32px and border family as the segments beside it.
   trigger:
-    'inline-flex h-8 min-w-[250px] items-center justify-between gap-2 rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-2.5 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+    'inline-flex h-8 items-center gap-2 rounded-[var(--pl-r-ctl)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-3 text-[14px] tabular-nums text-[var(--pl-text-strong)] hover:border-[var(--pl-border-strong)]',
+  triggerGlyph: 'text-[var(--pl-text-weak)]',
   pop: 'absolute left-0 top-[38px] z-20 grid grid-cols-[128px_1fr] gap-3.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] p-3.5 shadow-[var(--pl-shadow-lg)]',
   presets: 'grid content-start gap-0.5 border-r border-[var(--pl-border)] pr-2.5',
   preset:
@@ -216,10 +219,12 @@ export function DateRangePicker({ from, to, onApply }: DateRangePickerProps): Re
           aria-expanded={open}
           onClick={() => (open ? close() : openPop())}
         >
+          <span className={styles.triggerGlyph}>
+            <CalendarGlyph />
+          </span>
           <span>
             {from} – {to}
           </span>
-          <CalendarGlyph />
         </button>
       </div>
 

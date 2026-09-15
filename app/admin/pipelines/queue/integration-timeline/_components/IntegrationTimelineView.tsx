@@ -68,17 +68,27 @@ const SORTABLE: Record<string, SortableColumn> = {
 };
 
 const ts = {
+  /**
+   * Ground — full-bleed --pl-gray-200, the same escape hatch the sibling 연동 요청 page
+   * (RequestsView.rq.page) and the ops detail (opsStyles.page) use: negative margins
+   * cancel the shell padding, `body` re-applies it. White cards read as cards on it;
+   * on --pl-bg-page they barely separated from the ground (owner, 2026-09-15).
+   */
+  page: '-mx-8 -mt-6 -mb-12 flex min-h-[calc(100vh_-_64px)] flex-col bg-[var(--pl-gray-200)]',
+  body: 'px-8 pt-6 pb-12',
   head: 'flex flex-wrap items-end justify-between gap-4',
-  title: 'text-[24px] font-extrabold leading-[1.2] tracking-[-0.03em] text-[var(--pl-text-strong)]',
+  title: 'text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
   // One line by the owner's call (2026-09-15): no measure cap, no wrapping. The header
   // row is flex-wrap, so on a narrow canvas the CSV button drops below instead.
-  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-weak)]',
+  // medium, not weak: this line stands on the gray-200 ground, where weak is 4.01:1.
+  lede: 'mt-1.5 whitespace-nowrap text-[14px] leading-[1.5] text-[var(--pl-text-medium)]',
+  /** The confirm-tab card (ConfirmTab.tsx): 12px radius, strong border, shadow-sm. */
   filters:
-    'mt-5 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-4 py-3.5',
-  group: 'flex items-center gap-2',
-  label: 'text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--pl-text-faint)]',
+    'mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] px-5 py-4 shadow-[var(--pl-shadow-sm)]',
+  group: 'flex items-center gap-2.5',
+  label: 'text-[12px] font-medium text-[var(--pl-text-weak)]',
   card:
-    'mt-4 rounded-[var(--pl-r-card)] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-xs)]',
+    'mt-4 overflow-hidden rounded-[12px] border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] shadow-[var(--pl-shadow-sm)]',
   tableWrap: 'overflow-x-auto',
   table: 'w-full border-collapse',
   sortButton: 'inline-flex items-center gap-1',
@@ -163,7 +173,8 @@ export function IntegrationTimelineView(): ReactElement {
   const pages = Math.max(1, paged?.totalPages ?? 1);
 
   return (
-    <div>
+    <div className={ts.page}>
+    <div className={ts.body}>
       <PlBreadcrumb crumbs={[{ label: 'Task Queue' }, { label: '연동 시점' }]} />
       <header className={ts.head}>
         <div>
@@ -257,6 +268,7 @@ export function IntegrationTimelineView(): ReactElement {
           />
         </div>
       </section>
+    </div>
     </div>
   );
 }
