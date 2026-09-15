@@ -189,7 +189,9 @@ export const listPipelinesByTarget = (
     `${ORCH}/target-sources/${seg(targetSourceId)}/pipelines${buildQuery({ ...params })}`,
   );
 
-// #5c — the HTTP response Infra Manager returned for an attempt. 204 → null.
+// #5c — the HTTP response Infra Manager returned for an attempt. "Nothing
+// stored" resolves to null whether the BE says 204 or 404 (unconfirmed which):
+// the ids come from the task detail, so a 404 here cannot mean a wrong id.
 export const getAttemptHttpResponse = async (
   pipelineId: number | string,
   taskId: number | string,
@@ -202,7 +204,7 @@ export const getAttemptHttpResponse = async (
     ),
     { headers: { Accept: 'application/json' }, signal: opts?.signal },
   );
-  if (res.status === 204) return null;
+  if (res.status === 204 || res.status === 404) return null;
   if (!res.ok) throw await toOrchestratorError(res);
   return (await res.json()) as HttpResponseDetail;
 };

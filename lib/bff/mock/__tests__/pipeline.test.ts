@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mockPipeline, resetPipelineMockStore } from '@/lib/bff/mock/pipeline';
 import type {
+  HttpResponseDetail,
   LivePipelineStatistics,
   OrchestratorErrorBody,
   PipelineDetail,
@@ -124,6 +125,16 @@ describe('mockPipeline (in-memory orchestrator)', () => {
         expect(a.job_states).toHaveLength(0);
         expect(a.failure_detail).toContain('503 Service Unavailable');
       }
+    });
+  });
+
+  describe('attempt http-response (#5c)', () => {
+    it('returns the stored Infra Manager response, 204 when none, 404 for an unknown attempt', () => {
+      const one = mockPipeline.attemptHttpResponse('131', '13101', '1');
+      expect(one.status).toBe(200);
+      expect((one.body as HttpResponseDetail).metadata.status_code).toBe(400);
+      expect(mockPipeline.attemptHttpResponse('132', '13201', '1').status).toBe(204);
+      expect(mockPipeline.attemptHttpResponse('131', '13101', '9').status).toBe(404);
     });
   });
 
