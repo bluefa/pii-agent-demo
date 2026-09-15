@@ -385,7 +385,7 @@ describe('installStateView — variants that change a row, not the state', () =>
     ]);
   });
 
-  it('AWS and GCP never list resources under a step (owner 2026-09-15); Azure does', () => {
+  it('AWS, GCP and every BDC-side step list no resources (owner 2026-09-15); the Azure service steps do', () => {
     const aws = installStateView({
       provider: 'aws',
       manualInstall: true,
@@ -403,7 +403,12 @@ describe('installStateView — variants that change a row, not the state', () =>
       manualInstall: false,
       detail: detail([resource('db-1', { vmSubnet: IP, vmApply: IP, bdc: IP, pe: IP })]),
     });
-    expect(azure?.steps.every((s) => s.listResources)).toBe(true);
+    expect(azure?.steps.map((s) => [s.id, s.listResources])).toEqual([
+      ['vmSubnet', true],
+      ['vmApply', true],
+      ['bdc', false],
+      ['pe', true],
+    ]);
   });
 
   it('the role check is target-level: it lists no resource', () => {

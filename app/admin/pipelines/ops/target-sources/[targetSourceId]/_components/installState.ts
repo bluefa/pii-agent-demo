@@ -64,7 +64,7 @@ export interface InstallStateStep {
   failed: number;
   /** Resources not yet settled on this step, in wire order. Empty for the role check. */
   open: InstallOpenResource[];
-  /** Whether the card draws `open` as rows. True for Azure and IDC 접근 허용 only. */
+  /** Whether the card draws `open` as rows. True for the Azure service steps and IDC 접근 허용 only. */
   listResources: boolean;
   /** The state an open (not failed) resource row prints. */
   openLabel: string;
@@ -103,7 +103,7 @@ interface ChainStep {
   side: InstallSide;
   /** The verdict sentence when THIS step is the first unsettled one. */
   sentence: string;
-  /** False: the card lists no resources under this step (AWS, GCP, IDC BDC side) — counts and guides only. */
+  /** False: the card lists no resources under this step (AWS, GCP, every BDC-side step) — counts and guides only. */
   listResources?: false;
   /** What an open resource row says for THIS step when it is not 조치 필요 (owner wording). */
   openLabel?: string;
@@ -170,7 +170,8 @@ const CHAINS: Record<string, ChainStep[]> = {
       side: '서비스',
       sentence: '서비스 담당자가 VM Terraform을 적용해야 합니다',
     },
-    { id: 'bdc', title: 'BDC측 Terraform 적용', side: '관리자', sentence: ME },
+    // The BDC side says done / not done only, as on IDC (owner 2026-09-15).
+    { id: 'bdc', title: 'BDC측 Terraform 적용', side: '관리자', sentence: ME, listResources: false },
     // The second service turn: BDC's apply raises the connection request, the
     // service approves it in the Azure portal.
     {
