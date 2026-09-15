@@ -49,7 +49,8 @@
   (오너 09-15 "기존 리소스테이블 디자인을 이용해서": `ConsoleTable` + `IdcEndpointCell`·`IdcDbTypeCell`·
   `IdcSourceIpCell`, 열 폭도 그 표의 값): 접속 주소 · Database Type · Port · **BDC측 출발지**(오너 09-15
   "bdc측 접속주소도 보여줘야지" — 확정 정보의 `idc_source_ips`, 출발지가 있는 표에만 열이 선다) · 상태. 상태는 「조회 도중 실패」 또는 단계 낱말 — 접근 허용은 「서비스측 방화벽
-  확인 요청 필요」(오너 낱말), 그 외는 「조치 필요」. guide 는 상태 셀 둘째 줄. 정착된 리소스는 표에
+  확인 요청 필요」, Azure Private Endpoint 승인은 「서비스측에 Private Endpoint 승인 요청 필요」(둘 다 오너
+  낱말, 09-15), 그 외는 「조치 필요」. guide 는 상태 셀 둘째 줄. 정착된 리소스는 표에
   없다(건수가 이미 말한다).
 - 예외(오너 2026-09-15): 리소스 표가 서는 곳은 **IDC 접근 허용과 Azure 의 서비스 단계(VM Subnet · VM TF ·
   PE 승인)** 뿐이다. BDC 측 단계는 CSP 를 가리지 않고 "됐다 / 안 됐다"만 — IDC CX·BDP, Azure BDC측 TF 모두

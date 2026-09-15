@@ -403,11 +403,12 @@ describe('installStateView — variants that change a row, not the state', () =>
       manualInstall: false,
       detail: detail([resource('db-1', { vmSubnet: IP, vmApply: IP, bdc: IP, pe: IP })]),
     });
-    expect(azure?.steps.map((s) => [s.id, s.listResources])).toEqual([
-      ['vmSubnet', true],
-      ['vmApply', true],
-      ['bdc', false],
-      ['pe', true],
+    expect(azure?.steps.map((s) => [s.id, s.listResources, s.openLabel])).toEqual([
+      ['vmSubnet', true, '조치 필요'],
+      ['vmApply', true, '조치 필요'],
+      ['bdc', false, '조치 필요'],
+      // The PE row speaks in the owner's words, like the IDC firewall row.
+      ['pe', true, '서비스측에 Private Endpoint 승인 요청 필요'],
     ]);
   });
 

@@ -179,6 +179,7 @@ const CHAINS: Record<string, ChainStep[]> = {
       title: 'Private Endpoint 승인',
       side: '서비스',
       sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
+      openLabel: '서비스측에 Private Endpoint 승인 요청 필요',
     },
   ],
   // The contract fixes no order here; BDC first is the owner's reading (the
