@@ -121,9 +121,14 @@ const DETAIL_CSS = `
    viewport against a 1320px track at the old 288px), so the extra width buys a
    one-line title without introducing a new affordance. */
 .pl-flow.pl-detail .pl-tnode{width:352px;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px}
+/* Cards stretch to the tallest sibling: an HTTP_REQUEST card has no action/side tag
+   row, so on its own it sat 23px shorter than the Terraform cards beside it. The
+   identity row absorbs the slack so the run block stays bottom-aligned across cards. */
+.pl-flow.pl-detail .pl-track{align-items:stretch}
+.pl-flow.pl-detail .pl-connector{align-self:center}
 /* Identity row (mark + title column); the run block below spans the full card so
    the timestamps get the whole 304px instead of the 226px left of the logomark. */
-.pl-flow.pl-detail .nd-main{display:flex;align-items:center;gap:20px}
+.pl-flow.pl-detail .nd-main{flex:1;display:flex;align-items:center;gap:20px}
 .pl-flow.pl-detail .nd-icons{margin:0;flex:none}
 .pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
 .pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
