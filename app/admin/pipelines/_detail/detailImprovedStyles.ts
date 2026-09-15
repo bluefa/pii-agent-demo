@@ -42,12 +42,13 @@ export const improvedStyles = {
    *  All tier metrics are copied from the ops card — no new values. */
   header: {
     root: 'bg-[var(--pl-bg-card)] border-b border-[var(--pl-border)] px-10 pt-6 pb-6 flex flex-col gap-3',
-    /** Page title row — "Infra 작업 현황"(h1). The CTA that used to sit at its
-     *  right is gone (owner 2026-08-16); the target link moved into tier 1. */
-    titleRow: 'flex items-center justify-between gap-6',
-    /** 20px (owner 2026-08-16) — a step under the shared 24px `pageTitle`, since
-     *  the static page label is not what leads this screen; the target is. */
+    /** Tier 0 — "AWS 재확정"(h1) + recipe ⓘ, first row of the identity column
+     *  (owner 2026-09-15: the static "Infra 작업 현황" label above the mark is gone).
+     *  mb-1 on top of the column's 4px gap: the 20px title needs 8px before tier 1. */
+    titleRow: 'mb-1 flex items-center gap-1.5',
+    /** 20px (owner 2026-08-16) — a step under the shared 24px `pageTitle`. */
     pageTitle: 'text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--pl-text-strong)]',
+    pageTitleDelete: 'text-[var(--pl-err-text)]',
     main: 'flex items-center gap-4',
     body: 'flex min-w-0 flex-1 flex-col gap-1',
     /** Tier 1 (owner 2026-08-16) — the provider glyph, the id, and 상세정보 보기
@@ -86,11 +87,6 @@ export const improvedStyles = {
     /** Tier 3 — run context: lineage badge · type tag(ⓘ) · created. The run #
      *  line was cut on owner feedback — document.title/URL carry it. */
     subRow: 'mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap text-[12px] text-[var(--pl-text-weak)]',
-    /** Combined "AWS 설치" tag — neutral: the header's only hue is the CTA.
-     *  DELETE keeps the err tone (a destructive run must not read neutral). */
-    typeTag:
-      'inline-flex items-center gap-1 rounded-[5px] bg-[var(--pl-gray-100)] px-2 py-0.5 text-[12px] font-semibold text-[var(--pl-text-medium)]',
-    typeTagDelete: 'text-[var(--pl-err-text)]',
     /** ⓘ recipe-tooltip trigger — opens on hover AND keyboard focus. */
     tipWrap:
       'group relative inline-flex items-center outline-none cursor-help text-[var(--pl-text-weak)] hover:text-[var(--pl-text-strong)] focus-visible:text-[var(--pl-text-strong)]',
