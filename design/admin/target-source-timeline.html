@@ -1,0 +1,369 @@
+<title>TargetSource 연동 시점</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg-page: #F9FAFB; --bg-card: #FFFFFF; --bg-inner: #F9FAFB; --row-hover: #F6F3FF;
+    --border: #D0D5DD; --border-strong: #98A2B3;
+    --text-strong: #101828; --text-medium: #344054; --text-weak: #667085; --text-faint: #98A2B3;
+    --primary: #2563EB; --primary-hover: #1D4ED8; --primary-bg: #EFF4FF; --primary-ring: #D1E0FF;
+    --ok-text: #027A48; --ok-bg: #ECFDF3; --ok-border: #A6F4C5;
+    --warn-text: #B54708; --warn-bg: #FFFAEB; --warn-border: #FEDF89;
+    --off-text: #475467; --off-bg: #F2F4F7; --off-border: #D0D5DD;
+    --shadow-sm: 0 1px 3px rgba(16,24,40,.1), 0 1px 2px rgba(16,24,40,.06);
+    --shadow-lg: 0 12px 32px -8px rgba(16,24,40,.16), 0 4px 10px -4px rgba(16,24,40,.08);
+    --code-bg: #F2F4F7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-page: #0F1115; --bg-card: #171A21; --bg-inner: #1D212A; --row-hover: #232739;
+      --border: #2B313D; --border-strong: #475467;
+      --text-strong: #F2F4F7; --text-medium: #D0D5DD; --text-weak: #98A2B3; --text-faint: #667085;
+      --primary: #6AA3FF; --primary-hover: #8AB6FF; --primary-bg: #1B2740; --primary-ring: #2B4A80;
+      --ok-text: #6DD3A0; --ok-bg: #12291D; --ok-border: #1E4D33;
+      --warn-text: #E0A458; --warn-bg: #2E2410; --warn-border: #5A4319;
+      --off-text: #A9B2C4; --off-bg: #232733; --off-border: #363C4A;
+      --code-bg: #1D212A;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.5); --shadow-lg: 0 12px 32px -8px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg-page: #0F1115; --bg-card: #171A21; --bg-inner: #1D212A; --row-hover: #232739;
+    --border: #2B313D; --border-strong: #475467;
+    --text-strong: #F2F4F7; --text-medium: #D0D5DD; --text-weak: #98A2B3; --text-faint: #667085;
+    --primary: #6AA3FF; --primary-hover: #8AB6FF; --primary-bg: #1B2740; --primary-ring: #2B4A80;
+    --ok-text: #6DD3A0; --ok-bg: #12291D; --ok-border: #1E4D33;
+    --warn-text: #E0A458; --warn-bg: #2E2410; --warn-border: #5A4319;
+    --off-text: #A9B2C4; --off-bg: #232733; --off-border: #363C4A;
+    --code-bg: #1D212A;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.5); --shadow-lg: 0 12px 32px -8px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg-page); color: var(--text-strong);
+    font-family: "Geist", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; word-break: keep-all;
+  }
+  .mono { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 80px; padding-inline: 32px; display: grid; gap: 20px; }
+  @media (max-width: 640px) { .wrap { padding-inline: 16px; } }
+
+  /* header */
+  .crumb { font-size: 12px; color: var(--text-weak); display: flex; gap: 6px; margin: 0 0 6px; }
+  .crumb b { color: var(--text-medium); font-weight: 500; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin: 0; text-wrap: balance; }
+  .lede { margin: 6px 0 0; color: var(--text-weak); max-width: 68ch; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+
+  /* controls */
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+  .filters { padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; }
+  .ctl { height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-strong);
+         padding: 0 10px; font: inherit; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .ctl:hover { border-color: var(--border-strong); }
+  .ctl:focus-visible, .cal button:focus-visible, .seg label:focus-within, .chip:focus-visible, th button:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 1px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-inner); padding: 2px; gap: 2px; height: 32px; }
+  .seg label { padding: 0 12px; display: inline-flex; align-items: center; cursor: pointer; color: var(--text-weak); font-weight: 500; border-radius: 6px; }
+  .seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .seg label:has(input:checked) { background: var(--bg-card); color: var(--text-strong); box-shadow: var(--shadow-xs); }
+  .btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-medium); font: inherit; font-weight: 500; cursor: pointer; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-hover); }
+  .spacer { flex: 1; }
+
+  /* range picker */
+  .range { position: relative; }
+  .range .ctl { min-width: 250px; justify-content: space-between; }
+  .range .ctl svg { color: var(--text-weak); }
+  .pop { position: absolute; top: 38px; left: 0; z-index: 10; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 14px; display: grid; grid-template-columns: 128px 1fr; gap: 14px; }
+  .pop[hidden] { display: none; }
+  .presets { display: grid; gap: 2px; align-content: start; border-right: 1px solid var(--border); padding-right: 10px; }
+  .presets button { text-align: left; border: 0; background: none; font: inherit; color: var(--text-medium); padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  .presets button:hover { background: var(--bg-inner); }
+  .presets button[aria-current="true"] { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .months { display: grid; grid-template-columns: repeat(2, 224px); gap: 18px; }
+  @media (max-width: 720px) { .pop { grid-template-columns: 1fr; } .presets { border-right: 0; padding-right: 0; grid-template-columns: repeat(3, 1fr); } .months { grid-template-columns: 224px; } }
+  .cal { display: grid; gap: 6px; }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: var(--text-strong); }
+  .cal-head button { border: 0; background: none; cursor: pointer; color: var(--text-weak); width: 24px; height: 24px; border-radius: 6px; font: inherit; }
+  .cal-head button:hover { background: var(--bg-inner); color: var(--text-strong); }
+  .cal-head .ghost { visibility: hidden; }
+  .grid7 { display: grid; grid-template-columns: repeat(7, 32px); }
+  .dow { font-size: 12px; color: var(--text-faint); text-align: center; height: 20px; }
+  .cal .d { height: 32px; border: 0; background: none; font: inherit; color: var(--text-medium); cursor: pointer; position: relative; padding: 0; }
+  .cal .d span { position: absolute; inset: 2px; display: grid; place-items: center; border-radius: 6px; }
+  .cal .d:hover span { background: var(--bg-inner); }
+  .cal .d.out { visibility: hidden; }
+  .cal .d.in { background: var(--primary-bg); }
+  .cal .d.in span { color: var(--primary); }
+  .cal .d.first { border-radius: 8px 0 0 8px; } .cal .d.last { border-radius: 0 8px 8px 0; }
+  .cal .d.edge span, .cal .d.edge:hover span { background: var(--primary); color: #fff; font-weight: 600; }
+  .cal .d.today span::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  .cal .d.future { color: var(--text-faint); }
+  .pop-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding-top: 10px; color: var(--text-weak); }
+
+  /* table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 16px 18px; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+  th { font-size: 12px; color: var(--text-medium); font-weight: 600; background: var(--bg-inner); padding: 12px 18px; }
+  th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  th button[data-dir]::after { content: attr(data-dir); color: var(--primary); }
+  tbody tr:hover { background: var(--row-hover); }
+  td.num, th.num { text-align: right; }
+  td a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  td a:hover { text-decoration: underline; }
+  .svc { display: grid; line-height: 1.25; }
+  .svc small { color: var(--text-weak); font-size: 12px; }
+  .tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+  .tag.ok { color: var(--ok-text); background: var(--ok-bg); border-color: var(--ok-border); }
+  .tag.warn { color: var(--warn-text); background: var(--warn-bg); border-color: var(--warn-border); }
+  .tag.off { color: var(--off-text); background: var(--off-bg); border-color: var(--off-border); }
+  .dim { color: var(--text-faint); }
+  .tfoot { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; color: var(--text-weak); font-size: 12px; }
+  .empty { padding: 40px; text-align: center; color: var(--text-weak); }
+
+  /* spec */
+  details.spec { padding: 0; }
+  details.spec summary { padding: 14px 16px; cursor: pointer; font-weight: 600; display: flex; gap: 10px; align-items: center; list-style: none; }
+  details.spec summary::-webkit-details-marker { display: none; }
+  details.spec summary::before { content: "▸"; color: var(--text-faint); }
+  details.spec[open] summary::before { content: "▾"; }
+  details.spec summary .lbl { font-weight: 600; }
+  .spec-body { padding: 0 16px 16px; display: grid; gap: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .spec-body p { margin: 0; color: var(--text-medium); max-width: 72ch; }
+  pre { margin: 0; background: var(--code-bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12px; line-height: 1.55; color: var(--text-strong); }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  .note { font-size: 12px; color: var(--text-weak); }
+  @media (prefers-reduced-motion: no-preference) { .pop { animation: in .12s ease-out; } @keyframes in { from { opacity: 0; transform: translateY(-4px); } } }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <p class="crumb"><span>운영 관리</span><span>/</span><b>TargetSource 연동 시점</b></p>
+      <h1>TargetSource 생성일과 최초 연동일</h1>
+      <p class="lede">TargetSource 가 언제 만들어졌고 언제 처음 연동을 마쳤는지 기간으로 잘라 봅니다. 최초 연동일은 초기화로 단계가 되돌아가도 바뀌지 않습니다.</p>
+    </div>
+    <button class="btn" id="csv" type="button">CSV 내려받기</button>
+  </header>
+
+  <section class="card filters" aria-label="조회 조건">
+    <div class="group">
+      <span class="lbl">기준</span>
+      <div class="seg" role="radiogroup" aria-label="기간 기준">
+        <label><input type="radio" name="axis" value="created" id="axis-created" checked>생성일</label>
+        <label><input type="radio" name="axis" value="installed" id="axis-installed">최초 연동일</label>
+      </div>
+    </div>
+    <div class="group range">
+      <span class="lbl">기간</span>
+      <button class="ctl mono" id="range-btn" type="button" aria-haspopup="dialog" aria-expanded="false">
+        <span id="range-text">2026-06-16 – 2026-09-14</span>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5 1.5v3M11 1.5v3"/></svg>
+      </button>
+      <div class="pop" id="pop" hidden role="dialog" aria-label="기간 선택">
+        <div class="presets" id="presets"></div>
+        <div class="months" id="months"></div>
+        <div class="pop-foot">
+          <span id="pop-hint" class="mono"></span>
+          <span class="spacer"></span>
+          <button class="btn" id="pop-cancel" type="button">닫기</button>
+          <button class="btn primary" id="pop-apply" type="button">적용</button>
+        </div>
+      </div>
+    </div>
+    <div class="group">
+      <span class="lbl">최초 연동</span>
+      <div class="seg" role="radiogroup" aria-label="최초 연동 여부">
+        <label><input type="radio" name="inst" value="all" id="inst-all" checked>전체</label>
+        <label><input type="radio" name="inst" value="yes" id="inst-yes">완료</label>
+        <label><input type="radio" name="inst" value="no" id="inst-no">미완료</label>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><button type="button" data-key="id">ID</button></th>
+            <th>서비스</th>
+            <th><button type="button" data-key="created">생성일</button></th>
+            <th><button type="button" data-key="installed">최초 연동일</button></th>
+            <th class="num"><button type="button" data-key="lead">리드타임</button></th>
+            <th>최초 연동</th>
+            <th>확정 상태</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="tfoot"><span id="count"></span><span>예시 데이터 · 리드타임은 API 가 보낸 초 단위 값을 일·시간으로만 표시</span></div>
+  </section>
+
+  <details class="card spec">
+    <summary>신규 API 초안 <span class="lbl">install-v1 · admin</span></summary>
+    <div class="spec-body">
+      <p>기존 목록 API 는 기간 파라미터가 없어 전체를 받아 클라이언트에서 잘라야 합니다. 이 화면을 위해 기간·기준·최초 연동 여부·정렬을 받는 엔드포인트를 새로 둡니다. 행은 기존 <code>TargetSourceResponse</code> 의 부분집합에 <code>lead_time_seconds</code> 하나를 더한 것이고, 요약·통계 필드는 두지 않습니다.</p>
+      <div class="two">
+<pre>GET /install/v1/admin/target-sources/integration-timeline
+
+Query
+  axis           CREATED | FIRST_INSTALLED   (기본 CREATED)
+  from, to       date (YYYY-MM-DD, 포함 구간)
+  installed      ALL | YES | NO   (기본 ALL)
+  serviceCode    string
+  confirmStatus  기존 enum 그대로
+  page, size, sort   (sort=leadTimeSeconds,desc 등)
+
+axis=FIRST_INSTALLED 이면 installed=NO 는 빈 결과.
+축이 최초 연동일이면 미완료 행은 구간에 들어올 수 없기 때문.</pre>
+<pre>200  PageTargetSourceIntegrationTimelineResponse
+{
+  "content": [{
+    "target_source_id": 4130,
+    "service_code": "SVC-PAY",
+    "service_name": "결제 정산",
+    "confirm_status": "CONFIRMED",
+    "created_at": "2026-07-02T10:12:00+09:00",
+    "pii_agent_first_installed_at": "2026-07-11T16:40:00+09:00",
+    "lead_time_seconds": 800880
+  }],
+  "totalElements": 41, "totalPages": 3, "first": true, "last": false
+}
+
+lead_time_seconds 는 최초 연동 완료 행만, 아니면 null.
+FE 표시: 9일 6시간 (1일 미만은 "6시간", 1시간 미만은 "1시간 미만")</pre>
+      </div>
+      <p class="note">CSV 는 같은 쿼리에 <code>Accept: text/csv</code> 로 내려받습니다. 클라이언트에서 페이지를 모아 만들지 않습니다. 중앙값·평균·기간 비교 같은 통계는 이 화면이 아니라 CSV 를 받은 쪽 도구의 몫입니다.</p>
+    </div>
+  </details>
+</div>
+
+<script>
+(() => {
+  // ---- mock rows (deterministic) ----
+    const SVCS = [['SVC-PAY','결제 정산'],['SVC-MKT','마케팅 플랫폼'],['SVC-HR','인사 시스템'],['SVC-CS','고객 상담'],['SVC-LOG','물류 관제'],['SVC-ADS','광고 집행'],['SVC-DATA','데이터 마트'],['SVC-AUTH','계정 인증']];
+  const CS = ['CONFIRMED','PENDING','NO_REQUEST','CONFIRM_INFO_UPDATE_REQUIRED','REJECTED'];
+  const CS_KO = { CONFIRMED:'확정', PENDING:'승인 대기', NO_REQUEST:'요청 없음', CONFIRM_INFO_UPDATE_REQUIRED:'재확정 필요', REJECTED:'반려' };
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const TODAY = new Date(2026, 8, 14);
+  const day = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const iso = d => { const p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+  const ROWS = Array.from({ length: 64 }, (_, i) => {
+    const created = day(TODAY, -Math.floor(rnd() * 170));
+    const leadSec = rnd() < 0.7 ? Math.floor(rnd() * 28 * 86400) + 3600 : null;   // API 가 보내는 lead_time_seconds
+    const inst = leadSec != null && new Date(+created + leadSec * 1000) <= TODAY ? new Date(+created + leadSec * 1000) : null;
+    const s = SVCS[Math.floor(rnd() * SVCS.length)];
+    return { id: 4100 + i * 3, svc: s[0], name: s[1],
+             created, installed: inst, lead: inst ? leadSec : null,
+             cs: inst ? (rnd() < .8 ? 'CONFIRMED' : CS[3]) : CS[Math.floor(rnd() * 3) + 1] };
+  });
+
+  // ---- state ----
+  const state = { axis: 'created', from: day(TODAY, -90), to: TODAY, installed: 'all', sort: { key: 'created', dir: 'desc' } };
+  let draft = { from: state.from, to: state.to, hover: null, anchor: null, view: new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1) };
+
+  document.querySelectorAll('input[name=axis]').forEach(r => r.onchange = () => { state.axis = r.value; render(); });
+  document.querySelectorAll('input[name=inst]').forEach(r => r.onchange = () => { state.installed = r.value; render(); });
+  document.querySelectorAll('th button[data-key]').forEach(b => b.onclick = () => {
+    const k = b.dataset.key; state.sort = { key: k, dir: state.sort.key === k && state.sort.dir === 'desc' ? 'asc' : 'desc' }; render();
+  });
+  document.getElementById('csv').onclick = () => alert('목업에서는 내려받기가 비활성입니다. 실제 화면은 같은 쿼리로 text/csv 를 받습니다.');
+
+  // ---- range picker ----
+  const pop = document.getElementById('pop'), rangeBtn = document.getElementById('range-btn');
+  const PRESETS = [['최근 7일', 6], ['최근 30일', 29], ['최근 90일', 89], ['이번 달', 'month'], ['지난 달', 'prev'], ['올해', 'year']];
+  const presetRange = v => {
+    if (typeof v === 'number') return [day(TODAY, -v), TODAY];
+    if (v === 'month') return [new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), TODAY];
+    if (v === 'prev') return [new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1), new Date(TODAY.getFullYear(), TODAY.getMonth(), 0)];
+    return [new Date(TODAY.getFullYear(), 0, 1), TODAY];
+  };
+  const same = (a, b) => a && b && iso(a) === iso(b);
+  const presetsEl = document.getElementById('presets');
+  PRESETS.forEach(([label, v]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.onclick = () => { const [f, t] = presetRange(v); draft.from = f; draft.to = t; draft.anchor = null; draft.view = new Date(t.getFullYear(), t.getMonth() - 1, 1); drawCal(); };
+    presetsEl.appendChild(b);
+  });
+  const monthsEl = document.getElementById('months');
+  function drawCal() {
+    presetsEl.querySelectorAll('button').forEach((b, i) => { const [f, t] = presetRange(PRESETS[i][1]); b.setAttribute('aria-current', String(same(f, draft.from) && same(t, draft.to))); });
+    monthsEl.innerHTML = '';
+    let [lo, hi] = draft.anchor ? [draft.anchor, draft.hover || draft.anchor] : [draft.from, draft.to];
+    if (lo > hi) [lo, hi] = [hi, lo];
+    for (let m = 0; m < 2; m++) {
+      const first = new Date(draft.view.getFullYear(), draft.view.getMonth() + m, 1);
+      const cal = document.createElement('div'); cal.className = 'cal';
+      cal.innerHTML = `<div class="cal-head"><button type="button" class="${m ? 'ghost' : ''}" aria-label="이전 달">‹</button><span>${first.getFullYear()}년 ${first.getMonth() + 1}월</span><button type="button" class="${m ? '' : 'ghost'}" aria-label="다음 달">›</button></div>
+        <div class="grid7">${['일','월','화','수','목','금','토'].map(d => `<div class="dow">${d}</div>`).join('')}</div>`;
+      const g = document.createElement('div'); g.className = 'grid7';
+      const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      for (let i = 0; i < first.getDay(); i++) g.insertAdjacentHTML('beforeend', '<button class="d out" tabindex="-1"></button>');
+      for (let d = 1; d <= days; d++) {
+        const dt = new Date(first.getFullYear(), first.getMonth(), d);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'd'; b.innerHTML = `<span>${d}</span>`;
+        const inR = dt >= lo && dt <= hi;
+        if (inR) b.classList.add('in'); if (same(dt, lo)) b.classList.add('edge', 'first'); if (same(dt, hi)) b.classList.add('edge', 'last');
+        if (same(dt, TODAY)) b.classList.add('today'); if (dt > TODAY) b.classList.add('future');
+        b.onmouseenter = () => { if (draft.anchor) { draft.hover = dt; drawCal(); } };
+        b.onclick = () => {
+          if (!draft.anchor) { draft.anchor = dt; draft.hover = dt; }
+          else { let a = draft.anchor, z = dt; if (a > z) [a, z] = [z, a]; draft.from = a; draft.to = z; draft.anchor = null; draft.hover = null; }
+          drawCal();
+        };
+        g.appendChild(b);
+      }
+      cal.appendChild(g);
+      cal.querySelector('.cal-head button:first-child').onclick = () => { draft.view = new Date(draft.view.getFullYear(), draft.view.getMonth() - 1, 1); drawCal(); };
+      cal.querySelector('.cal-head button:last-child').onclick = () => { draft.view = new Date(draft.view.getFullYear(), draft.view.getMonth() + 1, 1); drawCal(); };
+      monthsEl.appendChild(cal);
+    }
+    const n = Math.round((hi - lo) / 864e5) + 1;
+    document.getElementById('pop-hint').textContent = draft.anchor ? `${iso(lo)} 부터 · 끝 날짜를 고르세요` : `${iso(lo)} – ${iso(hi)} · ${n}일`;
+  }
+  const openPop = () => { draft = { ...draft, from: state.from, to: state.to, anchor: null, hover: null, view: new Date(state.to.getFullYear(), state.to.getMonth() - 1, 1) }; drawCal(); pop.hidden = false; rangeBtn.setAttribute('aria-expanded', 'true'); };
+  const closePop = () => { pop.hidden = true; rangeBtn.setAttribute('aria-expanded', 'false'); rangeBtn.focus(); };
+  rangeBtn.onclick = () => pop.hidden ? openPop() : closePop();
+  document.getElementById('pop-cancel').onclick = closePop;
+  document.getElementById('pop-apply').onclick = () => { state.from = draft.from; state.to = draft.to; closePop(); render(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) closePop(); });
+  document.addEventListener('click', e => { if (!pop.hidden && !e.target.closest('.range')) closePop(); });
+
+  // ---- render ----
+  const fmt = d => d ? iso(d) : null;
+  const fmtLead = sec => { const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
+    return d ? `${d}일 ${h}시간` : h ? `${h}시간` : '1시간 미만'; };
+  function render() {
+    document.getElementById('range-text').textContent = `${iso(state.from)} – ${iso(state.to)}`;
+    const axisDate = r => state.axis === 'created' ? r.created : r.installed;
+    let rows = ROWS.filter(r => { const d = axisDate(r); return d && d >= state.from && d <= state.to; })
+      .filter(r => state.installed === 'all' || (state.installed === 'yes') === !!r.installed);
+    const { key, dir } = state.sort, sgn = dir === 'asc' ? 1 : -1;
+    const val = r => key === 'id' ? r.id : key === 'created' ? +r.created : key === 'installed' ? (r.installed ? +r.installed : -Infinity) : (r.lead ?? -Infinity);
+    rows.sort((a, b) => (val(a) - val(b)) * sgn || a.id - b.id);
+    document.querySelectorAll('th button[data-key]').forEach(b => b.dataset.key === key ? b.setAttribute('data-dir', dir === 'asc' ? '↑' : '↓') : b.removeAttribute('data-dir'));
+
+
+    const tb = document.getElementById('rows');
+    tb.innerHTML = rows.map(r => `<tr>
+        <td class="mono"><a href="#ts-${r.id}">#${r.id}</a></td>
+        <td><div class="svc"><span>${r.name}</span><small class="mono">${r.svc}</small></div></td>
+        <td class="mono">${fmt(r.created)}</td>
+        <td class="mono ${r.installed ? '' : 'dim'}">${fmt(r.installed) ?? '–'}</td>
+        <td class="num mono ${r.lead != null ? '' : 'dim'}">${r.lead != null ? fmtLead(r.lead) : '–'}</td>
+        <td>${r.installed ? '<span class="tag ok">완료</span>' : '<span class="tag off">미완료</span>'}</td>
+        <td><span class="tag off">${CS_KO[r.cs]}</span></td>
+      </tr>`).join('') || `<tr><td colspan="7" class="empty">조건에 맞는 TargetSource 가 없습니다.</td></tr>`;
+    document.getElementById('count').textContent = `${rows.length}건 · 전체 ${ROWS.length}건 중`;
+  }
+  render();
+})();
+</script>
