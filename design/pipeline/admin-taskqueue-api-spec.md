@@ -149,7 +149,7 @@
 |---|---|---|
 | `lead_time_seconds` | int64 \| null | `pii_agent_first_installed_at − created_at` (초). 최초 연동 완료 행만, 아니면 `null`. **BE 가 계산**해 정렬 가능하게 한다 |
 | `created_at` · `pii_agent_first_installed_at` | date-time(오프셋 포함) | FE 는 UTC 보정하지 않는다 — BFF 가 오프셋을 보낸다 |
-| 나머지 | 기존 `TargetSourceResponse` 부분집합 | `cloud_provider`·`confirm_status` 는 표에 안 그리지만 CSV 열로 쓴다 |
+| 나머지 | 기존 `TargetSourceResponse` 부분집합 | `cloud_provider` 는 `Cloud` 열로 그린다(오너 09-15); `confirm_status` 는 표에 안 그리지만 CSV 열로 쓴다 |
 
 4xx: `ErrorMessage` 그대로 중계(ADR-008). 400 = `from > to`, 잘못된 enum, `size > 100`.
 

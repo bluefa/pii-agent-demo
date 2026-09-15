@@ -11,7 +11,8 @@
  *
  * What this screen deliberately does NOT have (owner, 2026-09-14): summary tiles, median /
  * average / percentile, an "elapsed so far" column, a CSP filter, bars inside cells. The
- * statistics belong to whatever tool receives the CSV — this screen cuts the period and
+ * provider is a COLUMN (owner, 2026-09-15), not a filter — the same `Cloud` cell the queue
+ * table shows. The statistics belong to whatever tool receives the CSV — this screen cuts the period and
  * shows the rows.
  */
 import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
@@ -22,6 +23,7 @@ import { passRoutes } from '@/lib/routes';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { PlBreadcrumb } from '@/app/admin/pipelines/_components/PlBreadcrumb';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
+import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { PlPagination } from '@/app/admin/pipelines/_components/PlPagination';
 import {
   downloadIntegrationTimelineCsv,
@@ -100,7 +102,7 @@ const ts = {
   skeleton: 'block h-3.5 animate-pulse rounded-[6px] bg-[var(--pl-gray-100)]',
 } as const;
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
 
 export function IntegrationTimelineView(): ReactElement {
   // The window is seeded once, from the day the screen opened — re-deriving it per render
@@ -218,6 +220,7 @@ export function IntegrationTimelineView(): ReactElement {
                 <th className={tableStyles.headerCell}>ID</th>
                 <th className={tableStyles.headerCell}>서비스 이름</th>
                 <th className={tableStyles.headerCell}>서비스 코드</th>
+                <th className={tableStyles.headerCell}>Cloud</th>
                 <th className={tableStyles.headerCell}>연동 시작 날짜</th>
                 <th className={tableStyles.headerCell}>최초 연동 완료확인 날짜</th>
                 <th className={cn(tableStyles.headerCell, ts.cellNumeric)}>리드타임</th>
@@ -286,6 +289,9 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
       </td>
       <td className={tableStyles.cell}>{row.serviceName ?? EMPTY_CELL}</td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{row.serviceCode ?? EMPTY_CELL}</td>
+      <td className={tableStyles.cell}>
+        <ProvTag provider={row.cloudProvider ?? ''} />
+      </td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{formatWireDay(row.createdAt)}</td>
       <td className={cn(tableStyles.cell, ts.cellMono, !installed && ts.dim)}>{firstInstalled}</td>
       <td

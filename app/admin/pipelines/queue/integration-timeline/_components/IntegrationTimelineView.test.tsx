@@ -171,9 +171,15 @@ describe('IntegrationTimelineView', () => {
     expect(Date.parse(String(query.to)) - Date.parse(String(query.from))).toBe(13 * 86_400_000);
   });
 
+  it('shows the provider as a Cloud column, the same tag as the queue table (owner, 2026-09-15)', async () => {
+    await renderView();
+    expect(table().getByRole('columnheader', { name: 'Cloud' })).toBeTruthy();
+    expect(table().getAllByText('AWS').length).toBeGreaterThan(0);
+  });
+
   it('offers no sort — no header is a button (owner, 2026-09-15)', async () => {
     await renderView();
-    expect(table().getAllByRole('columnheader').length).toBe(7);
+    expect(table().getAllByRole('columnheader').length).toBe(8);
     expect(table().getAllByRole('columnheader').some((th) => th.querySelector('button'))).toBe(false);
     expect(table().getAllByRole('columnheader').some((th) => th.hasAttribute('aria-sort'))).toBe(false);
   });
