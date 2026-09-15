@@ -59,11 +59,19 @@
   DB 주소를 노출하지 않는다. AWS 와 GCP 는 어느 단계에도 리소스 표가 없다. 건수와 guide·개발자 문구는
   그대로(`listResources: false`).
 
-판정 행 보충(오너 2026-09-15): Azure Private Endpoint 승인 차례에는 문장 아래 두 줄 — 「BDC측이 Terraform으로
-Private Endpoint 연결 요청을 보냈습니다.」 「서비스 담당자가 Azure Portal의 Private Link Center에서 대기 중인
-연결을 승인해야 합니다.」 — 와 「Azure Portal에서 승인」 링크(Private Link Center → Pending connections,
-새 창). 단계 정의의 `note` 가 판정 행(`InstallStateRow`)에 실려 인프라 탭과 연결 테스트 탭 알림 둘 다 같은
-줄을 그린다.
+판정 행 보충(오너 2026-09-15 "뭘 해야 된다 이런 게 적혀 있으면"): 서비스 차례 단계에는 문장 아래 두 줄 —
+BDC 측이 무엇을 했나 · 서비스 담당자가 어디서 무엇을 하나 — 와 그 자리로 가는 링크(새 창).
+- Azure PE 승인: 「BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.」 「서비스 담당자가 Azure
+  Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.」 + 「Azure Portal에서 승인」(Private Link
+  Center → Pending connections).
+- GCP Subnet: 「BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야
+  합니다.」 「서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.」 + 「GCP Console에서
+  VPC 네트워크 보기」. 명령 자체는 기존 Subnet 안내 블록(#900)이 행 아래에 그대로 낸다.
+- IDC 접근 허용: 「BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.」 「서비스 담당자가
+  방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.」 링크 없음(온프레미스
+  방화벽엔 포털이 없다).
+단계 정의의 `note` 가 판정 행(`InstallStateRow`)에 실려 인프라 탭과 연결 테스트 탭 알림 둘 다 같은 줄을
+그린다. AWS 의 서비스 차례(권한 부여·수동 TF)는 오너 요청 밖이라 아직 문장 하나뿐이다.
 
 정체 조인(`installIdentity.ts`): 확정 정보 응답을 `resource_id` 로 붙인다. CSP 이름이 있으면 이름,
 IDC 는 확정 IDC 표와 같은 규칙으로 `host:port`(IP 모드 ips · HOST 모드 host · 없으면 `host`),

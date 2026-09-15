@@ -122,6 +122,8 @@ interface ChainStep {
 /** Azure Portal, Private Link Center → Pending connections: where the service owner approves. */
 export const AZURE_PENDING_CONNECTIONS_URL =
   'https://portal.azure.com/#view/Microsoft_Azure_Network/PrivateLinkCenterBlade/~/pendingconnections';
+/** GCP Console, VPC networks: where the service owner sees the subnets of the host project. */
+export const GCP_VPC_NETWORKS_URL = 'https://console.cloud.google.com/networking/networks/list';
 
 const ME = '관리자가 Terraform을 적용할 차례입니다';
 const ME_IDC = '관리자가 BDC Terraform을 적용할 차례입니다';
@@ -166,6 +168,14 @@ const CHAINS: Record<string, ChainStep[]> = {
       side: '서비스',
       sentence: '서비스 담당자가 PSC용 Subnet을 만들어야 합니다',
       listResources: false,
+      // Owner 2026-09-15: the same two lines as Azure — what waits on it, what to do.
+      note: {
+        lines: [
+          'BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야 합니다.',
+          '서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.',
+        ],
+        link: { label: 'GCP Console에서 VPC 네트워크 보기', href: GCP_VPC_NETWORKS_URL },
+      },
     },
     // Named after the project it lands in, applied by BDC — so the operator's move.
     { id: 'service', title: '서비스측 Terraform 적용', side: '관리자', sentence: ME, listResources: false },
@@ -217,6 +227,13 @@ const CHAINS: Record<string, ChainStep[]> = {
       side: '서비스',
       sentence: '서비스 담당자가 접근 허용을 확인해야 합니다',
       openLabel: '서비스측 방화벽 확인 요청 필요',
+      // Owner 2026-09-15. No portal for an on-premise firewall, so no link.
+      note: {
+        lines: [
+          'BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.',
+          '서비스 담당자가 방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.',
+        ],
+      },
     },
   ],
 };

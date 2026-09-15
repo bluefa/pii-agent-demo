@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   AZURE_PENDING_CONNECTIONS_URL,
+  GCP_VPC_NETWORKS_URL,
   DONE_SENTENCE,
   UNKNOWN_SENTENCE,
   installStateView,
@@ -166,12 +167,16 @@ describe('installStateView — GCP (4)', () => {
       ['서비스측 Terraform 적용', '관리자', 'wait'],
       ['BDC측 Terraform 적용', '관리자', 'wait'],
     ]);
+    expect(v?.note?.lines).toHaveLength(2);
+    expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.');
+    expect(v?.note?.link).toEqual({ label: 'GCP Console에서 VPC 네트워크 보기', href: GCP_VPC_NETWORKS_URL });
   });
 
   it('② Subnet done: the operator applies both sides', () => {
     const v = gcp(resource('sql-1', { subnet: CO, service: IP, bdc: IP }));
     expect(v?.kind).toBe('me');
     expect(rows(v)?.[1]).toEqual(['서비스측 Terraform 적용', '관리자', 'now']);
+    expect(installStateView({ provider: 'gcp', manualInstall: false, detail: detail([resource('db-1', { subnet: CO, service: IP, bdc: IP })]) })?.note).toBeUndefined();
   });
 
   it('③ everything settled', () => {
@@ -288,6 +293,11 @@ describe('installStateView — IDC (4)', () => {
     const v = idc({ cx: CO, bdp: CO, firewall: IP });
     expect(v?.kind).toBe('svc');
     expect(v?.sentence).toBe('서비스 담당자가 접근 허용을 확인해야 합니다');
+    expect(v?.note?.lines).toEqual([
+      'BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.',
+      '서비스 담당자가 방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.',
+    ]);
+    expect(v?.note?.link).toBeUndefined();
   });
 
   it('③ everything settled', () => {
