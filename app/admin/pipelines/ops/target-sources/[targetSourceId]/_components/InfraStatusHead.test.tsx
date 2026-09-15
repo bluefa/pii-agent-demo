@@ -240,6 +240,25 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(screen.getByText('서비스 조치 필요')).toBeTruthy();
   });
 
+  it('writes the note under the verdict when the step carries one, with its link opening in a new tab', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
+        note: {
+          lines: ['BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.'],
+          link: { label: 'Azure Portal에서 승인', href: 'https://portal.azure.com/#pending' },
+        },
+        steps: [step('pe', 'Private Endpoint 승인', '서비스', 'now')],
+      },
+    });
+
+    expect(screen.getByText('BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.')).toBeTruthy();
+    const link = screen.getByRole('link', { name: /Azure Portal에서 승인/ });
+    expect(link.getAttribute('href')).toBe('https://portal.azure.com/#pending');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
   it('a cloud target lists its open resources by name and id, not by address (no Port column)', () => {
     renderHead({
       install: {

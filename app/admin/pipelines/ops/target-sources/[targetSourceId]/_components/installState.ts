@@ -70,9 +70,17 @@ export interface InstallStateStep {
   openLabel: string;
 }
 
+/** Lines under the verdict sentence that say what already happened and where the move is made. */
+export interface InstallStateNote {
+  lines: string[];
+  link?: { label: string; href: string };
+}
+
 export interface InstallStateView {
   kind: InstallStateKind;
   sentence: string;
+  /** Present only on steps whose move needs telling beyond the sentence (Azure PE). */
+  note?: InstallStateNote;
   steps: InstallStateStep[];
 }
 
@@ -107,7 +115,13 @@ interface ChainStep {
   listResources?: false;
   /** What an open resource row says for THIS step when it is not 조치 필요 (owner wording). */
   openLabel?: string;
+  /** Under the verdict when THIS step is the one to act on. */
+  note?: InstallStateNote;
 }
+
+/** Azure Portal, Private Link Center → Pending connections: where the service owner approves. */
+export const AZURE_PENDING_CONNECTIONS_URL =
+  'https://portal.azure.com/#view/Microsoft_Azure_Network/PrivateLinkCenterBlade/~/pendingconnections';
 
 const ME = '관리자가 Terraform을 적용할 차례입니다';
 const ME_IDC = '관리자가 BDC Terraform을 적용할 차례입니다';
@@ -180,6 +194,14 @@ const CHAINS: Record<string, ChainStep[]> = {
       side: '서비스',
       sentence: '서비스 담당자가 Private Endpoint 연결을 승인해야 합니다',
       openLabel: '서비스측에 Private Endpoint 승인 요청 필요',
+      // Owner 2026-09-15: say what BDC already did and where the service owner goes.
+      note: {
+        lines: [
+          'BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.',
+          '서비스 담당자가 Azure Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.',
+        ],
+        link: { label: 'Azure Portal에서 승인', href: AZURE_PENDING_CONNECTIONS_URL },
+      },
     },
   ],
   // The contract fixes no order here; BDC first is the owner's reading (the
@@ -280,6 +302,7 @@ export function installStateView({
   return {
     kind: chainStep.side === '서비스' ? 'svc' : 'me',
     sentence: chainStep.sentence,
+    ...(chainStep.note && { note: chainStep.note }),
     steps,
   };
 }

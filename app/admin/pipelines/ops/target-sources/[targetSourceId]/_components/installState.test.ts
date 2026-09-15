@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  AZURE_PENDING_CONNECTIONS_URL,
   DONE_SENTENCE,
   UNKNOWN_SENTENCE,
   installStateView,
@@ -242,6 +243,12 @@ describe('installStateView — Azure (5)', () => {
     expect(v?.kind).toBe('svc');
     expect(v?.sentence).toBe('서비스 담당자가 Private Endpoint 연결을 승인해야 합니다');
     expect(rows(v)?.[3]).toEqual(['Private Endpoint 승인', '서비스', 'now']);
+    // The verdict carries the note: what BDC did, where the service owner approves.
+    expect(v?.note?.lines).toEqual([
+      'BDC측이 Terraform으로 Private Endpoint 연결 요청을 보냈습니다.',
+      '서비스 담당자가 Azure Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.',
+    ]);
+    expect(v?.note?.link).toEqual({ label: 'Azure Portal에서 승인', href: AZURE_PENDING_CONNECTIONS_URL });
   });
 
   it('④ everything settled', () => {

@@ -59,6 +59,12 @@
   DB 주소를 노출하지 않는다. AWS 와 GCP 는 어느 단계에도 리소스 표가 없다. 건수와 guide·개발자 문구는
   그대로(`listResources: false`).
 
+판정 행 보충(오너 2026-09-15): Azure Private Endpoint 승인 차례에는 문장 아래 두 줄 — 「BDC측이 Terraform으로
+Private Endpoint 연결 요청을 보냈습니다.」 「서비스 담당자가 Azure Portal의 Private Link Center에서 대기 중인
+연결을 승인해야 합니다.」 — 와 「Azure Portal에서 승인」 링크(Private Link Center → Pending connections,
+새 창). 단계 정의의 `note` 가 판정 행(`InstallStateRow`)에 실려 인프라 탭과 연결 테스트 탭 알림 둘 다 같은
+줄을 그린다.
+
 정체 조인(`installIdentity.ts`): 확정 정보 응답을 `resource_id` 로 붙인다. CSP 이름이 있으면 이름,
 IDC 는 확정 IDC 표와 같은 규칙으로 `host:port`(IP 모드 ips · HOST 모드 host · 없으면 `host`),
 그것도 없으면 wire id. 조회 실패는 조용히 id 로 떨어진다 — 판정과 건수는 조인에 기대지 않는다.
