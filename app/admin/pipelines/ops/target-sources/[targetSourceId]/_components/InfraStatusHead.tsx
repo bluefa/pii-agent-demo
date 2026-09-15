@@ -56,7 +56,10 @@ import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
 import { idcAddressKind } from '@/app/lib/api/task-queue-requests';
-import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import {
+  IDC_COLUMN_WIDTHS,
+  SourceIpHeader,
+} from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import {
   APPROVAL_COLUMN_WIDTHS,
   CONNECTED_FRAME,
@@ -139,10 +142,12 @@ function OpenResourcesFold({
   const withSource = idc && step.open.some((r) => (identity.get(r.resourceId)?.sourceIps.length ?? 0) > 0);
   const columns: ConsoleTableColumn[] = idc
     ? [
-        { key: 'endpoint', label: '접속 주소', width: 200, flex: true },
-        { key: 'dbType', label: 'Database Type', width: 172 },
-        { key: 'port', label: 'Port', width: 80 },
-        ...(withSource ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: 144, head: <SourceIpHeader /> }] : []),
+        { key: 'endpoint', label: '접속 주소', width: IDC_COLUMN_WIDTHS.endpoint, flex: true },
+        { key: 'dbType', label: 'Database Type', width: IDC_COLUMN_WIDTHS.dbType },
+        { key: 'port', label: 'Port', width: IDC_COLUMN_WIDTHS.port },
+        ...(withSource
+          ? [{ key: 'src', label: IDC_SOURCE_LABEL, width: IDC_COLUMN_WIDTHS.src, head: <SourceIpHeader /> }]
+          : []),
         { key: 'state', label: '상태', width: 200, flex: true },
       ]
     : [
@@ -175,7 +180,9 @@ function OpenResourcesFold({
                   {idc ? (
                     <>
                       <td className={cn(table.approvalCell, table.consoleCell)}>
-                        {row ? (
+                        {/* A joined row with no address facts would print nothing
+                            (IdcEndpointCell renders null for zero hosts) — the id stands in. */}
+                        {row && row.connectTargets.length > 0 ? (
                           <IdcEndpointCell hosts={row.connectTargets} kind={idcAddressKind(row)} maxWidthClass="max-w-full" />
                         ) : (
                           r.resourceId
@@ -216,7 +223,9 @@ function OpenResourcesFold({
                     <span className={r.failed ? 'text-[var(--pl-err-text)]' : 'text-[var(--pl-warn-text)]'}>
                       {r.failed ? '조회 도중 실패' : step.openLabel}
                     </span>
-                    {r.guide && (
+                    {/* Only a failed cell's guide: the wire also hangs guides on cells that
+                        merely wait ("자동 진행됩니다"), and those are not errors. */}
+                    {r.failed && r.guide && (
                       <p className="mt-0.5 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">{r.guide}</p>
                     )}
                   </td>
@@ -265,13 +274,14 @@ function StepRow({
         )}
         {count && <span className={cn(WEAK, 'tabular-nums')}>{count}</span>}
       </div>
-      {openTag && step.open.length > 0 && (
+      {openTag && (step.open.length > 0 || step.failed > 0) && (
         <div className="mb-3 ml-3 mt-1 text-[12px]">
-          {step.listResources ? (
+          {step.current && step.listResources ? (
             <OpenResourcesFold step={step} identity={identity} idc={idc} />
           ) : (
-            // No rows for this step (AWS, GCP, IDC BDC side): the guides still have to be read.
-            [...new Set(step.open.flatMap((r) => (r.guide ? [r.guide] : [])))].map((guide) => (
+            // No worklist here — a step that never lists resources, or a FAIL on a step
+            // that is not the one to act on. The failed cells' guides still have to be read.
+            [...new Set(step.open.flatMap((r) => (r.failed && r.guide ? [r.guide] : [])))].map((guide) => (
               <p key={guide} className="py-1 text-[12px] leading-[1.5] text-[var(--pl-err-text)]">
                 {guide}
               </p>

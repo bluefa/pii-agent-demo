@@ -167,7 +167,8 @@ describe('installStateView — GCP (4)', () => {
       ['BDC측 Terraform 적용', '관리자', 'wait'],
     ]);
     expect(v?.note?.lines).toHaveLength(2);
-    expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.');
+    // No "아래 명령으로": the same note rides the 연결 테스트 tab, which has no command block.
+    expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.');
     // No console link (owner 2026-09-15): the command block under the row is the move.
     expect(v?.note?.link).toBeUndefined();
   });
@@ -426,6 +427,23 @@ describe('installStateView — variants that change a row, not the state', () =>
       ['bdc', false, '조치 필요'],
       // The PE row speaks in the owner's words, like the IDC firewall row.
       ['pe', true, '서비스측에 Private Endpoint 승인 요청 필요'],
+    ]);
+  });
+
+  it('only the first open step is current: a FAIL on a later step is fail but not current', () => {
+    const v = installStateView({
+      provider: 'idc',
+      manualInstall: true,
+      detail: detail([
+        resource('idc-res-001', { cx: IP, bdp: IP, firewall: ['FAIL', 'timeout'] }),
+        resource('idc-res-002', { cx: CO, bdp: IP, firewall: IP }),
+      ]),
+    });
+    expect(v?.kind).toBe('me');
+    expect(v?.steps.map((s) => [s.id, s.state, s.current])).toEqual([
+      ['cx', 'now', true],
+      ['bdp', 'wait', false],
+      ['firewall', 'fail', false],
     ]);
   });
 

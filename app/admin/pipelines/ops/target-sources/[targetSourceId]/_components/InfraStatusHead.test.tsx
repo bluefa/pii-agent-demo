@@ -56,6 +56,8 @@ const step = (
   failed: 0,
   open: [],
   listResources: true,
+  // The step to act on is the open one; a lone 'fail' fixture is that step too.
+  current: state === 'now' || state === 'fail',
   openLabel: '조치 필요',
   ...extra,
 });
@@ -126,12 +128,14 @@ describe('InfraStatusHead — 설치 상태', () => {
         steps: [
           step('cx', 'BDC CX 영역', '관리자', 'done', { done: 5, total: 5 }),
           step('firewall', '접근 허용', '서비스', 'now', {
-            done: 3,
+            done: 2,
             total: 5,
             openLabel: '서비스측 방화벽 확인 요청 필요',
             open: [
-              { resourceId: 'idc-res-002', resourceName: null, failed: false, guide: null },
+              // A guide on a cell that merely waits is not an error and must not print.
+              { resourceId: 'idc-res-002', resourceName: null, failed: false, guide: '자동 진행됩니다.' },
               { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
+              { resourceId: 'idc-res-005', resourceName: null, failed: false, guide: null },
             ],
           }),
         ],
@@ -153,15 +157,28 @@ describe('InfraStatusHead — 설치 상태', () => {
             idc_ips: ['10.20.31.10', '10.20.31.11'],
             idc_source_ips: ['10.10.0.21', '10.10.0.22'],
           } as ConfirmedIntegrationResourceInfo,
+          // Joined, but no address fact at all (every idc_* and host optional on the wire).
+          {
+            resource_id: 'idc-res-005',
+            resource_type: 'IDC_RESOURCE',
+            database_type: 'MYSQL',
+            database_region: null,
+            resource_name: null,
+            port: 3306,
+            host: null,
+            oracle_service_id: null,
+            network_interface_id: null,
+            ip_configuration: null,
+          } as ConfirmedIntegrationResourceInfo,
         ]).map((row) => [row.resourceId as string, row] as const),
       ),
       idc: true,
     });
 
     expect(screen.getByText('5건 모두 완료')).toBeTruthy();
-    expect(screen.getByText('5건 중 2건 남음')).toBeTruthy();
+    expect(screen.getByText('5건 중 3건 남음')).toBeTruthy();
     expect(screen.getByText('남은 리소스')).toBeTruthy();
-    expect(screen.getByText('2건')).toBeTruthy();
+    expect(screen.getByText('3건')).toBeTruthy();
     // The IDC resource table's own columns, plus 상태.
     const fold = screen.getByLabelText('접근 허용 남은 리소스');
     expect(within(fold).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
@@ -169,7 +186,10 @@ describe('InfraStatusHead — 설치 상태', () => {
     );
     expect(within(fold).getByText('BDC측 출발지')).toBeTruthy();
     const rows = within(fold).getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
+    expect(screen.queryByText('자동 진행됩니다.')).toBeNull();
+    // Joined but address-less: the wire id stands in rather than a blank cell.
+    expect(within(rows[2]).getByText('idc-res-005')).toBeTruthy();
     // The IDC endpoint cell as-is: the first address, the rest behind its own 더보기.
     expect(within(rows[0]).getByText('10.20.31.10')).toBeTruthy();
     expect(within(rows[0]).getByRole('button', { name: 'IP 1개 더보기 ▾' })).toBeTruthy();
@@ -286,6 +306,72 @@ describe('InfraStatusHead — 설치 상태', () => {
     expect(within(rows[0]).getByText('orders-prod')).toBeTruthy();
     expect(within(rows[0]).getByText('/subscriptions/s1/servers/orders')).toBeTruthy();
     expect(within(rows[0]).getByText('서비스측에 Private Endpoint 승인 요청 필요')).toBeTruthy();
+  });
+
+  it('a later step with open rows draws no fold: only the step to act on hands out a worklist', () => {
+    renderHead({
+      install: {
+        kind: 'me',
+        sentence: '관리자가 BDC Terraform을 적용할 차례입니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'now', { done: 4, total: 5, listResources: false, open: [{ resourceId: 'r', resourceName: null, failed: false, guide: null }] }),
+          step('firewall', '접근 허용', '서비스', 'wait', {
+            total: 5,
+            current: false,
+            open: [{ resourceId: 'idc-res-002', resourceName: null, failed: false, guide: null }],
+          }),
+        ],
+      },
+      idc: true,
+    });
+
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+    expect(screen.queryByText('idc-res-002')).toBeNull();
+    expect(screen.getByText('대기')).toBeTruthy();
+  });
+
+  it('a FAIL on a later step keeps its tag, count, guide and the note, but opens no table and speaks no 요청 필요', () => {
+    renderHead({
+      install: {
+        kind: 'me',
+        sentence: '관리자가 BDC Terraform을 적용할 차례입니다',
+        steps: [
+          step('cx', 'BDC CX 영역', '관리자', 'now', { done: 4, total: 5, listResources: false, open: [{ resourceId: 'r', resourceName: null, failed: false, guide: null }] }),
+          step('firewall', '접근 허용', '서비스', 'fail', {
+            done: 3,
+            total: 5,
+            failed: 1,
+            current: false,
+            openLabel: '서비스측 방화벽 확인 요청 필요',
+            open: [
+              { resourceId: 'idc-res-002', resourceName: null, failed: true, guide: 'timeout' },
+              { resourceId: 'idc-res-004', resourceName: null, failed: false, guide: null },
+            ],
+          }),
+        ],
+      },
+      idc: true,
+    });
+
+    expect(screen.getByText('조회 실패')).toBeTruthy();
+    expect(screen.getByText('5건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('timeout')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
+    expect(screen.queryByLabelText(/남은 리소스/)).toBeNull();
+    expect(screen.queryByText('서비스측 방화벽 확인 요청 필요')).toBeNull();
+  });
+
+  it('a FAIL on the target-level role check still ends with the developer note', () => {
+    renderHead({
+      install: {
+        kind: 'svc',
+        sentence: '서비스 담당자가 Terraform 권한을 부여해야 합니다',
+        steps: [step('role', 'Terraform 권한 부여 확인', '서비스', 'fail', { total: 1, failed: 1, listResources: false, open: [] })],
+      },
+    });
+
+    expect(screen.getByText('1건 중 1건 조회 실패')).toBeTruthy();
+    expect(screen.getByText('조회 실패가 여러 번 이어지면 개발자에게 연락하세요.')).toBeTruthy();
   });
 
   it('draws no resource rows under a step that does not list them, but keeps the guide and the note', () => {

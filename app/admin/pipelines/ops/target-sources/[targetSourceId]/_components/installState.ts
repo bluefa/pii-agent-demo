@@ -66,6 +66,12 @@ export interface InstallStateStep {
   open: InstallOpenResource[];
   /** Whether the card draws `open` as rows. True for the Azure service steps and IDC 접근 허용 only. */
   listResources: boolean;
+  /**
+   * The first unsettled step in order — the one to act on. Only this step opens its
+   * resource table and speaks its `openLabel`; a FAIL on a later step keeps its tag
+   * and count but hands out no worklist out of turn.
+   */
+  current: boolean;
   /** The state an open (not failed) resource row prints. */
   openLabel: string;
 }
@@ -170,7 +176,8 @@ const CHAINS: Record<string, ChainStep[]> = {
       note: {
         lines: [
           'BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야 합니다.',
-          '서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.',
+          // No "아래 명령으로": the note also rides the 연결 테스트 tab, which has no command block.
+          '서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.',
         ],
       },
     },
@@ -287,6 +294,7 @@ export function installStateView({
       total: cells.length,
       failed: openCells.filter((c) => c.status === 'FAIL').length,
       listResources: step.listResources !== false,
+      current: false,
       openLabel: step.openLabel ?? '조치 필요',
       open: openCells.flatMap((c) =>
         c.resource
@@ -306,9 +314,10 @@ export function installStateView({
 
   const firstOpen = steps.findIndex((s) => s.done < s.total);
   for (const [i, s] of steps.entries()) {
+    s.current = i === firstOpen;
     if (s.failed > 0) s.state = 'fail';
     else if (s.done === s.total) s.state = 'done';
-    else s.state = i === firstOpen ? 'now' : 'wait';
+    else s.state = s.current ? 'now' : 'wait';
   }
 
   if (firstOpen === -1) return { kind: 'done', sentence: DONE_SENTENCE, steps };

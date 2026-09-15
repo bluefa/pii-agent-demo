@@ -65,8 +65,10 @@ BDC 측이 무엇을 했나 · 서비스 담당자가 어디서 무엇을 하나
   Portal의 Private Link Center에서 대기 중인 연결을 승인해야 합니다.」 + 「Azure Portal에서 승인」(Private Link
   Center → Pending connections).
 - GCP Subnet: 「BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야
-  합니다.」 「서비스 담당자가 호스트 프로젝트에서 아래 명령으로 Subnet을 만들어야 합니다.」 링크 없음(오너
-  09-15 "GCP Console에서 VPC 네트워크 보기 없애"). 명령 자체는 기존 Subnet 안내 블록(#900)이 행 아래에 그대로 낸다.
+  합니다.」 「서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.」 링크 없음(오너
+  09-15 "GCP Console에서 VPC 네트워크 보기 없애"). 명령 자체는 인프라 탭의 기존 Subnet 안내 블록(#900)이 행
+  아래에 낸다 — 문장에 「아래 명령으로」를 쓰지 않는 이유는 같은 판정 행이 연결 테스트 탭에도 서기 때문(리뷰
+  P2).
 - IDC 접근 허용: 「BDC측이 Terraform으로 CX·BDP 영역에 PII Agent 리소스를 만들었습니다.」 「서비스 담당자가
   방화벽에 BDC측 출발지에서 연동 대상(IP:Port)으로의 접근 허용을 등록해야 합니다.」 링크 없음(온프레미스
   방화벽엔 포털이 없다).
@@ -86,6 +88,16 @@ IDC 는 확정 IDC 표와 같은 규칙으로 `host:port`(IP 모드 ips · HOST 
 수치 출처: 행 30px·이름 240px·필 20px 는 현행 StepRow. 하위 행 26px·좌측 2px 선·들여쓰기 12 는
 GCP Subnet 안내 블록과 같은 children 자리. 주소 mono 12px 는 `tc/LdbViewModal`. 정체 폭 200 은
 확정 정보 IDC 표 주소 열(220)에서 셀 패딩을 뺀 값.
+
+## 리뷰(Fable·Opus, 09-15)로 굳힌 규칙
+- **표와 오너 문구는 지금 차례 행(`current`)에만.** 뒤 단계의 FAIL 은 태그·건수·실패 guide·개발자 문구만
+  내고 표를 열지 않는다(순서 밖 작업 목록 금지).
+- **guide 는 실패 셀의 것만 그린다.** 와이어는 대기 중인 셀에도 guide("자동 진행됩니다")를 싣는데 그건
+  오류가 아니다.
+- 권한 부여 단계(대상 단위, 리소스 없음)의 FAIL 도 개발자 문구를 낸다.
+- 조인됐지만 주소 사실이 하나도 없는 IDC 행은 빈 칸 대신 wire id.
+- 확정 정보 조인은 표를 그리는 IDC·Azure 에서만 읽는다.
+- IDC 열 폭은 `IDC_COLUMN_WIDTHS` 원장에서.
 
 ## 안 한 것
 
