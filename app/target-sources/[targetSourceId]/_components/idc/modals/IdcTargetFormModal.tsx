@@ -9,6 +9,7 @@ import {
   IDC_DOMAIN_RE,
   IDC_MAX_IPS,
   IDC_TRAILING_WS_RE,
+  IDC_WEB_PORTS,
   idcDbTypeByLabel,
   isValidIdcIp,
 } from '@/lib/constants/idc';
@@ -141,6 +142,8 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
   const showIpFormatErr = mode === 'ip' && ips.some((ip) => ip.value.trim() !== '' && !isValidIdcIp(ip.value));
   const showDomainErr = mode === 'domain' && domainTrimmed !== '' && !IDC_DOMAIN_RE.test(domainTrimmed);
   const showPortErr = port !== '' && !portOk;
+  // Warn only: the request still submits with a web port.
+  const showWebPortWarn = portOk && dbDef !== undefined && IDC_WEB_PORTS.has(portNum);
   const showSidErr = isOracle && oracleSid.trim() === '' && sidTouched;
   const ipFull = ips.length >= IDC_MAX_IPS;
 
@@ -371,6 +374,9 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   className={idcStyles.input}
                 />
                 {showPortErr && <FieldError>{t.formPortErr}</FieldError>}
+                {showWebPortWarn && dbDef && (
+                  <FieldWarn>{t.formPortWebWarn(portNum, dbDef.label, dbDef.defaultPort)}</FieldWarn>
+                )}
               </div>
             </div>
           </section>
