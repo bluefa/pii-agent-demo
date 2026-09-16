@@ -531,6 +531,8 @@ function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): 
     resource_name: demoResourceName(project.cloudProvider, r),
     port,
     host,
+    // GCP Shared VPC host — what the step-4 PSC proxy-subnet guide reads.
+    ...(project.cloudProvider === 'GCP' ? { host_project: 'acme-net-host-prod', host_network: 'shared-vpc-prod' } : {}),
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration: null,

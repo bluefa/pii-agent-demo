@@ -1,4 +1,4 @@
-import type { ResourceSnapshot } from '@/lib/types';
+import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 
 /**
  * One Regional Managed Proxy Subnet the service side has to create — one per
@@ -44,18 +44,18 @@ export const pscSubnetCommand = (t: Pick<PscSubnetTarget, 'hostProject' | 'hostN
   ].join('\n');
 
 /**
- * Groups approved rows into the subnets they need. A row missing any of the three
+ * Groups confirmed rows into the subnets they need. A row missing any of the three
  * facts is skipped rather than guessed: the guide draws nothing it cannot fill in.
  */
-export const pscSubnetTargets = (rows: ResourceSnapshot[]): PscSubnetTarget[] => {
+export const pscSubnetTargets = (rows: ConfirmedIntegrationResourceInfo[]): PscSubnetTarget[] => {
   const byKey = new Map<string, PscSubnetTarget>();
   for (const row of rows) {
     // PSC is a Cloud SQL thing — a BigQuery dataset needs no proxy subnet, whatever
     // host facts its row happens to carry.
     if (row.resource_type !== 'GCP_SQL') continue;
-    const hostProject = row.metadata?.host_project?.trim();
-    const hostNetwork = row.metadata?.host_network?.trim();
-    const region = (row.metadata?.region ?? row.database_region)?.trim();
+    const hostProject = row.host_project?.trim();
+    const hostNetwork = row.host_network?.trim();
+    const region = row.database_region?.trim();
     if (!hostProject || !hostNetwork || !region) continue;
     const key = `${hostProject}|${hostNetwork}|${region}`;
     const hit = byKey.get(key);

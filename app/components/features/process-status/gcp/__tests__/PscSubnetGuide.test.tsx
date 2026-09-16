@@ -8,8 +8,17 @@ const targets = pscSubnetTargets(
   ['asia-northeast3', 'europe-west2'].map((region) => ({
     resource_id: `r-${region}`,
     resource_type: 'GCP_SQL',
+    database_type: null,
+    database_region: region,
+    resource_name: null,
+    port: null,
+    host: null,
+    oracle_service_id: null,
+    network_interface_id: null,
+    ip_configuration: null,
     credential_id: null,
-    metadata: { region, host_project: 'acme-net-host-prod', host_network: 'shared-vpc-prod' },
+    host_project: 'acme-net-host-prod',
+    host_network: 'shared-vpc-prod',
   })),
 );
 
