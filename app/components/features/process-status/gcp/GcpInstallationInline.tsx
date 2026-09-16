@@ -11,6 +11,7 @@ import {
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
 import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
 import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
+import { pendingSubnetResourceIds } from '@/app/components/features/process-status/gcp/psc-subnet';
 import {
   buildGcpInstallDetail,
   type GcpInstallDetail,
@@ -86,12 +87,6 @@ export const GcpInstallationInline = ({
   const { locale } = useLocale();
   const copy = INSTALL_COPY[locale];
   const t = copy.inline;
-  const subnetTargets = usePscSubnetTargets(targetSourceId);
-  const steps = useMemo(
-    () =>
-      gcpSteps(copy, subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined),
-    [copy, subnetTargets],
-  );
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   // Must be stable: useInstallationStatus re-runs its fetch effect whenever
@@ -110,6 +105,19 @@ export const GcpInstallationInline = ({
     isComplete: (data) => areInstallResourcesSettled(data.resources),
     onComplete: onInstallComplete,
   });
+
+  // The guide lists only the Regions whose subnet is still open; until the status
+  // answers, nothing is hidden.
+  const pendingSubnet = useMemo(
+    () => (status ? pendingSubnetResourceIds(status.resources) : undefined),
+    [status],
+  );
+  const subnetTargets = usePscSubnetTargets(targetSourceId, true, pendingSubnet);
+  const steps = useMemo(
+    () =>
+      gcpSteps(copy, subnetTargets.length > 0 ? <PscSubnetGuide targets={subnetTargets} /> : undefined),
+    [copy, subnetTargets],
+  );
 
   const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
   const meta = useMemo(

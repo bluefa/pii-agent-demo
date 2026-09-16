@@ -1,4 +1,8 @@
 import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
+import {
+  isSettledInstallStatus,
+  type InstallDetailResource,
+} from '@/app/components/features/process-status/install-status-detail/model';
 
 /**
  * One Regional Managed Proxy Subnet the service side has to create — one per
@@ -44,11 +48,30 @@ export const pscSubnetCommand = (t: Pick<PscSubnetTarget, 'hostProject' | 'hostN
   ].join('\n');
 
 /**
+ * Resource ids whose 「PSC용 Subnet 생성」 cell is still open (not COMPLETED / SKIP) —
+ * the rows the guide is for. Read off installation-status on either surface.
+ */
+export const pendingSubnetResourceIds = (resources: readonly InstallDetailResource[]): ReadonlySet<string> =>
+  new Set(
+    resources
+      .filter((r) => r.cells.subnet !== undefined && !isSettledInstallStatus(r.cells.subnet.status))
+      .map((r) => r.resourceId),
+  );
+
+/**
  * Groups confirmed rows into the subnets they need. A row missing any of the three
  * facts is skipped rather than guessed: the guide draws nothing it cannot fill in.
+ *
+ * `pending` narrows the guide to what is still to do: a Region whose rows all have
+ * the subnet cell settled is left out (오너 09-16: 수행해야 하는 것만 보여준다).
+ * Undefined means installation-status has not answered yet, so nothing is hidden.
  */
-export const pscSubnetTargets = (rows: ConfirmedIntegrationResourceInfo[]): PscSubnetTarget[] => {
+export const pscSubnetTargets = (
+  rows: ConfirmedIntegrationResourceInfo[],
+  pending?: ReadonlySet<string>,
+): PscSubnetTarget[] => {
   const byKey = new Map<string, PscSubnetTarget>();
+  const rowIds = new Map<string, string[]>();
   for (const row of rows) {
     // PSC is a Cloud SQL thing — a BigQuery dataset needs no proxy subnet, whatever
     // host facts its row happens to carry.
@@ -58,6 +81,7 @@ export const pscSubnetTargets = (rows: ConfirmedIntegrationResourceInfo[]): PscS
     const region = row.database_region?.trim();
     if (!hostProject || !hostNetwork || !region) continue;
     const key = `${hostProject}|${hostNetwork}|${region}`;
+    rowIds.set(key, [...(rowIds.get(key) ?? []), row.resource_id]);
     const hit = byKey.get(key);
     if (hit) {
       hit.resourceCount += 1;
@@ -73,5 +97,7 @@ export const pscSubnetTargets = (rows: ConfirmedIntegrationResourceInfo[]): PscS
       command: pscSubnetCommand({ hostProject, hostNetwork, region, subnetName }),
     });
   }
-  return [...byKey.values()];
+  return [...byKey.entries()]
+    .filter(([key]) => pending === undefined || (rowIds.get(key) ?? []).some((id) => pending.has(id)))
+    .map(([, t]) => t);
 };

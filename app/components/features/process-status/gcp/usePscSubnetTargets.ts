@@ -17,8 +17,14 @@ import {
  * same commands from the same rows. `enabled: false` (a non-GCP target) fetches
  * nothing and returns an empty list. A failed read also returns empty: the guide is
  * reference, and the step still stands on its own description.
+ *
+ * `pending` (from `pendingSubnetResourceIds`) keeps only the Regions still to make.
  */
-export const usePscSubnetTargets = (targetSourceId: number, enabled = true): PscSubnetTarget[] => {
+export const usePscSubnetTargets = (
+  targetSourceId: number,
+  enabled = true,
+  pending?: ReadonlySet<string>,
+): PscSubnetTarget[] => {
   const [rows, setRows] = useState<ConfirmedIntegrationResourceInfo[]>([]);
   useEffect(() => {
     if (!enabled) return;
@@ -28,5 +34,5 @@ export const usePscSubnetTargets = (targetSourceId: number, enabled = true): Psc
       .catch(() => setRows([]));
     return () => controller.abort();
   }, [targetSourceId, enabled]);
-  return useMemo(() => pscSubnetTargets(rows), [rows]);
+  return useMemo(() => pscSubnetTargets(rows, pending), [rows, pending]);
 };

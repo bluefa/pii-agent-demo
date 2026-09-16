@@ -62,6 +62,15 @@ describe('pscSubnetTargets', () => {
     expect(pscSubnetTargets([row(null)])).toEqual([]);
   });
 
+  it('with pending ids, keeps only the Regions that still have an open subnet cell', () => {
+    const seoul = row('asia-northeast3');
+    const us = row('us-central1');
+    expect(pscSubnetTargets([seoul, us], new Set([us.resource_id])).map((t) => t.region)).toEqual(['us-central1']);
+    expect(pscSubnetTargets([seoul, us], new Set())).toEqual([]);
+    // Not answered yet: nothing hidden.
+    expect(pscSubnetTargets([seoul, us]).map((t) => t.region)).toEqual(['asia-northeast3', 'us-central1']);
+  });
+
   it('ignores BigQuery rows — PSC, and so the proxy subnet, is Cloud SQL only', () => {
     expect(pscSubnetTargets([{ ...row('asia-northeast3'), resource_type: 'GCP_BIGQUERY_DATASET_REGION' }])).toEqual([]);
   });
