@@ -560,6 +560,8 @@ export interface IdcApprovalRequestView {
   resources: IdcResourceView[];
   /** Set only on the UNAVAILABLE verdict — the reason replaces the whole waiting card. */
   unavailableReason: string | null;
+  /** Set only on the REJECTED verdict — the admin's answer, shown in the card header. */
+  rejected: { reason: string; processedAt: string; processedBy: string } | null;
   requestedAt: string | null;
   requestedBy: string | null;
 }
@@ -567,6 +569,7 @@ export interface IdcApprovalRequestView {
 const EMPTY_REQUEST: IdcApprovalRequestView = {
   resources: [],
   unavailableReason: null,
+  rejected: null,
   requestedAt: null,
   requestedBy: null,
 };
@@ -585,6 +588,14 @@ export const getIdcApprovalRequestLatest = async (
     return {
       resources: (res.resources ?? []).map(toIdcResourceViewFromApprovalRequest),
       unavailableReason: res.result?.status === 'UNAVAILABLE' ? (res.result?.reason ?? '') : null,
+      rejected:
+        res.result?.status === 'REJECTED'
+          ? {
+              reason: res.result.reason ?? '',
+              processedAt: res.result.processed_at ?? '',
+              processedBy: res.result.processed_by?.user_id ?? '',
+            }
+          : null,
       requestedAt: res.request?.requested_at ?? null,
       requestedBy: res.request?.requested_by?.user_id ?? null,
     };
