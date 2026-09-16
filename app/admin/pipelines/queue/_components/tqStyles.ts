@@ -126,11 +126,11 @@ export const tqStyles = {
      *
      * BOTH colours are declared, because neither had been. Tailwind preflight gives
      * form controls `color: inherit`, so the typed value took `body { color:
-     * var(--foreground) }` — and globals.css flips --foreground to #ededed under
-     * prefers-color-scheme: dark. On a dark-appearance machine the typed text was
-     * #ededed on a white card: 1.07:1. The placeholder had no rule at all and fell to
-     * the UA grey. text-strong is 17.75:1, text-weak 4.97:1 (WCAG counts placeholder
-     * text as text).
+     * var(--foreground) }` — and globals.css flips --foreground to its near-white
+     * dark value under prefers-color-scheme: dark. On a dark-appearance machine the
+     * typed text wore that near-white on a white card: 1.07:1. The placeholder had
+     * no rule at all and fell to the UA grey. text-strong is 17.75:1, text-weak
+     * 4.97:1 (WCAG counts placeholder text as text).
      */
     textarea:
       'w-full min-h-[120px] rounded-lg border border-[var(--pl-border-strong)] px-2.5 py-2 text-[14px] leading-[1.4] resize-y text-[var(--pl-text-strong)] placeholder:text-[var(--pl-text-weak)] focus:outline-none focus:border-[var(--pl-primary)] focus:shadow-[0_0_0_3px_var(--pl-primary-ring)]',
@@ -196,6 +196,22 @@ export const tqStyles = {
   listTable: {
     th: 'text-left h-[34px] px-3 text-[12px] font-semibold tracking-[0.03em] text-[var(--pl-text-weak)] border-b border-[var(--pl-border)]',
   },
+
+  /** Outgoing link (`나가는 줄`) — the ops masthead's `opsStyles.aboutLink`
+   *  grammar reused on P3: black 14/500 with the `arrow-ur` glyph. The underline
+   *  is permanent (owner follow-up), so "you can press this" is said at rest and
+   *  hover only RECOLOURS the rule to `--pl-primary` — the state change is a hue
+   *  shift on a line that was already there, not the line appearing. Black and not
+   *  brand-blue on purpose (owner, 2026-08-27, on the ops panel): colour AND weight
+   *  together made the least-used control on the screen read the loudest.
+   *  The rest colour is `--pl-border-strong`, not `--pl-border`: gray-300 measures
+   *  1.41:1 on this page's `--pl-bg-page` wash, so a permanent rule in it says
+   *  nothing. `--pl-border-strong` reads 2.46:1 and rides the existing ramp —
+   *  `prefers-contrast: more` steps it to `--pl-text-weak`'s value (4.76:1) with no rule of its own
+   *  here. Hover lands at 4.95:1, so pressing-ness roughly doubles the contrast.
+   *  No hand-drawn focus ring — the global outline owns that. */
+  outLink:
+    'inline-flex cursor-pointer items-center gap-0.5 whitespace-nowrap text-[14px] font-medium text-[var(--pl-text-strong)] underline underline-offset-4 decoration-[var(--pl-border-strong)] hover:decoration-[var(--pl-primary)]',
 
   /** Stat tile (`.stat`) — gray-100 centered read-only summary; label over value.
    *  Value tone: warn (대기), err (반려>0), strong (default). */

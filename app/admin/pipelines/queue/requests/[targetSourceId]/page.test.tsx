@@ -15,6 +15,9 @@
  *   4. NLB occupancy pending: only the buttons that open it are held (리스너
  *      현황 · 배정하기), 사용 서비스 조회 stays live, and the hold releases
  *      when the table lands.
+ *   5. 「Target 관리 페이지로 이동」 stands in EVERY state of the head — while the request
+ *      facts are pending AND on a decided request, where the 승인/반려 pair is
+ *      gone. Moving to the ops detail is not gated on the verdict.
  */
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -101,6 +104,19 @@ const DETAIL: ApprovalRequestDetail = {
   wire: {} as ApprovalRequestLatestWire,
 };
 
+/** 결정이 끝난 요청 — CtaPair 가 통째로 사라지는 상태. */
+const DECIDED_DETAIL: ApprovalRequestDetail = {
+  ...DETAIL,
+  request: { ...DETAIL.request, status: 'APPROVED' },
+  verdict: {
+    requestId: 5121,
+    status: 'APPROVED',
+    processedBy: 'admin.kim',
+    processedAt: '2026-07-21T02:00:00Z',
+    reason: null,
+  },
+};
+
 const MAPPINGS: ResourceNlbMappings[] = [];
 
 beforeEach(() => {
@@ -176,6 +192,36 @@ describe('RequestDetailPage — split loading gates', () => {
     await waitFor(() => {
       expect((screen.getByRole('button', { name: '배정하기' }) as HTMLButtonElement).disabled).toBe(false);
       expect((screen.getByRole('button', { name: 'NLB 리스너 현황' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
+  it('「Target 관리 페이지로 이동」 points at the ops detail while the request facts are pending', async () => {
+    getRequestHeader.mockResolvedValue(HEADER_ROW);
+    getApprovalRequestLatest.mockReturnValue(pending());
+    getNlbTable.mockReturnValue(pending());
+    getNlbIndexMappings.mockReturnValue(pending());
+
+    render(<RequestDetailPage />);
+
+    const link = (await screen.findByRole('link', { name: /Target 관리 페이지로 이동/ })) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/admin/pipelines/ops/target-sources/1031');
+    // The CTA is disabled in this state — the way out is not.
+    expect((screen.getByRole('button', { name: '승인' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('「Target 관리 페이지로 이동」 survives the verdict — it stands where 승인/반려 no longer do', async () => {
+    getRequestHeader.mockResolvedValue(HEADER_ROW);
+    getApprovalRequestLatest.mockResolvedValue(DECIDED_DETAIL);
+    getNlbTable.mockResolvedValue([]);
+    getNlbIndexMappings.mockResolvedValue(MAPPINGS);
+
+    render(<RequestDetailPage />);
+
+    const link = (await screen.findByRole('link', { name: /Target 관리 페이지로 이동/ })) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/admin/pipelines/ops/target-sources/1031');
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: '승인' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '반려' })).toBeNull();
     });
   });
 });
