@@ -44,6 +44,12 @@ export const IDC_DB_TYPES: readonly IdcDbTypeDef[] = [
   { label: 'Redis', wire: 'REDIS', defaultPort: 6379, requiresServiceId: false },
 ] as const;
 
+/**
+ * Ports a web server commonly listens on. Typing one of these in the IDC Port field
+ * draws a warning only; the request still submits, since a DB can legitimately use them.
+ */
+export const IDC_WEB_PORTS: ReadonlySet<number> = new Set([80, 443, 8080, 8443, 3000]);
+
 const DB_TYPE_BY_LABEL = new Map(IDC_DB_TYPES.map((d) => [d.label, d]));
 const DB_TYPE_BY_WIRE = new Map(IDC_DB_TYPES.map((d) => [d.wire, d]));
 

@@ -181,6 +181,8 @@ const ko = {
   formSidErr: 'Oracle 선택 시 SID는 필수예요',
   formPortPlaceholder: '예: 3306',
   formPortErr: '1–65535 범위의 포트를 입력해주세요',
+  formPortWebWarn: (port: number, dbType: string, defaultPort: number) =>
+    `${port} 은 웹 서버 포트일 수 있어요. ${dbType} 기본 포트는 ${defaultPort} 이에요.`,
 
   // --- step 1 -------------------------------------------------------------
   step1Title: '연동 대상 DB 입력',
@@ -421,6 +423,8 @@ const en: typeof ko = {
   formSidErr: 'SID is required when Oracle is selected',
   formPortPlaceholder: 'e.g. 3306',
   formPortErr: 'Enter a port between 1 and 65535',
+  formPortWebWarn: (port: number, dbType: string, defaultPort: number) =>
+    `${port} may be a web server port. The default ${dbType} port is ${defaultPort}.`,
 
   // --- step 1 -------------------------------------------------------------
   step1Title: 'Enter the target DBs',
