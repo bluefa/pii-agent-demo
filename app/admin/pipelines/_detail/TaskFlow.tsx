@@ -27,6 +27,7 @@ import {
 } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { operationMark } from '@/app/admin/pipelines/_components/taskMark';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
@@ -121,12 +122,21 @@ const DETAIL_CSS = `
    viewport against a 1320px track at the old 288px), so the extra width buys a
    one-line title without introducing a new affordance. */
 .pl-flow.pl-detail .pl-tnode{width:352px;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px}
+/* Cards stretch to the tallest sibling: an HTTP_REQUEST card has no action/side tag
+   row, so on its own it sat 23px shorter than the Terraform cards beside it. The
+   identity row absorbs the slack so the run block stays bottom-aligned across cards. */
+.pl-flow.pl-detail .pl-track{align-items:stretch}
+.pl-flow.pl-detail .pl-connector{align-self:center}
 /* Identity row (mark + title column); the run block below spans the full card so
    the timestamps get the whole 304px instead of the 226px left of the logomark. */
-.pl-flow.pl-detail .nd-main{display:flex;align-items:center;gap:20px}
+.pl-flow.pl-detail .nd-main{flex:1;display:flex;align-items:center;gap:20px}
 .pl-flow.pl-detail .nd-icons{margin:0;flex:none}
 .pl-flow.pl-detail .nd-mark,.pl-flow.pl-detail .nd-mark.m-cond{width:56px;height:56px;border:0;border-radius:0;background:transparent}
 .pl-flow.pl-detail .nd-mark.m-cond{color:var(--pl-warn)}
+/* ADR-023 HTTP_REQUEST marks take the pipeline-type hue (globals.css: type colour on the
+   glyph, status on the badge) — never --pl-err/--pl-ok, which are the corner badges. */
+.pl-flow.pl-detail .nd-mark.m-delete{color:var(--pl-type-delete)}
+.pl-flow.pl-detail .nd-mark.m-reconfirm{color:var(--pl-type-reconfirm)}
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 /* 14px (owner 2026-08-16) — the card title stops outranking the page header's
@@ -302,6 +312,7 @@ export function TaskFlow({
           // Status stays a stroke/badge signal on the card (owner) — but a border color
           // is silent, so the accessible name is where the verdict gets spelled out.
           const verdict = statusKo(task.status);
+          const opMark = operationMark(task.operation);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -327,7 +338,11 @@ export function TaskFlow({
                 {nodeBadge(task.status, task.sequence)}
                 <div className="nd-main">
                   <div className="nd-icons">
-                    {task.kind === 'TERRAFORM_JOB' ? (
+                    {opMark ? (
+                      <span className={cn('nd-mark', opMark.cls)} title={opMark.title}>
+                        <Icon name={opMark.icon} strokeWidth={2.2} />
+                      </span>
+                    ) : task.kind === 'TERRAFORM_JOB' ? (
                       <span className="nd-mark" title="Terraform">
                         <TerraformLogo />
                       </span>

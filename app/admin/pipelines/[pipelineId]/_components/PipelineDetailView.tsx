@@ -415,9 +415,6 @@ export function PipelineDetailView(): ReactElement {
           (target + service) leads; run # and the static page label are the
           context row; the recipe description is the ⓘ tooltip. */}
       <header className={h.root}>
-        <div className={h.titleRow}>
-          <h1 className={h.pageTitle}>Infra 작업 현황</h1>
-        </div>
         <div className={h.main}>
           {/* The one provider mark on this page (owner 2026-08-16), so it wears
               the vendor's colours — the tier-1 glyph that briefly sat beside the
@@ -430,6 +427,25 @@ export function PipelineDetailView(): ReactElement {
             className="flex-none self-center"
           />
           <div className={h.body}>
+            {/* Tier 0 — "AWS 재확정": the run's own name, not a static page label
+                (owner 2026-09-15). It sits in the identity column so the header has
+                one left edge; the old row above the mark left the title aligned to
+                nothing. The recipe ⓘ moved here with it. DELETE keeps the err tone
+                (a destructive run must not read neutral). */}
+            <div className={h.titleRow}>
+              <h1 className={cn(h.pageTitle, detail.type === 'DELETE' && h.pageTitleDelete)}>
+                {providerLabel(provider)} {typeKo(detail.type)}
+              </h1>
+              {recipeDesc && (
+                <span className={h.tipWrap} tabIndex={0} aria-label="레시피 설명 보기">
+                  <Icon name="info" size="sm" />
+                  <span role="tooltip" className={h.tip}>
+                    <span className={h.tipName}>{detail.recipe_definition}</span>
+                    <span className={h.tipDesc}>{recipeDesc}</span>
+                  </span>
+                </span>
+              )}
+            </div>
             <div className={h.idRow}>
               {/* SDU is a classification, not a vendor — the brand mark on the
                   left cannot say it, so it keeps its chip. Every other provider
@@ -519,19 +535,6 @@ export function PipelineDetailView(): ReactElement {
                   취소 요청됨
                 </span>
               )}
-              <span className={cn(h.typeTag, detail.type === 'DELETE' && h.typeTagDelete)}>
-                {/* "AWS 설치" — provider 에 붙여 한 개념으로 읽히게 한다. */}
-                {providerLabel(provider)} {typeKo(detail.type)}
-                {recipeDesc && (
-                  <span className={h.tipWrap} tabIndex={0} aria-label="레시피 설명 보기">
-                    <Icon name="info" size="sm" />
-                    <span role="tooltip" className={h.tip}>
-                      <span className={h.tipName}>{detail.recipe_definition}</span>
-                      <span className={h.tipDesc}>{recipeDesc}</span>
-                    </span>
-                  </span>
-                )}
-              </span>
               <span className="whitespace-nowrap tabular-nums">
                 <span className={h.klabel}>작업 등록</span>{' '}
                 <span className={h.kvalue}>{fmtDateTime(detail.created_at)}</span>

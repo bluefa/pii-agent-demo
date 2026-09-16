@@ -24,10 +24,11 @@ import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
+import { operationMark } from '@/app/admin/pipelines/_components/taskMark';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
 import type { InfraSide } from '@/lib/pipeline/format';
-import type { PipelineStatus, PipelineType, TaskKind, TaskStatus, TerraformAction } from '@/lib/pipeline/types';
+import type { PipelineStatus, PipelineType, TaskKind, TaskOperation, TaskStatus, TerraformAction } from '@/lib/pipeline/types';
 
 export const R24_CSS = `
 .r24-canvas{background-color:var(--pl-bg-inner);background-image:linear-gradient(var(--pl-flow-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pl-flow-grid) 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--pl-border);border-radius:10px}
@@ -35,7 +36,9 @@ export const R24_CSS = `
 .r24-hscroll::-webkit-scrollbar{height:6px}
 .r24-hscroll::-webkit-scrollbar-thumb{border-radius:99px;background:var(--pl-gray-300)}
 .r24-hscroll::-webkit-scrollbar-track{border-radius:99px;background:color-mix(in srgb,var(--pl-gray-900) 7%,transparent)}
-.r24-line{display:flex;align-items:center;gap:10px;width:max-content}
+/* stretch, not center: a card without the action/side tag row (the ADR-023 HTTP tasks)
+   would otherwise sit shorter than its Terraform neighbours (owner 2026-09-15). */
+.r24-line{display:flex;align-items:stretch;gap:10px;width:max-content}
 .r24-tnode{position:relative;display:flex;align-items:flex-start;gap:12px;width:224px;background:var(--pl-bg-card);border:1px solid var(--pl-border);border-radius:10px;padding:13px 14px;flex:none;box-shadow:var(--pl-shadow-xs)}
 .r24-tnode .r24-tx{min-width:0}
 .r24-tnode .r24-nm{font-size:13px;font-weight:700;line-height:1.35;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
@@ -54,11 +57,14 @@ export const R24_CSS = `
 .r24-ticon svg{width:26px;height:26px}
 .r24-ticon.cond{color:var(--pl-warn)}
 .r24-ticon.cond svg{width:24px;height:24px;margin:1px}
+/* ADR-023 HTTP_REQUEST marks wear the pipeline-type hue (never a status hue). */
+.r24-ticon.m-delete{color:var(--pl-type-delete)}
+.r24-ticon.m-reconfirm{color:var(--pl-type-reconfirm)}
 .r24-seq{position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:99px;background:var(--pl-gray-900);color:var(--pl-white);font-family:var(--pl-font-mono);font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:var(--pl-shadow-xs)}
 .r24-rm{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:99px;background:var(--pl-bg-card);border:1px solid var(--pl-border-strong);color:var(--pl-text-weak);display:flex;align-items:center;justify-content:center;box-shadow:var(--pl-shadow-xs);cursor:pointer;padding:0}
 .r24-rm:hover{color:var(--pl-err-text);border-color:var(--pl-err-border)}
 .r24-rm:focus-visible{outline:2px solid var(--pl-primary);outline-offset:1px}
-.r24-arrow{color:var(--pl-gray-400);flex:none}
+.r24-arrow{color:var(--pl-gray-400);flex:none;align-self:center}
 `;
 
 /** Pipeline-type tone (icon-tile bg + icon color) — same color-mix recipe as
@@ -170,8 +176,17 @@ export function RestartBadge({
   );
 }
 
-/** Bare kind mark — Terraform brand logomark / warn clock, NO tile wrap (R24). */
-export function KindMark({ kind }: { kind: TaskKind }): ReactElement {
+/** Bare kind mark — Terraform brand logomark / warn clock, NO tile wrap (R24).
+ *  `operation` (when the task shape carries it) picks the ADR-023 marks first. */
+export function KindMark({ kind, operation }: { kind: TaskKind; operation?: TaskOperation | null }): ReactElement {
+  const op = operationMark(operation);
+  if (op) {
+    return (
+      <span className={cn('r24-ticon', op.cls)} title={op.title}>
+        <Icon name={op.icon} strokeWidth={2} />
+      </span>
+    );
+  }
   if (kind === 'CONDITION_CHECK') {
     return (
       <span className="r24-ticon cond" title="조건 확인(폴링)">
@@ -207,6 +222,7 @@ export function FlowArrow(): ReactElement {
 
 export interface R24TaskNodeProps {
   kind: TaskKind;
+  operation?: TaskOperation | null;
   name: string;
   /** Secondary 2-line description (catalog/definition sentence). */
   desc?: string | null;
@@ -224,7 +240,7 @@ export interface R24TaskNodeProps {
 }
 
 /** 224px icon-left Task card on the grid canvas — the R24 node. */
-export function R24TaskNode({ kind, name, desc, action, side, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
+export function R24TaskNode({ kind, operation, name, desc, action, side, seq, state, footer, className }: R24TaskNodeProps): ReactElement {
   return (
     <div className={cn('r24-tnode', state, className)}>
       {seq != null && (
@@ -232,7 +248,7 @@ export function R24TaskNode({ kind, name, desc, action, side, seq, state, footer
           {seq}
         </span>
       )}
-      <KindMark kind={kind} />
+      <KindMark kind={kind} operation={operation} />
       <div className="r24-tx">
         {action || side ? (
           <div className="mb-1 flex items-center gap-1">
@@ -263,6 +279,8 @@ export const R24_RUN_CSS = `
 .rtc-tile svg{width:26px;height:26px}
 .rtc-tile.tf{background:color-mix(in srgb,var(--pl-type-custom) 9%,var(--pl-bg-card));color:var(--pl-brand-tf)}
 .rtc-tile.cond{background:color-mix(in srgb,var(--pl-warn) 13%,var(--pl-bg-card));color:var(--pl-warn)}
+.rtc-tile.m-delete{background:color-mix(in srgb,var(--pl-type-delete) 9%,var(--pl-bg-card));color:var(--pl-type-delete)}
+.rtc-tile.m-reconfirm{background:color-mix(in srgb,var(--pl-type-reconfirm) 9%,var(--pl-bg-card));color:var(--pl-type-reconfirm)}
 .rtc-tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
 .rtc-nm{font-size:13px;font-weight:700;line-height:1.35;letter-spacing:-.2px;color:var(--pl-text-strong);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:keep-all}
 .rtc-ds{font-size:10.5px;line-height:1.5;color:var(--pl-text-weak);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -350,6 +368,7 @@ const CORNER_ICON: Partial<Record<FlowKey, IconName>> = {
 
 export interface RunTaskCardProps {
   kind: TaskKind;
+  operation?: TaskOperation | null;
   name: string;
   desc?: string | null;
   /** PLAN/APPLY/DESTROY tag for terraform jobs; null hides it. */
@@ -367,8 +386,9 @@ export interface RunTaskCardProps {
 }
 
 /** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
-export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry, onOpen }: RunTaskCardProps): ReactElement {
+export function RunTaskCard({ kind, operation, name, desc, action, side, status, seq, retry, onOpen }: RunTaskCardProps): ReactElement {
   const view = STATUS_VIEW[status];
+  const op = operationMark(operation);
   // The frame carries the verdict, on the same status strokes the pipeline
   // 현황 flow uses (TaskFlow `s-*`): green done, red failed + halo, dashed
   // pending, and the black current ring this card already had.
@@ -409,8 +429,21 @@ export function RunTaskCard({ kind, name, desc, action, side, status, seq, retry
           seq
         )}
       </span>
-      <span className={cn('rtc-tile', kind === 'CONDITION_CHECK' ? 'cond' : 'tf')} aria-hidden="true">
-        {kind === 'CONDITION_CHECK' ? <Icon name="clock" strokeWidth={2} /> : <TerraformLogo />}
+      {/* Same vocabulary as KindMark: operation mark → condition clock → HTTP link → Terraform.
+          Before this the HTTP_REQUEST tasks stood under the Terraform tile. */}
+      <span
+        className={cn('rtc-tile', op ? op.cls : kind === 'CONDITION_CHECK' ? 'cond' : kind === 'TERRAFORM_JOB' && 'tf')}
+        aria-hidden="true"
+      >
+        {op ? (
+          <Icon name={op.icon} strokeWidth={2} />
+        ) : kind === 'CONDITION_CHECK' ? (
+          <Icon name="clock" strokeWidth={2} />
+        ) : kind === 'HTTP_REQUEST' ? (
+          <Icon name="link" strokeWidth={2} />
+        ) : (
+          <TerraformLogo />
+        )}
       </span>
       <div className="rtc-tx">
         <div className="rtc-nm">{name}</div>

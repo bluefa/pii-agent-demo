@@ -314,6 +314,7 @@ export function CurrentPipelineCard({
                 {i > 0 && <FlowArrow />}
                 <RunTaskCard
                   kind={task.kind}
+                  operation={task.operation}
                   name={def?.display_name ?? task.task_definition}
                   desc={task.description ?? def?.description}
                   action={task.terraform_action}

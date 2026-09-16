@@ -52,7 +52,9 @@ tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 | `arrow-right` | 다음 단계 | `CurrentPipelineCard` | 2 |
 | `compass` | 탐색·둘러보기 | `PipelineDetailView.tsx:317` | 1 |
 | `flow` | 실행 기록 빈 상태 | `TcRunHistoryModal` | 1 |
-| `cloud` · `package-plus` · `trash` · `blocks` · `clipboard-check` · `dots-v` · `table` · `bolt` | 각 1건 | — | 1 |
+| `trash` | 삭제 — DELETE 타입 타일, 재확정의 「확정 정보 삭제」 태스크 마크(2026-09-15 추가) | `r24Task` · `TaskFlow` | 2 |
+| `clipboard-check` | 확정 — 재확정의 「확정 정보 등록」 태스크 마크(2026-09-15 추가) | `TaskFlow` | 2 |
+| `cloud` · `package-plus` · `blocks` · `dots-v` · `table` · `bolt` | 각 1건 | — | 1 |
 
 ## 아직 비어 있는 이름 (뜻을 새로 붙일 수 있음)
 
