@@ -33,6 +33,7 @@ import {
 } from '@/app/admin/pipelines/queue/requests/_components/RequestDetailHeader';
 import { RequestVerdictNotice } from '@/app/admin/pipelines/queue/requests/_components/RequestVerdictNotice';
 import { DuplicateAddressNotice } from '@/app/admin/pipelines/queue/requests/_components/DuplicateAddressNotice';
+import { WebPortNotice } from '@/app/admin/pipelines/queue/requests/_components/WebPortNotice';
 import {
   ResourceSection,
   ResourceSectionSkeleton,
@@ -425,6 +426,7 @@ export default function RequestDetailPage(): ReactElement {
                     groups={suspectGroups}
                     onShowInTable={() => list.patchQuery({ filter: 'suspect' })}
                   />
+                  {isIdc && <WebPortNotice rows={resources} />}
                   {/* No card around it. The tiles are cards and the toolbar·table·pager carry
                       their own connected frame, so an outer surface only nested a card in a card
                       and spent 48px of table width on doubled padding. */}

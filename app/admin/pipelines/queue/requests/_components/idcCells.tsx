@@ -18,7 +18,7 @@ import { cn, idcStyles, primaryColors, textColors } from '@/lib/theme';
 // above applies to it, and the two surfaces must not drift on what "Multi" looks like.
 import { IdcKindBadge } from '@/app/target-sources/[targetSourceId]/_components/idc/cells';
 import type { IdcKind } from '@/app/lib/api/idc';
-import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
+import { IDC_SOURCE_LABEL, IDC_WEB_PORTS } from '@/lib/constants/idc';
 
 /**
  * Long host/SID/IP: ellipsis + copy-on-hover + full-value tooltip (res-id-cell pattern).
@@ -97,6 +97,7 @@ export function IdcEndpointCell({
   kind,
   tone,
   suspect,
+  webPort = false,
   maxWidthClass = 'max-w-[200px]',
 }: {
   hosts: readonly string[];
@@ -111,6 +112,8 @@ export function IdcEndpointCell({
    * 짝의 주소는 주소 아래에 선다 — 새 열도 표 머리글도 아니고 행의 정체성에 붙는다.
    */
   suspect?: { addresses: readonly string[]; partners: readonly string[] };
+  /** Port sits on IDC_WEB_PORTS (@see IdcPortCell) — a 'Port 확인' badge beside the kind badge. */
+  webPort?: boolean;
 }): ReactElement | null {
   const [expanded, setExpanded] = useState(false);
   if (hosts.length === 0) return null;
@@ -130,6 +133,7 @@ export function IdcEndpointCell({
         {kind && <IdcKindBadge kind={kind} />}
         {/* 번호가 붙지 않는다 — 짝은 바로 아래 주소로 가리키므로 이름이 필요 없다. */}
         {suspect != null && <span className={idcStyles.checkBadge}>확인 필요</span>}
+        {webPort && <span className={idcStyles.checkBadge}>Port 확인</span>}
       </span>
       {/* The addresses keep their own tighter rhythm; gap-1 above separates the caption
           from the block it captions. */}
@@ -178,6 +182,23 @@ export function IdcEndpointCell({
     </span>
   );
 }
+
+/**
+ * Port. Service owners sometimes register a web server instead of a DB, and the port is
+ * where that shows first. A port on IDC_WEB_PORTS keeps its number in the warn color; the
+ * 'Port 확인' badge stands in the address cell's badge row (the Port column is 80px and a
+ * badge there wraps), and the page notice above the table says why.
+ * A warning only: `warn` is off on surfaces where the request is already decided.
+ */
+export function IdcPortCell({ port, warn = false }: { port: number | null; warn?: boolean }): ReactElement {
+  // 0 is the adapter's "no port in the payload" value, not a port.
+  if (!port) return <span className={textColors.tertiary}>—</span>;
+  if (!warn || !IDC_WEB_PORTS.has(port)) return <>{port}</>;
+  return <span className="font-medium text-[var(--pl-warn-text)]">{port}</span>;
+}
+
+/** Whether a row's port sits on IDC_WEB_PORTS — the trigger the two cells and the notice share. */
+export const isWebPort = (port: number | null): boolean => port !== null && IDC_WEB_PORTS.has(port);
 
 /** Database Type, with the Oracle SID as a second line rather than a second column. */
 export function IdcDbTypeCell({

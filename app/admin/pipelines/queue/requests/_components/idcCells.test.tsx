@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
 import { describe, expect, it } from 'vitest';
 
-import { IdcEndpointCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
+import { IdcEndpointCell, IdcPortCell } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 
 const IPS = ['10.20.1.11', '10.20.1.12', '10.20.1.13'];
 
@@ -43,5 +43,22 @@ describe('IdcEndpointCell', () => {
   it('주소가 없으면 아무것도 렌더하지 않는다', () => {
     const { container } = render(<IdcEndpointCell hosts={[]} kind="SINGLE" />);
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('IdcPortCell · webPort', () => {
+  it('웹 서버 포트면 숫자를 경고색으로, 주소 칸에는 Port 확인 배지를 단다', () => {
+    render(<IdcPortCell port={8080} warn />);
+    expect(screen.getByText('8080').className).toContain('--pl-warn-text');
+    render(<IdcEndpointCell hosts={['10.0.0.1']} kind="SINGLE" webPort />);
+    expect(screen.getByText('Port 확인')).toBeTruthy();
+  });
+
+  it('DB 포트이거나 warn 이 꺼져 있으면 숫자만 그린다', () => {
+    const { container, unmount } = render(<IdcPortCell port={3306} warn />);
+    expect(container.innerHTML).toBe('3306');
+    unmount();
+    const second = render(<IdcPortCell port={8080} />);
+    expect(second.container.innerHTML).toBe('8080');
   });
 });

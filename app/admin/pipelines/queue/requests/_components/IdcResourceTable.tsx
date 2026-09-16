@@ -39,7 +39,9 @@ import { SourceIpHeader } from '@/app/target-sources/[targetSourceId]/_component
 import {
   IdcDbTypeCell,
   IdcEndpointCell,
+  IdcPortCell,
   IdcSourceIpCell,
+  isWebPort,
 } from '@/app/admin/pipelines/queue/requests/_components/idcCells';
 import type { SuspectMark } from '@/app/admin/pipelines/queue/requests/_duplicateAddress';
 import { IDC_SOURCE_LABEL } from '@/lib/constants/idc';
@@ -81,6 +83,8 @@ export interface IdcResourceTableProps {
    * 바뀌어도 관계가 끊어지지 않는다.
    */
   suspectMarks?: ReadonlyMap<RequestResourceRow, SuspectMark>;
+  /** Mark ports a web server commonly uses (@see IdcPortCell). Request screen only. */
+  warnWebPorts?: boolean;
   /**
    * 요청의 판정 열 쌍(요청 대상 여부 · 제외 사유). 확정 정보처럼 **이미 판정이 끝난**
    * 목록에서는 두 열이 모든 행에서 같은 값이라(대상 · 빈칸) 통째로 내린다 — 열이 답하는
@@ -141,6 +145,7 @@ export function IdcResourceTable({
   onAssignNlb,
   onShowServices,
   suspectMarks,
+  warnWebPorts = false,
   showVerdict = true,
   reconcileColumn = false,
   assignDisabledReason,
@@ -223,6 +228,7 @@ export function IdcResourceTable({
                       hosts={row.connectTargets}
                       kind={idcAddressKind(row)}
                       tone={textColors.secondary}
+                      webPort={warnWebPorts && isWebPort(row.port)}
                       maxWidthClass="max-w-full"
                     />
                   </td>
@@ -234,8 +240,6 @@ export function IdcResourceTable({
                       sidMaxWidthClass="max-w-full"
                     />
                   </td>
-                  {/* 0 is the adapter's "no port in the payload" value, not a port — step
-                      1's own guard, so the two tables answer a missing port the same way. */}
                   <td
                     className={cn(
                       table.approvalCell,
@@ -244,7 +248,7 @@ export function IdcResourceTable({
                       CELL_LIFT,
                     )}
                   >
-                    {row.port || <span className={textColors.tertiary}>—</span>}
+                    <IdcPortCell port={row.port} warn={warnWebPorts} />
                   </td>
                   {/* The pill step 1 uses, not a text label: the verdict is the same fact
                       on both surfaces, and INSTALL_INELIGIBLE must not read as a revisable
@@ -285,6 +289,7 @@ export function IdcResourceTable({
                     hosts={row.connectTargets}
                     kind={idcAddressKind(row)}
                     suspect={mark}
+                    webPort={warnWebPorts && isWebPort(row.port)}
                     maxWidthClass="max-w-full"
                   />
                 </td>
@@ -299,7 +304,7 @@ export function IdcResourceTable({
                     CELL_LIFT,
                   )}
                 >
-                  {row.port || <span className={textColors.tertiary}>—</span>}
+                  <IdcPortCell port={row.port} warn={warnWebPorts} />
                 </td>
                 {showVerdict && (
                   <td className={table.approvalCell}>

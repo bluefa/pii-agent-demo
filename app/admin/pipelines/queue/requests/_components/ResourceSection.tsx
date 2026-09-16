@@ -170,6 +170,7 @@ export function ResourceSection({
             onAssignNlb={onAssignNlb}
             onShowServices={onShowServices}
             suspectMarks={marks}
+            warnWebPorts
             assignDisabledReason={nlbDisabledReason}
             servicesDisabledReason={servicesDisabledReason}
           />

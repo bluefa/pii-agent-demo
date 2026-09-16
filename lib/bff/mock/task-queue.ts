@@ -268,6 +268,9 @@ const SEED_APPROVAL_DEMO = new Map<number, ApprovalDemo>([
       { resource_id: 'idc-r-8f24', resource_name: 'mysql-order-dev', resource_type: 'IDC', selected: false,
         exclusion_reason: '개발(dev) 인스턴스 — 서비스 오너 제외',
         metadata: { provider: 'IDC', database_type: 'MySQL', port: 3306, idc_host_format: 'HOST', idc_host: 'db-mysql.order.dev.internal' } },
+      // 8f2c — 웹 서버를 등록한 것 아닌가 경고: Port 가 웹 서버 포트(8080)다.
+      { resource_id: 'idc-r-8f2c', resource_name: 'mysql-order-web', resource_type: 'IDC', selected: true,
+        metadata: { provider: 'IDC', database_type: 'MySQL', port: 8080, idc_host_format: 'HOST', idc_host: 'www.order.prod.internal', idc_source_ips: ['10.20.9.6'] } },
       // 아래 세 행은 '같은 데이터베이스를 두 번 등록한 것 아닌가' 경고를 위한 것이다.
       // IDC 는 스캔이 없어 담당자가 주소를 손으로 적으므로, 한 대를 두 줄로 올리는
       // 일이 실제로 생긴다. 두 건은 걸리고 한 건은 걸리지 않아야 조건이 눈에 보인다.
