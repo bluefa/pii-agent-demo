@@ -2882,6 +2882,24 @@ for (const project of mockProjects) {
   }
 }
 
+// 최근 생성 대상 중 일부는 **최초 연동을 마친 적 있는** 대상으로 둔다 — 연동 시점
+// (admin 연동 시작 날짜/최초 연동 완료확인 날짜) 표의 기본 창(최근 7일)에 완료 행과
+// 리드타임이 실제로 서게 하려고. 값은 "며칠 전에 완료됐나"이고 생성보다 뒤여야 한다.
+// 지금 단계가 설치 완료가 아니어도 모순이 아니다 — 위 주석대로 이 값은 초기화로
+// 되돌아가도 남는 한 번의 사실이다.
+const FIRST_INSTALLED_DAYS_AGO = new Map<number, number>([
+  [1801, 1.2], // 생성 3일 전 → 리드타임 1일 19시간
+  [1322, 2.5], // 생성 5일 전 → 2일 12시간
+  [1462, 1], // 생성 8일 전 → 7일
+  [1255, 9.5], // 생성 10일 전 → 12시간
+]);
+
+for (const project of mockProjects) {
+  const daysAgo = FIRST_INSTALLED_DAYS_AGO.get(project.targetSourceId);
+  if (daysAgo === undefined) continue;
+  project.piiAgentFirstInstalledAt = new Date(Date.now() - daysAgo * DAY_MS).toISOString();
+}
+
 // ===== Helper Functions =====
 
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
