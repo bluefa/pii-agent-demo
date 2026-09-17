@@ -1,6 +1,6 @@
 'use client';
 
-import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { formatDate } from '@/lib/utils/date';
@@ -65,6 +65,11 @@ export const IdcStep2WaitingApproval = ({
   // Rejected keeps the table (the reason names a DB), only the header switches state — same as
   // the cloud WaitingApprovalCard. The verdict rides the same fetch as the rows.
   const rejected = view.rejected;
+  // The verdict arrives with the fetch. Until then the badge, the guidance and the cancel button
+  // stay unresolved — painting the pending copy first would flash 승인 대기 → 반려 on every
+  // rejected load, and offer a cancel that a closed request answers with 404/409. An errored read
+  // falls through to the pending header, as it did before.
+  const resolved = state.status !== 'loading';
   const requestSummary =
     view.requestedAt && view.requestedBy
       ? { requestedAt: view.requestedAt, requestedBy: view.requestedBy }
@@ -131,22 +136,26 @@ export const IdcStep2WaitingApproval = ({
               <div className="flex items-center gap-2">
                 <span className={cardStyles.stepTag}>{t.step(2)}</span>
                 <h2 className={cardStyles.cardTitle}>{t.step2Title}</h2>
-                <span
-                  className={cn(
-                    // Rejected matches the 반려 사유 tag in the verdict quote below (cloud grammar).
-                    rejected
-                      ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
-                      : cardStyles.stepBadge,
-                    statusColors.warning.bg,
-                    statusColors.warning.textDark,
-                  )}
-                >
-                  {rejected ? t.badgeRejected : t.badgePending}
-                </span>
+                {resolved ? (
+                  <span
+                    className={cn(
+                      // Rejected matches the 반려 사유 tag in the verdict quote below (cloud grammar).
+                      rejected
+                        ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
+                        : cardStyles.stepBadge,
+                      statusColors.warning.bg,
+                      statusColors.warning.textDark,
+                    )}
+                  >
+                    {rejected ? t.badgeRejected : t.badgePending}
+                  </span>
+                ) : (
+                  <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[68px] rounded-full')} />
+                )}
               </div>
               {/* Card CTA sits beside the title — in a bottom dock the user only meets it past
                   the whole table. */}
-              {!rejected && (
+              {resolved && !rejected && (
                 <div className="shrink-0">
                   <WaitingApprovalCancelButton
                     targetSourceId={targetSourceId}
@@ -155,7 +164,14 @@ export const IdcStep2WaitingApproval = ({
                 </div>
               )}
             </div>
-            {rejected ? (
+            {!resolved ? (
+              // Two 25px bars = the guidance's two line boxes (16px × 1.55), touching, so the
+              // header keeps its height when the pending copy resolves (cloud step-2 grammar).
+              <div className="mt-3 flex flex-col">
+                <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[520px] max-w-full rounded')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[300px] max-w-full rounded')} />
+              </div>
+            ) : rejected ? (
               <RejectionVerdict
                 reason={rejected.reason}
                 processedAt={rejected.processedAt}
