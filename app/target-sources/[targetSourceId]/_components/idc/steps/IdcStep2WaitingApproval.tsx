@@ -1,18 +1,18 @@
 'use client';
 
-import { cardStyles, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { ErrorState } from '@/app/components/ui/state';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { formatDate } from '@/lib/utils/date';
 import { ResourceTableSkeleton } from '@/app/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { MetaField } from '@/app/target-sources/[targetSourceId]/_components/shared/MetaField';
-import {
-  RejectionAlert,
-} from '@/app/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
 import { WaitingApprovalStats } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import { WaitingApprovalToolbar } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import { ApprovalUnavailableCard } from '@/app/target-sources/[targetSourceId]/_components/layout/ApprovalUnavailableCard';
+import { RejectionVerdict } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectionVerdict';
+import { RejectedTargetRecord } from '@/app/target-sources/[targetSourceId]/_components/layout/RejectedTargetRecord';
+import { WaitingApprovalReselectButton } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalReselectButton';
 import { IdcResourceTable } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { useIdcApprovalTable } from '@/app/target-sources/[targetSourceId]/_components/idc/approval-table';
 import { useLocale } from '@/app/components/LocaleProvider';
@@ -28,6 +28,7 @@ import { useIdcRead } from '@/app/hooks/useIdcResources';
 const EMPTY_VIEW: IdcApprovalRequestView = {
   resources: [],
   unavailableReason: null,
+  rejected: null,
   requestedAt: null,
   requestedBy: null,
 };
@@ -61,6 +62,65 @@ export const IdcStep2WaitingApproval = ({
 
   const refreshProject = async () => onProjectUpdate(await getProject(targetSourceId));
 
+  // Rejected keeps the table (the reason names a DB), only the header switches state — same as
+  // the cloud WaitingApprovalCard. The verdict rides the same fetch as the rows.
+  const rejected = view.rejected;
+  // The verdict arrives with the fetch. Until then the badge, the guidance and the cancel button
+  // stay unresolved — painting the pending copy first would flash 승인 대기 → 반려 on every
+  // rejected load, and offer a cancel that a closed request answers with 404/409. An errored read
+  // falls through to the pending header, as it did before.
+  const resolved = state.status !== 'loading';
+  const requestSummary =
+    view.requestedAt && view.requestedBy
+      ? { requestedAt: view.requestedAt, requestedBy: view.requestedBy }
+      : null;
+
+  // Same list in both states — pending shows it outright, rejected tucks it behind the record
+  // disclosure (cloud WaitingApprovalCard grammar).
+  const listBlock = (
+    <>
+      {/* Tiles carry the all/target/excluded counts and double as that filter. */}
+      <WaitingApprovalStats
+        totalCount={table.countsByFilter.all}
+        selectedCount={table.countsByFilter.target}
+        excludedCount={table.countsByFilter.excluded}
+        filter={table.filter}
+        onFilterChange={table.onFilterChange}
+      />
+      {/* Toolbar (top-rounded) + table + pagination (bottom-rounded): one card, no gaps. */}
+      <WaitingApprovalToolbar
+        searchValue={table.searchValue}
+        onSearchChange={table.onSearchChange}
+        dbType={table.dbType}
+        onDbTypeChange={table.onDbTypeChange}
+        region={table.region}
+        onRegionChange={table.onRegionChange}
+        dbTypeOptions={table.dbTypeOptions}
+        regionOptions={table.regionOptions}
+        searchPlaceholder={t.searchPlaceholder}
+      />
+      <IdcResourceTable
+        resources={visibleResources}
+        // No 출발지: the BDC assigns it while the request is being reviewed, so at
+        // 승인 대기 the column would be empty on every row. Step 3 onward shows it.
+        cols={['excl']}
+        connected
+        emptyMessage={t.filterEmpty}
+      />
+      {table.filteredCount > 0 && (
+        <Pagination
+          size="md"
+          page={table.safePage}
+          pageSize={table.pageSize}
+          totalCount={table.filteredCount}
+          onPageChange={table.onPageChange}
+          onPageSizeChange={table.onPageSizeChange}
+          pageSizeOptions={[10, 20, 50, 100]}
+        />
+      )}
+    </>
+  );
+
   return (
     <>
       {view.unavailableReason != null ? (
@@ -76,95 +136,94 @@ export const IdcStep2WaitingApproval = ({
               <div className="flex items-center gap-2">
                 <span className={cardStyles.stepTag}>{t.step(2)}</span>
                 <h2 className={cardStyles.cardTitle}>{t.step2Title}</h2>
-                <span
-                  className={cn(
-                    cardStyles.stepBadge,
-                    statusColors.warning.bg,
-                    statusColors.warning.textDark,
-                  )}
-                >
-                  {t.badgePending}
-                </span>
+                {resolved ? (
+                  <span
+                    className={cn(
+                      // Rejected matches the 반려 사유 tag in the verdict quote below (cloud grammar).
+                      rejected
+                        ? 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[12px] font-medium'
+                        : cardStyles.stepBadge,
+                      statusColors.warning.bg,
+                      statusColors.warning.textDark,
+                    )}
+                  >
+                    {rejected ? t.badgeRejected : t.badgePending}
+                  </span>
+                ) : (
+                  <div className={cn(idcStyles.skeletonBar, 'h-[24px] w-[68px] rounded-full')} />
+                )}
               </div>
               {/* Card CTA sits beside the title — in a bottom dock the user only meets it past
                   the whole table. */}
-              <div className="shrink-0">
-                <WaitingApprovalCancelButton
-                  targetSourceId={targetSourceId}
-                  onSuccess={refreshProject}
-                />
-              </div>
+              {resolved && !rejected && (
+                <div className="shrink-0">
+                  <WaitingApprovalCancelButton
+                    targetSourceId={targetSourceId}
+                    onSuccess={refreshProject}
+                  />
+                </div>
+              )}
             </div>
-            {/* Blue marks the status sentence only; the rest drops to the secondary tone. */}
-            <p className={cn('mt-3', cardStyles.guidance)}>
-              <strong className={cn('font-semibold', primaryColors.text)}>{t.step2GuideEm}</strong>{' '}
-              {t.step2GuideRest}
-            </p>
-            {/* No top margin — the 1.55 leading is the paragraph break (cloud step-2 grammar). */}
-            <p className={cardStyles.guidance}>
-              {t.step2RetryBefore}
-              <strong className={cn('font-semibold', textColors.secondary)}>{t.retryRequest}</strong>
-              {t.step2RetryAfter}
-            </p>
-            {view.requestedAt && view.requestedBy && (
-              // 24px above it — the widest gap in the header, marking the boundary between
-              // "what happened / what to do" and reference facts.
-              <div className="mt-6 flex flex-wrap gap-8">
-                <MetaField label={t.metaRequestedAt} value={formatDate(view.requestedAt, 'datetime', locale)} />
-                <MetaField label={t.metaRequestedBy} value={view.requestedBy} />
+            {!resolved ? (
+              // Two 25px bars = the guidance's two line boxes (16px × 1.55), touching, so the
+              // header keeps its height when the pending copy resolves (cloud step-2 grammar).
+              <div className="mt-3 flex flex-col">
+                <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[520px] max-w-full rounded')} />
+                <div className={cn(idcStyles.skeletonBar, 'h-[25px] w-[300px] max-w-full rounded')} />
               </div>
+            ) : rejected ? (
+              <RejectionVerdict
+                reason={rejected.reason}
+                processedAt={rejected.processedAt}
+                processedBy={rejected.processedBy}
+                action={
+                  <WaitingApprovalReselectButton
+                    targetSourceId={targetSourceId}
+                    onSuccess={refreshProject}
+                  />
+                }
+              />
+            ) : (
+              <>
+                {/* Blue marks the status sentence only; the rest drops to the secondary tone. */}
+                <p className={cn('mt-3', cardStyles.guidance)}>
+                  <strong className={cn('font-semibold', primaryColors.text)}>{t.step2GuideEm}</strong>{' '}
+                  {t.step2GuideRest}
+                </p>
+                {/* No top margin — the 1.55 leading is the paragraph break (cloud step-2 grammar). */}
+                <p className={cardStyles.guidance}>
+                  {t.step2RetryBefore}
+                  <strong className={cn('font-semibold', textColors.secondary)}>{t.retryRequest}</strong>
+                  {t.step2RetryAfter}
+                </p>
+                {view.requestedAt && view.requestedBy && (
+                  // 24px above it — the widest gap in the header, marking the boundary between
+                  // "what happened / what to do" and reference facts.
+                  <div className="mt-6 flex flex-wrap gap-8">
+                    <MetaField label={t.metaRequestedAt} value={formatDate(view.requestedAt, 'datetime', locale)} />
+                    <MetaField label={t.metaRequestedBy} value={view.requestedBy} />
+                  </div>
+                )}
+              </>
             )}
           </header>
           <div className={cardStyles.body}>
             {state.status === 'loading' && <ResourceTableSkeleton />}
             {state.status === 'error' && <ErrorState message={t.loadFailed} />}
-            {state.status === 'ready' && (
-              <>
-                {/* Tiles carry the all/target/excluded counts and double as that filter. */}
-                <WaitingApprovalStats
-                  totalCount={table.countsByFilter.all}
-                  selectedCount={table.countsByFilter.target}
-                  excludedCount={table.countsByFilter.excluded}
-                  filter={table.filter}
-                  onFilterChange={table.onFilterChange}
-                />
-                {/* Toolbar (top-rounded) + table + pagination (bottom-rounded): one card, no gaps. */}
-                <WaitingApprovalToolbar
-                  searchValue={table.searchValue}
-                  onSearchChange={table.onSearchChange}
-                  dbType={table.dbType}
-                  onDbTypeChange={table.onDbTypeChange}
-                  region={table.region}
-                  onRegionChange={table.onRegionChange}
-                  dbTypeOptions={table.dbTypeOptions}
-                  regionOptions={table.regionOptions}
-                  searchPlaceholder={t.searchPlaceholder}
-                />
-                <IdcResourceTable
-                  resources={visibleResources}
-                  // No 출발지: the BDC assigns it while the request is being reviewed, so at
-                  // 승인 대기 the column would be empty on every row. Step 3 onward shows it.
-                  cols={['excl']}
-                  connected
-                  emptyMessage={t.filterEmpty}
-                />
-                {table.filteredCount > 0 && (
-                  <Pagination
-                    size="md"
-                    page={table.safePage}
-                    pageSize={table.pageSize}
-                    totalCount={table.filteredCount}
-                    onPageChange={table.onPageChange}
-                    onPageSizeChange={table.onPageSizeChange}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                  />
-                )}
-              </>
+            {state.status === 'ready' && !rejected && listBlock}
+            {state.status === 'ready' && rejected && (
+              <RejectedTargetRecord
+                totalCount={table.countsByFilter.all}
+                selectedCount={table.countsByFilter.target}
+                excludedCount={table.countsByFilter.excluded}
+                request={requestSummary}
+              >
+                {listBlock}
+              </RejectedTargetRecord>
             )}
           </div>
         </section>
       )}
-      <RejectionAlert project={project} />
     </>
   );
 };

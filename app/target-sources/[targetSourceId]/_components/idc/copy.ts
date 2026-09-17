@@ -205,6 +205,7 @@ const ko = {
   // --- step 2 -------------------------------------------------------------
   step2Title: '연동 대상 승인 대기',
   badgePending: '승인 대기',
+  badgeRejected: '반려',
   step2GuideEm: '관리자가 제출된 연동 대상 DB를 확인하고 있어요.',
   step2GuideRest:
     '평균 1일 이내(주말·공휴일 제외)에 확인이 완료되며, 이슈가 없으면 다음 단계로 넘어가요. 반려된 경우, 사유를 확인한 후 다시 제출해주세요.',
@@ -448,6 +449,7 @@ const en: typeof ko = {
   // --- step 2 -------------------------------------------------------------
   step2Title: 'Waiting for target approval',
   badgePending: 'Pending',
+  badgeRejected: 'Rejected',
   step2GuideEm: 'An admin is reviewing the target DBs you submitted.',
   step2GuideRest:
     'Review usually finishes within a day (weekends and holidays excluded), and you move to the next step if nothing comes up. If it is rejected, read the reason and submit again.',
