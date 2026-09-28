@@ -80,9 +80,12 @@ const PROC: ProcRow[] = [
   { ts: 1255, svc: '메일서비스', code: 'MAI', pv: 'AWS', st: 'CONNECTED', delay: 52100, at: '2026-07-20T05:11:00Z' },
 ];
 
-// One target per alert bucket that finished once and is going round again; the
-// rest of the monitor fixtures are on their first install.
-const PROC_REINSTALLING = new Set([1430, 1861, 1583, 1462]);
+// A few targets that finished once and are going round again — one per alert bucket,
+// one pending request (2113), one rejected (1907). The rest are on their first install.
+// Not in the swagger yet; TargetSourceInfo carries it camel.
+const PROC_REINSTALLING = new Set([1430, 1861, 1583, 1462, 2113, 1907]);
+const fixtureLifecycle = (ts: number) =>
+  PROC_REINSTALLING.has(ts) ? 'REINSTALLATION' : 'INITIAL_INSTALLATION';
 
 // ts → header identity (service/provider), sourced from the monitor list.
 const TS_INDEX = new Map(PROC.map((p) => [p.ts, p]));
@@ -775,6 +778,7 @@ function toTargetSourceInfoWire(r: RequestRow) {
     serviceCode: r.code,
     cloudProvider: r.pv,
     confirmStatus: r.cs,
+    installationLifecycleStatus: fixtureLifecycle(r.ts),
     metadata: toMetadataWire(r),
     latest_approval_request: hasRequest
       ? {
@@ -969,10 +973,7 @@ export const mockTaskQueue = {
       // alert drill-down and /process-statuses never disagree about a delay.
       status_changed_at: p.at,
       delay_seconds: p.delay,
-      // Not in the swagger yet; TargetSourceInfo carries it camel.
-      installationLifecycleStatus: PROC_REINSTALLING.has(p.ts)
-        ? 'REINSTALLATION'
-        : 'INITIAL_INSTALLATION',
+      installationLifecycleStatus: fixtureLifecycle(p.ts),
     }));
     return NextResponse.json(wirePage(content, query.page, query.size));
   },

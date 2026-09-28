@@ -69,7 +69,7 @@ describe('toAlertListPage — 계약 밖 지연 쌍', () => {
   });
 });
 
-describe('toAlertListPage — installation lifecycle (not in the swagger yet)', () => {
+describe('toAlertListPage — installation lifecycle (not in the swagger yet, read by toRequestListRow)', () => {
   it('carries a known camel value', () => {
     expect(firstRow({ ...ROW, installationLifecycleStatus: 'REINSTALLATION' }).installationLifecycleStatus)
       .toBe('REINSTALLATION');

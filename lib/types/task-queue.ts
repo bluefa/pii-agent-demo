@@ -89,6 +89,8 @@ export interface RequestListRow {
     requestedAt: string | null;
     processedAt: string | null;
   } | null;
+  /** `TargetSourceInfo.installationLifecycleStatus` — not in the swagger yet. null = not sent. */
+  installationLifecycleStatus: InstallationLifecycleStatus | null;
 }
 
 /**
@@ -101,8 +103,6 @@ export interface RequestListRow {
 export interface AlertListRow extends RequestListRow {
   delaySeconds: number | null;
   statusChangedAt: string | null;
-  /** `TargetSourceInfo.installationLifecycleStatus` — not in the swagger yet. null = not sent. */
-  installationLifecycleStatus: InstallationLifecycleStatus | null;
 }
 
 export interface TestConnectionStatusRow {
@@ -269,6 +269,9 @@ function toRequestListRow(row: z.infer<typeof schemas.TargetSourceInfo>): Reques
           processedAt: latest.processed_at ?? null,
         }
       : null,
+    // Undeclared on `TargetSourceInfo` for now — survives the parse via `.passthrough()`.
+    installationLifecycleStatus:
+      parseInstallationLifecycle(row.installationLifecycleStatus) ?? null,
   };
 }
 
@@ -283,19 +286,15 @@ export function toRequestListPage(
  *  Narrowed with `in` rather than asserted: this is external wire data, so the
  *  shape gets checked, not declared (anti-patterns A2). Absent fields resolve to
  *  null, which the worklist renders as '—'. */
-function readAlertDelayDelta(
-  row: unknown,
-): Pick<AlertListRow, 'delaySeconds' | 'statusChangedAt' | 'installationLifecycleStatus'> {
+function readAlertDelayDelta(row: unknown): Pick<AlertListRow, 'delaySeconds' | 'statusChangedAt'> {
   if (row === null || typeof row !== 'object') {
-    return { delaySeconds: null, statusChangedAt: null, installationLifecycleStatus: null };
+    return { delaySeconds: null, statusChangedAt: null };
   }
   const delay = 'delay_seconds' in row ? row.delay_seconds : null;
   const changedAt = 'status_changed_at' in row ? row.status_changed_at : null;
-  const lifecycle = 'installationLifecycleStatus' in row ? row.installationLifecycleStatus : null;
   return {
     delaySeconds: typeof delay === 'number' ? delay : null,
     statusChangedAt: typeof changedAt === 'string' ? changedAt : null,
-    installationLifecycleStatus: parseInstallationLifecycle(lifecycle) ?? null,
   };
 }
 

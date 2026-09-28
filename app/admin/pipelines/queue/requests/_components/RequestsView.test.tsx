@@ -53,6 +53,7 @@ const row = (over: Partial<RequestListRow> = {}): RequestListRow => ({
     requestedAt: '2026-08-20T02:00:00Z',
     processedAt: null,
   },
+  installationLifecycleStatus: null,
   ...over,
 });
 
@@ -228,8 +229,8 @@ describe('페이지는 고른 뷰만 넘어간다', () => {
   });
 });
 
-describe('여덟 열짜리 이력만 옆으로 민다', () => {
-  it('전체 이력의 행 블록에만 바닥값이 있고, 두 작업 뷰에는 없다', async () => {
+describe('좁으면 옆으로 민다 — 뷰마다 제 열 합이 바닥값이다', () => {
+  it('전체 이력과 작업 뷰가 각자의 바닥값을 든다', async () => {
     await draw('history');
     // 바닥값은 스크롤러가 아니라 **안쪽** 블록에 있어야 한다 — 블록의 scrollWidth 는
     // 제 상자 폭이라, 안쪽에 min-width 가 없으면 넘칠 것이 없어 스크롤러가 안 열린다.
@@ -240,16 +241,37 @@ describe('여덟 열짜리 이력만 옆으로 민다', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /승인 대기/ }));
     });
-    expect(screen.getByRole('table', { name: '연동 요청 확인 목록' }).className).not.toContain(
-      'min-w-',
+    // The Lifecycle column put the 작업 views over the 558 floor budget.
+    expect(screen.getByRole('table', { name: '연동 요청 확인 목록' }).className).toContain(
+      'min-w-[662px]',
     );
   });
 
-  it('최근 생성은 여섯 열이라 바닥값이 없다', async () => {
+  it('최근 생성은 대기 열이 없어 바닥값이 더 낮다', async () => {
     await draw('recent');
-    expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' }).className).not.toContain(
-      'min-w-',
+    expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' }).className).toContain(
+      'min-w-[590px]',
     );
+  });
+});
+
+describe('Lifecycle 열', () => {
+  it('행은 태그만 그리고, 설명은 열 머리글이 든다', async () => {
+    getRequestList.mockImplementation(() =>
+      Promise.resolve(paged([row({ installationLifecycleStatus: 'REINSTALLATION' })], 1)),
+    );
+    await draw('pending');
+
+    const tag = screen.getByText('재설치');
+    // A focus stop or a tooltip wrapper here would take the pointer from the row link.
+    expect(tag.getAttribute('tabindex')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lifecycle 설명' })).toBeTruthy();
+  });
+
+  it('값이 없으면 — 를 그린다', async () => {
+    await draw('pending');
+    expect(screen.queryByText('최초 설치')).toBeNull();
+    expect(screen.queryByText('재설치')).toBeNull();
   });
 });
 

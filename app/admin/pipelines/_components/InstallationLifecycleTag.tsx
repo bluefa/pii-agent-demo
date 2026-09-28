@@ -10,7 +10,7 @@ import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
-import type { InstallationLifecycleStatus } from '@/lib/types';
+import { INSTALLATION_LIFECYCLE_STATUSES, type InstallationLifecycleStatus } from '@/lib/types';
 
 export const INSTALLATION_LIFECYCLE_COPY: Record<
   InstallationLifecycleStatus,
@@ -26,7 +26,7 @@ export const INSTALLATION_LIFECYCLE_COPY: Record<
   REINSTALLATION: {
     label: '재설치',
     lines: [
-      '연동을 마친 적이 있고 지금 다시 설치하고 있습니다.',
+      '연동을 마친 뒤 다시 설치하고 있습니다.',
       '연동 초기화 뒤 1단계부터 다시 진행합니다.',
     ],
   },
@@ -38,16 +38,38 @@ export const INSTALLATION_LIFECYCLE_COPY: Record<
 
 export interface InstallationLifecycleTagProps {
   status: InstallationLifecycleStatus | null | undefined;
+  /**
+   * No tooltip, no focus stop — for rows covered by a row-link overlay, where a cell
+   * that takes the pointer kills the row click under it. The column header carries
+   * `InstallationLifecycleLegend` instead.
+   */
+  plain?: boolean;
   className?: string;
+}
+
+/** All three values with their first line — tooltip content for a column header. */
+export function InstallationLifecycleLegend(): ReactElement {
+  return (
+    <>
+      {INSTALLATION_LIFECYCLE_STATUSES.map((status) => (
+        <span key={status} className="block">
+          <span className="font-semibold">{INSTALLATION_LIFECYCLE_COPY[status].label}</span>{' '}
+          {INSTALLATION_LIFECYCLE_COPY[status].lines[0]}
+        </span>
+      ))}
+    </>
+  );
 }
 
 export function InstallationLifecycleTag({
   status,
+  plain = false,
   className,
 }: InstallationLifecycleTagProps): ReactElement | null {
   if (!status) return null;
   const copy = INSTALLATION_LIFECYCLE_COPY[status];
   const t = opsStyles.lifecycleTag;
+  if (plain) return <span className={cn(t.base, t.tone[status], className)}>{copy.label}</span>;
   return (
     <Tooltip
       triggerClassName="flex-none"

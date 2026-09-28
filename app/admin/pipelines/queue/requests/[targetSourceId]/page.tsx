@@ -318,6 +318,7 @@ export default function RequestDetailPage(): ReactElement {
               description={header?.description ?? null}
               provider={provider}
               serviceCode={header?.serviceCode ?? null}
+              lifecycle={header?.installationLifecycleStatus ?? null}
               requestedBy={detail?.request.requestedBy ?? null}
               requestedAt={detail?.request.requestedAt ?? null}
               pending={detail === null}
