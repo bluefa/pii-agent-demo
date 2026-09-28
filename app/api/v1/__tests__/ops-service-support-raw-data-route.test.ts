@@ -10,6 +10,8 @@ vi.mock('@/lib/bff/client', () => ({
 
 import { GET } from '@/app/api/v1/admin/ops/services/[serviceCode]/route';
 import { bff } from '@/lib/bff/client';
+import { schemas } from '@/lib/generated/install-v1';
+import type { OpsServiceDetail } from '@/app/lib/api/ops';
 
 const mockedPage = vi.mocked(bff.taskQueue.getTargetSourcesPage);
 
@@ -91,26 +93,27 @@ describe('GET …/admin/ops/services/[serviceCode] — 최초 연동 시각', ()
 /**
  * The lifecycle arrives camel on `TargetSourceInfo` and is not declared in the schema
  * yet, so this hop is the only place a wrong spelling or an unknown value can hide.
+ * No casts: the fixture goes through the generated schema, the response through its type.
  */
 describe('GET …/admin/ops/services/[serviceCode] — installation lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedPage.mockResolvedValue({
-      content: [
-        row(1001, { installationLifecycleStatus: 'REINSTALLATION' }),
-        row(1002, { installationLifecycleStatus: 'SOMETHING_NEW' }),
-        row(1003, { installation_lifecycle_status: 'INTEGRATION_COMPLETED' }),
-        row(1004, {}),
-      ],
-      totalPages: 1,
-      totalElements: 4,
-    } as never);
+    mockedPage.mockResolvedValue(
+      schemas.PageTargetSourceInfo.parse({
+        content: [
+          row(1001, { installationLifecycleStatus: 'REINSTALLATION' }),
+          row(1002, { installationLifecycleStatus: 'SOMETHING_NEW' }),
+          row(1003, { installation_lifecycle_status: 'INTEGRATION_COMPLETED' }),
+          row(1004, {}),
+        ],
+        totalPages: 1,
+        totalElements: 4,
+      }),
+    );
   });
 
   it('carries a known camel value and folds everything else to null', async () => {
-    const detail = (await (await call()).json()) as {
-      target_sources: { target_source_id: number; installation_lifecycle_status: string | null }[];
-    };
+    const detail: OpsServiceDetail = await (await call()).json();
     const byId = new Map(
       detail.target_sources.map((t) => [t.target_source_id, t.installation_lifecycle_status]),
     );

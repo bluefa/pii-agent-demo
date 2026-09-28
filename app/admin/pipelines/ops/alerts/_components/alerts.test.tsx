@@ -162,3 +162,19 @@ describe('AlertWorklist — 서버가 준 한 페이지를 그린다', () => {
     );
   });
 });
+
+describe('Lifecycle 열', () => {
+  it('행은 태그만 그리고, 설명은 열 머리글이 든다', () => {
+    render(worklist());
+
+    // The row is role="button": a focus stop inside it would nest one control in another.
+    const tag = screen.getByText('재설치');
+    expect(tag.getAttribute('tabindex')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lifecycle 설명' })).toBeTruthy();
+  });
+
+  it('값이 없으면 — 를 그린다', () => {
+    render(worklist({ rows: [{ ...ROW, installationLifecycleStatus: null }] }));
+    expect(screen.queryByText('재설치')).toBeNull();
+  });
+});

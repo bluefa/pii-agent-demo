@@ -28,7 +28,11 @@ import type { AlertStageIcon } from '@/app/admin/pipelines/ops/alerts/_component
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
-import { InstallationLifecycleTag } from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
+import {
+  InstallationLifecycleLegend,
+  InstallationLifecycleTag,
+} from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
@@ -98,9 +102,16 @@ function WorklistHead(): ReactElement {
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
         <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
-        <th className={cn(worklist.th, 'w-[23%]')}>서비스 이름</th>
-        <th className={cn(worklist.th, 'w-[23%]')}>설명</th>
-        <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>Lifecycle</th>
+        <th className={cn(worklist.th, 'w-[22%]')}>서비스 이름</th>
+        <th className={cn(worklist.th, 'w-[22%]')}>설명</th>
+        {/* The explanation sits here, not on the row tag: the row is itself a button,
+            and a focus stop inside it nests one control in another. */}
+        <th className={cn(worklist.th, 'w-[12%] min-w-[120px]')}>
+          <span className="inline-flex items-center gap-1">
+            Lifecycle
+            <InfoTooltip content={<InstallationLifecycleLegend />} label="Lifecycle 설명" />
+          </span>
+        </th>
         <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
         <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
       </tr>
@@ -199,7 +210,7 @@ export function AlertWorklist({
                   </td>
                   <td className={cn(d.cell, 'whitespace-nowrap')}>
                     {row.installationLifecycleStatus ? (
-                      <InstallationLifecycleTag status={row.installationLifecycleStatus} />
+                      <InstallationLifecycleTag status={row.installationLifecycleStatus} plain />
                     ) : (
                       <span className={d.elapsed}>—</span>
                     )}

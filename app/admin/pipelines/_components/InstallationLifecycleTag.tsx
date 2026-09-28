@@ -39,8 +39,8 @@ export const INSTALLATION_LIFECYCLE_COPY: Record<
 export interface InstallationLifecycleTagProps {
   status: InstallationLifecycleStatus | null | undefined;
   /**
-   * No tooltip, no focus stop — for rows covered by a row-link overlay, where a cell
-   * that takes the pointer kills the row click under it. The column header carries
+   * No tooltip, no focus stop — for table rows that are themselves one control (a
+   * row-link overlay, or a `role="button"` row). The column header carries
    * `InstallationLifecycleLegend` instead.
    */
   plain?: boolean;
