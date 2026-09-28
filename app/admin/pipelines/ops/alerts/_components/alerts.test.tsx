@@ -32,6 +32,8 @@ const ROW: AlertListRow = {
   description: '정산 마감 배치 RDS',
   serviceCode: 'STL',
   cloudProvider: 'AWS',
+  isSduType: false,
+  isChinaRegion: false,
   confirmStatus: 'CONFIRMED',
   createdAt: '2026-07-10T09:00:00Z',
   latestApprovalRequest: null,

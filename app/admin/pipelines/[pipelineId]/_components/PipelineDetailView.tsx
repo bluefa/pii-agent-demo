@@ -23,10 +23,11 @@ import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
-import { normalizeCloudProvider } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
 import { Card } from '@/app/admin/pipelines/_components/Card';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { PlEmptyState } from '@/app/admin/pipelines/_components/PlEmptyState';
+import { ChinaTag } from '@/app/admin/pipelines/_components/ChinaTag';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
@@ -362,7 +363,8 @@ export function PipelineDetailView(): ReactElement {
   // SDU targets read as "SDU" (over the AWS/GCP/… CSP). The task-definition
   // catalog fetch above still uses the real cloud_provider — SDU is a display
   // concern, not an orchestrator provider.
-  const provider = displayProvider(detail.cloud_provider, detail.is_sdu_type);
+  const isSdu = isSduTarget(detail);
+  const provider = displayProvider(detail.cloud_provider, isSdu);
   const recipeDesc = recipeLabel(detail.recipe_definition)?.desc;
   const selectedDetail = selected ? detailMap.get(selected.task_id) ?? null : null;
   const cancellable = canCancel(detail.status, detail.cancel_requested);
@@ -421,7 +423,7 @@ export function PipelineDetailView(): ReactElement {
               id was the same mark twice. */}
           <ProviderLogo
             provider={normalizeCloudProvider(detail.cloud_provider)}
-            isSdu={detail.is_sdu_type}
+            isSdu={isSdu}
             variant="bare"
             tone="brand"
             className="flex-none self-center"
@@ -450,7 +452,8 @@ export function PipelineDetailView(): ReactElement {
               {/* SDU is a classification, not a vendor — the brand mark on the
                   left cannot say it, so it keeps its chip. Every other provider
                   is fully drawn by that mark and adds nothing here. */}
-              {detail.is_sdu_type && <span className={h.sduChip}>SDU</span>}
+              {isSdu && <span className={h.sduChip}>SDU</span>}
+              {detail.is_china_region === true && <ChinaTag />}
               {/* Labelled like the tier below it (서비스 이름 / 코드): a bare
                   "#1003" does not say what it numbers (owner 2026-08-16). */}
               <span className={h.klabel}>Target</span>

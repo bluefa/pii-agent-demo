@@ -300,7 +300,11 @@ function Row({ row }: { row: IntegrationTimelineRow }): ReactElement {
       <td className={tableStyles.cell}>{row.serviceName ?? EMPTY_CELL}</td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{row.serviceCode ?? EMPTY_CELL}</td>
       <td className={tableStyles.cell}>
-        <ProvTag provider={row.cloudProvider ?? ''} />
+        <ProvTag
+          provider={row.cloudProvider ?? ''}
+          isSdu={row.isSduType}
+          isChina={row.isChinaRegion}
+        />
       </td>
       <td className={cn(tableStyles.cell, ts.cellMono)}>{formatWireDay(row.createdAt)}</td>
       <td className={cn(tableStyles.cell, ts.cellMono, !installed && ts.dim)}>{firstInstalled}</td>

@@ -121,6 +121,8 @@ export interface PipelineSummary {
   /** True when the owning target is an SDU account — surfaced as "SDU" over the
    *  underlying CSP (passthrough from the target metadata; assumed addition). */
   is_sdu_type?: boolean;
+  /** 중국 리전 — requested from the BE 2026-09-28 (assumed addition, same passthrough). */
+  is_china_region?: boolean;
   /** RecipeDefinition constant name; null for CUSTOM pipelines (no catalog recipe). */
   recipe_definition: string | null;
   status: PipelineStatus;
@@ -175,6 +177,8 @@ export interface PipelineDetail {
   /** True when the owning target is an SDU account — surfaced as "SDU" over the
    *  underlying CSP (passthrough from the target metadata; assumed addition). */
   is_sdu_type?: boolean;
+  /** 중국 리전 — requested from the BE 2026-09-28 (assumed addition, same passthrough). */
+  is_china_region?: boolean;
   /** RecipeDefinition constant name; null for CUSTOM pipelines (no catalog recipe). */
   recipe_definition: string | null;
   status: PipelineStatus;

@@ -30,6 +30,8 @@ const row = (over: Partial<IntegrationTimelineRow> = {}): IntegrationTimelineRow
   serviceCode: 'SVC-PAY',
   serviceName: '결제 정산',
   cloudProvider: 'AWS',
+  isSduType: false,
+  isChinaRegion: false,
   confirmStatus: 'CONFIRMED',
   createdAt: '2026-07-02T10:12:00+09:00',
   piiAgentFirstInstalledAt: '2026-07-11T16:40:00+09:00',

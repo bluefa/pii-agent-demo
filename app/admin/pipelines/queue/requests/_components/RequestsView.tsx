@@ -220,8 +220,9 @@ const rq = {
   mono: 'text-[12px] text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
   // 48 = '#1801'(12px mono ≈ 36)과 'Target' 머리글(34) 중 큰 쪽에 여유.
   target: 'w-[48px] min-w-0 shrink truncate',
-  // 72 = ProvTag 의 가장 긴 조합('Azure' + 글리프 + gap). 64 에서는 글리프가 붙었다.
-  cloud: 'w-[72px] min-w-0 shrink truncate',
+  // 88 = ProvTag 의 가장 긴 조합('Azure' + 글리프 + gap + 「중국」 칩 = 86). 72 는 칩이
+  // 없던 때의 값이라 'AWS 중국'(80)이 잘렸다.
+  cloud: 'w-[88px] min-w-0 shrink truncate',
   // 84 = the widest tag ('연동 내용 변경', measured 80.1) with slack. The header
   // ('Lifecycle' + the 13px (?) glyph) is 64.
   lifecycle: 'flex w-[84px] min-w-0 shrink items-center gap-1',
@@ -609,7 +610,11 @@ const actionRows = (
           {row.serviceCode ?? '—'}
         </span>
         <span role="cell" className={rq.cloud}>
-          <ProvTag provider={row.cloudProvider ?? ''} />
+          <ProvTag
+            provider={row.cloudProvider ?? ''}
+            isSdu={row.isSduType}
+            isChina={row.isChinaRegion}
+          />
         </span>
         <LifecycleCell row={row} />
         {/* 미리보기 한 줄. 전문은 행을 눌러 연동 요청 상세에서 —
@@ -740,7 +745,11 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                         {row.serviceCode ?? '—'}
                       </span>
                       <span role="cell" className={rq.cloud}>
-                        <ProvTag provider={row.cloudProvider ?? ''} />
+                        <ProvTag
+                          provider={row.cloudProvider ?? ''}
+                          isSdu={row.isSduType}
+                          isChina={row.isChinaRegion}
+                        />
                       </span>
                       <LifecycleCell row={row} />
                       <span role="cell" className={rq.note}>
@@ -783,7 +792,11 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                       {row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}
                     </span>
                     <span role="cell" className={rq.cloud}>
-                      <ProvTag provider={row.cloudProvider ?? ''} />
+                      <ProvTag
+                        provider={row.cloudProvider ?? ''}
+                        isSdu={row.isSduType}
+                        isChina={row.isChinaRegion}
+                      />
                     </span>
                     <span role="cell" className={rq.status}>
                       <HistoryStatusPill status={row.status} />

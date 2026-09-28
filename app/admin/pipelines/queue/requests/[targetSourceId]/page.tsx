@@ -317,6 +317,8 @@ export default function RequestDetailPage(): ReactElement {
               targetSourceId={targetSourceId}
               description={header?.description ?? null}
               provider={provider}
+              isSdu={header?.isSduType}
+              isChina={header?.isChinaRegion}
               serviceCode={header?.serviceCode ?? null}
               lifecycle={header?.installationLifecycleStatus ?? null}
               requestedBy={detail?.request.requestedBy ?? null}

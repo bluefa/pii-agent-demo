@@ -44,6 +44,8 @@ const row = (over: Partial<RequestListRow> = {}): RequestListRow => ({
   description: '정산 마감 배치 RDS',
   serviceCode: 'STL',
   cloudProvider: 'AWS',
+  isSduType: false,
+  isChinaRegion: false,
   confirmStatus: 'PENDING',
   createdAt: '2026-08-19T02:00:00Z',
   latestApprovalRequest: {
@@ -67,6 +69,8 @@ const historyRow: ApprovalHistoryRow = {
   serviceCode: 'HIS',
   actorId: 'admin@example.com',
   cloudProvider: 'AWS',
+  isSduType: false,
+  isChinaRegion: false,
 };
 
 const paged = <T,>(content: T[], totalElements: number, totalPages = 1): Paged<T> => ({

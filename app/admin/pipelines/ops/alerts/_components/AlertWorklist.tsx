@@ -192,7 +192,11 @@ export function AlertWorklist({
               const cells = (
                 <>
                   <td className={cn(d.cell, 'whitespace-nowrap')}>
-                    <ProvTag provider={row.cloudProvider ?? ''} />
+                    <ProvTag
+                      provider={row.cloudProvider ?? ''}
+                      isSdu={row.isSduType}
+                      isChina={row.isChinaRegion}
+                    />
                   </td>
                   <td className={d.cell}>
                     <span className={worklist.idValue}>{id ?? '—'}</span>

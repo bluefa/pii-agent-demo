@@ -14,6 +14,7 @@
 import { parseInstallationLifecycle, type InstallationLifecycleStatus } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
+import { isSduTarget } from '@/lib/types';
 
 export interface Paged<T> {
   content: T[];
@@ -59,7 +60,18 @@ export type AlertTargetKind = (typeof ALERT_TARGET_KINDS)[number];
 export const isAlertTargetKind = (value: string): value is AlertTargetKind =>
   (ALERT_TARGET_KINDS as readonly string[]).includes(value);
 
-export interface ProcessStatusRow {
+/**
+ * What a row's target is beyond its CSP. Every `Cloud` cell reads these two, so a
+ * target looks the same in every admin table.
+ */
+export interface TargetKindFlags {
+  /** An SDU target reads as "SDU" over its underlying CSP (`cloud_provider` stays AWS). */
+  isSduType: boolean;
+  /** 중국 리전. Not hidden on an SDU row — where the data lives is the target's own fact. */
+  isChinaRegion: boolean;
+}
+
+export interface ProcessStatusRow extends TargetKindFlags {
   targetSourceId: number | null;
   processStatus: string | null;
   statusChangedAt: string | null;
@@ -71,7 +83,7 @@ export interface ProcessStatusRow {
   cloudProvider: string | null;
 }
 
-export interface RequestListRow {
+export interface RequestListRow extends TargetKindFlags {
   targetSourceId: number | null;
   serviceName: string | null;
   /** TargetSourceInfo.description — what this target source is, in the owner's words. */
@@ -138,9 +150,12 @@ export interface ApprovalHistoryItemWire {
   actorId?: string | null;
   /** Target source cloud — UPPERCASE wire (AWS | AZURE | GCP | IDC). */
   cloudProvider?: string | null;
+  /** Requested from the BE 2026-09-28, not confirmed on the wire — absent reads as false. */
+  isSduType?: boolean | null;
+  isChinaRegion?: boolean | null;
 }
 
-export interface ApprovalHistoryRow {
+export interface ApprovalHistoryRow extends TargetKindFlags {
   /** Unique row key (targetSourceId/requestId may repeat). Not rendered. */
   historyRecordId: number | null;
   /** Carried for the detail lookup (…/{targetSourceId}/approval-requests/{requestId}); not rendered. */
@@ -228,6 +243,36 @@ export function toDashboardSummary(
   };
 }
 
+/**
+ * One SDU/중국 judgement for every row. SDU ORs the flag with `cloud_provider: "SDU"`
+ * (`isSduTarget`) — the contract says it in both places.
+ */
+const toTargetKindFlags = (
+  cloudProvider: string | null | undefined,
+  isSduType: unknown,
+  isChinaRegion: unknown,
+): TargetKindFlags => ({
+  isSduType: isSduTarget({ is_sdu_type: isSduType === true, cloud_provider: cloudProvider }),
+  isChinaRegion: isChinaRegion === true,
+});
+
+/**
+ * Tolerant reader for the camel flag pair requested on `TargetSourceMetadataResponse`
+ * (2026-09-28). The contract does not declare them yet, so they ride the generated
+ * schema's passthrough and are narrowed with `in`, not asserted (same treatment as
+ * `readAlertDelayDelta`). Absent → false, which draws the row as it was drawn before.
+ */
+function readCamelKindFlags(source: unknown, cloudProvider: string | null | undefined): TargetKindFlags {
+  if (source === null || typeof source !== 'object') {
+    return toTargetKindFlags(cloudProvider, false, false);
+  }
+  return toTargetKindFlags(
+    cloudProvider,
+    'isSduType' in source ? source.isSduType : false,
+    'isChinaRegion' in source ? source.isChinaRegion : false,
+  );
+}
+
 function toProcessStatusRow(
   row: z.infer<typeof schemas.ProcessStatusCurrentResponse>,
 ): ProcessStatusRow {
@@ -241,6 +286,7 @@ function toProcessStatusRow(
     serviceCode: info?.code ?? null,
     serviceAbbr: info?.abbr ?? null,
     cloudProvider: row.target_source?.cloudProvider ?? null,
+    ...readCamelKindFlags(row.target_source, row.target_source?.cloudProvider),
   };
 }
 
@@ -258,6 +304,11 @@ function toRequestListRow(row: z.infer<typeof schemas.TargetSourceInfo>): Reques
     description: row.description ?? null,
     serviceCode: row.serviceCode ?? null,
     cloudProvider: row.cloudProvider ?? null,
+    ...toTargetKindFlags(
+      row.cloudProvider,
+      row.metadata?.is_sdu_type,
+      row.metadata?.is_china_region,
+    ),
     confirmStatus: row.confirmStatus ?? null,
     createdAt: row.createdAt ?? null,
     latestApprovalRequest: latest
@@ -336,6 +387,7 @@ export function toApprovalHistoryRow(row: ApprovalHistoryItemWire): ApprovalHist
     serviceCode: row.serviceCode ?? null,
     actorId: row.actorId ?? null,
     cloudProvider: row.cloudProvider ?? null,
+    ...toTargetKindFlags(row.cloudProvider, row.isSduType, row.isChinaRegion),
   };
 }
 
@@ -425,13 +477,16 @@ export interface IntegrationTimelineWire {
   created_at?: string | null;
   pii_agent_first_installed_at?: string | null;
   lead_time_seconds?: number | null;
+  /** Requested from the BE 2026-09-28, not confirmed on the wire — absent reads as false. */
+  is_sdu_type?: boolean | null;
+  is_china_region?: boolean | null;
 }
 
 export type IntegrationTimelinePageWire = WirePageMeta & {
   content?: IntegrationTimelineWire[] | null;
 };
 
-export interface IntegrationTimelineRow {
+export interface IntegrationTimelineRow extends TargetKindFlags {
   targetSourceId: number | null;
   serviceCode: string | null;
   serviceName: string | null;
@@ -455,6 +510,7 @@ function toIntegrationTimelineRow(row: IntegrationTimelineWire): IntegrationTime
     serviceCode: row.service_code ?? null,
     serviceName: row.service_name ?? null,
     cloudProvider: row.cloud_provider ?? null,
+    ...toTargetKindFlags(row.cloud_provider, row.is_sdu_type, row.is_china_region),
     confirmStatus: row.confirm_status ?? null,
     createdAt: row.created_at ?? null,
     piiAgentFirstInstalledAt: row.pii_agent_first_installed_at ?? null,

@@ -64,6 +64,8 @@ const HEADER_ROW: RequestListRow = {
   description: null,
   serviceCode: 'ORD',
   cloudProvider: 'IDC',
+  isSduType: false,
+  isChinaRegion: false,
   confirmStatus: 'CONFIRMED',
   createdAt: '2026-07-10T09:00:00Z',
   latestApprovalRequest: null,

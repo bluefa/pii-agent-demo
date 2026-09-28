@@ -1062,6 +1062,15 @@ const toTaskSummary = (t: MockTask): TaskSummary => ({
 const sduForTarget = (targetSourceId: string): boolean =>
   getProjectByTargetSourceId(Number(targetSourceId))?.isSduType === true;
 
+/** 중국 리전 flag for a pipeline's target — same join, requested pair (2026-09-28). */
+const chinaForTarget = (targetSourceId: string): boolean => {
+  const project = getProjectByTargetSourceId(Number(targetSourceId));
+  return (
+    project?.cloudProvider === 'AWS'
+    && (project.isChinaRegion ?? project.awsRegionType === 'china')
+  );
+};
+
 const toSummary = (p: MockPipeline): PipelineSummary => ({
   pipeline_id: p.pipeline_id,
   type: p.type,
@@ -1070,6 +1079,7 @@ const toSummary = (p: MockPipeline): PipelineSummary => ({
   service_name: p.service_name,
   cloud_provider: p.cloud_provider,
   is_sdu_type: sduForTarget(p.target_source_id),
+  is_china_region: chinaForTarget(p.target_source_id),
   recipe_definition: p.recipe_definition,
   status: p.status,
   done_task_count: doneCount(p),
@@ -1115,6 +1125,7 @@ const toDetail = (p: MockPipeline): PipelineDetail => {
     target_source_id: p.target_source_id,
     cloud_provider: p.cloud_provider,
     is_sdu_type: sduForTarget(p.target_source_id),
+    is_china_region: chinaForTarget(p.target_source_id),
     recipe_definition: p.recipe_definition,
     status: p.status,
     created_at: p.created_at,

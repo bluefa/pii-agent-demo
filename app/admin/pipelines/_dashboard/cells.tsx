@@ -22,6 +22,7 @@ import {
   providerLabel,
   statusKo,
 } from '@/lib/pipeline/format';
+import { ChinaTag } from '@/app/admin/pipelines/_components/ChinaTag';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ProviderGlyph } from '@/app/components/ui/CloudProviderIcon';
 import type { CloudProvider, PipelineStatus } from '@/lib/pipeline/types';
@@ -52,12 +53,15 @@ export function TargetCell({
   targetId,
   provider,
   isSdu,
+  isChina,
 }: {
   name: string;
   code: string;
   targetId: string;
   provider: CloudProvider | string;
   isSdu?: boolean;
+  /** 중국 리전 — a chip at the end of the id line, kept on an SDU target too. */
+  isChina?: boolean;
 }): ReactElement {
   const shown = displayProvider(provider, isSdu);
   return (
@@ -73,6 +77,7 @@ export function TargetCell({
           <span className={d.identityCode}>
             코드: <span className={d.identityCodeValue}>{code}</span>
           </span>
+          {isChina && <ChinaTag />}
         </span>
         <span className={d.identityName}>{name}</span>
       </span>
