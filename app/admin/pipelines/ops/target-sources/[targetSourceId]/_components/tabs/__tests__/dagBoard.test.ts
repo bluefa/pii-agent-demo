@@ -49,6 +49,7 @@ const db = (
   succeededThisWeek,
   lastSuccessAt: null,
   days: dayStatuses.map((s) => day(s)),
+  latestTableCount: succeededThisWeek ? 12 : null,
 });
 
 const RESPONSE: DagStatusResponse = {
@@ -67,6 +68,7 @@ const RESPONSE: DagStatusResponse = {
         db('mysql://10.0.0.1:3306/billing', 'billing', false, ['FAILED']),
         db('mysql://10.0.0.1:3306/legacy', null, false, ['NOT_SCHEDULED']),
       ],
+      latestTableCountSum: 12,
     },
     {
       agentId: 'agent-2',
@@ -77,8 +79,10 @@ const RESPONSE: DagStatusResponse = {
         db('mysql://10.0.0.2:3306/ratings', 'ratings', false, ['RUNNING']),
         db('mysql://10.0.0.2:3306/weird', 'weird', false, ['SOMETHING_NEW']),
       ],
+      latestTableCountSum: 0,
     },
   ],
+  latestTableCountSum: 12,
 };
 
 describe('flattenDagRows / countBuckets', () => {
@@ -185,6 +189,8 @@ describe('summarizeAgents — 문제 우선 + bucket 합', () => {
       failed: 1,
       unscheduled: 1,
       other: 0,
+      // BE 가 센 합을 그대로 나른다 — 행의 latestTableCount 를 다시 더하지 않는다.
+      latestTableCountSum: 12,
     });
   });
 });
@@ -266,6 +272,7 @@ describe('agentVerdict — 행의 종합 상태 (모든 행에 알약)', () => {
     running: 0,
     unscheduled: 0,
     other: 0,
+    latestTableCountSum: 40,
   };
 
   it('연결이 SUCCESS 가 아니면 관측을 못 믿는다 — 수 없이 확인 필요', () => {

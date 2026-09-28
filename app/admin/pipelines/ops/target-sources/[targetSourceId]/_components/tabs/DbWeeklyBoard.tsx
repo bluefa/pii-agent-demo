@@ -52,6 +52,7 @@
  */
 import { useMemo, useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { fmtDateTime, fmtDateTimeShort } from '@/lib/pipeline/format';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -341,6 +342,14 @@ export function DbWeeklyBoard({
                   <th className={opsStyles.table.headCell}>최근 7일</th>
                   <th className={opsStyles.table.headCell}>판정</th>
                   <th className={opsStyles.table.headCell}>마지막 성공</th>
+                  {/* 마지막 성공 실행이 읽은 Table 수 — 시각 바로 옆: 같은 실행의 두 사실이다.
+                      (?) 는 에이전트 표·카운트 줄과 같은 문장. */}
+                  <th className={opsStyles.table.headCell}>
+                    <span className="inline-flex items-center gap-1">
+                      Table 수
+                      <InfoTooltip variant="value" content="가장 최근에 성공한 DAG 실행이 읽은 Table 수예요." />
+                    </span>
+                  </th>
                   <th className={opsStyles.table.headCell}>DAG</th>
                 </tr>
               </thead>
@@ -362,6 +371,18 @@ export function DbWeeklyBoard({
                     </td>
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap font-mono text-[12px] tabular-nums')}>
                       {row.db.lastSuccessAt ? fmtDateTime(row.db.lastSuccessAt) : <Dash />}
+                    </td>
+                    {/* null = 읽을 성공 실행이 없다 → 대시 대신 말로 (오너 2026-09-28: "Table 개수
+                        확인 안 됨") — DAG 없음 칸과 같은 문법(대시는 "칸이 비었다"까지만 말한다).
+                        0 은 실행이 Table 을 0 개 읽었다는 사실이라 0 으로 선다. */}
+                    <td className={cn(opsStyles.table.cell, 'whitespace-nowrap text-[12px]')}>
+                      {row.db.latestTableCount === null ? (
+                        <span className="text-[var(--pl-text-weak)]" title="성공한 DAG 실행이 없어 읽은 Table 수를 알 수 없어요">
+                          Table 개수 확인 안 됨
+                        </span>
+                      ) : (
+                        <span className="font-mono tabular-nums">{row.db.latestTableCount.toLocaleString('ko-KR')}</span>
+                      )}
                     </td>
                     {/* DAG 는 행을 실행하는 주체의 이름 — 판정이 아니라 참조라 오른쪽
                         끝, 흐린 mono 의 맨 글자. 이름이 없는 행은 대시 대신 말로(대시는 "칸이

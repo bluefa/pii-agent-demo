@@ -31,6 +31,8 @@
  *
  * 행 = dag-status 응답의 agent 하나. 열은 Resource Name · Resource ID · Database Type ·
  * Region · Monitoring 상태 — Step 1 리소스 표와 같은 순서·같은 열 이름.
+ * 규모 열은 둘이다 — 논리 DB 수, 그리고 그 DB 들의 가장 최근 성공 실행이 읽은 Table 수의 합
+ * (`latestTableCountSum`, 2026-09-28 응답 확장). 둘 다 BE 값 그대로다.
  *
  * §10 이 리소스에 대해 보증하는 것은 `resourceId` 와 `gcpRegion` 뿐이라, 나머지 세 칸
  * (이름·엔진·비-GCP 리전)은 확정 정보와 resourceId 로 조인해서 채운다(agentFacts).
@@ -70,6 +72,7 @@ import { ConsoleTable, type ConsoleTableColumn } from '@/app/components/ui/Conso
 import { useColumnResize } from '@/app/components/ui/useColumnResize';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { SortCaretIcon } from '@/app/components/ui/icons';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { IDC_COLUMN_WIDTHS } from '@/app/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { CONNECTED_FRAME } from '@/app/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
@@ -131,6 +134,8 @@ const PAGER_FROM = 6;
 const COL_W = { name: 250, id: 300, dbType: 150, region: 170, status: 230 } as const;
 /** 관측 규모 열 — IDC 단계 표의 `연동 논리 DB` 와 같은 폭. 같은 것을 세는 열이다. */
 const LDB_W = IDC_COLUMN_WIDTHS.logicalDb;
+/** Table 수 열 — 라벨 + 17px (?) 가 83px 라 논리 DB 의 96(안쪽 60)에서 잘린다(브라우저 실측 2026-09-28). */
+const TABLES_W = 124;
 const CLOUD_FLEX = ['id'] as const;
 const IDC_FLEX = ['endpoint'] as const;
 
@@ -239,6 +244,23 @@ export function AgentDagTable({
     // 같다. 시안 A 가 분수를 걷으면서 이 수까지 같이 잃었고, 그 바람에 정상 행에는
     // 진입이 하나도 남지 않았다 (오너 2026-08-26).
     { key: 'ldb', label: '논리 DB', width: LDB_W },
+    // Table 수는 논리 DB 옆에 선다 — 같은 리소스의 규모를 두 단위로 말하는 두 열이다.
+    // 머리의 (?) 가 이 수의 뜻을 진다: 「논리 DB 마다 가장 최근 성공한 DAG 실행이 읽은 Table 수의 합」.
+    {
+      key: 'tables',
+      label: 'Table 수',
+      width: TABLES_W,
+      head: (
+        <span className="inline-flex items-center gap-1">
+          Table 수
+          <InfoTooltip
+            variant="value"
+            iconSize={17}
+            content="논리 DB마다 가장 최근에 성공한 DAG 실행이 읽은 Table 수를 모두 더한 값이에요."
+          />
+        </span>
+      ),
+    },
     {
       key: 'status',
       label: 'Monitoring 상태',
@@ -430,6 +452,11 @@ export function AgentDagTable({
                       ) : (
                         <Dash />
                       )}
+                    </td>
+                    {/* 가장 최근 성공 실행이 읽은 Table 수의 합 — BE 가 센 수라 0 도 수다.
+                        대시는 보드의 행 단위 null(읽을 성공 실행 없음)에만 쓴다. */}
+                    <td className={cn(CELL, 'font-mono tabular-nums')}>
+                      {agent.latestTableCountSum.toLocaleString('ko-KR')}
                     </td>
                     {/* 판정 칸은 낱말 하나다 (오너 2026-08-26) — 수는 옆의 규모 열이
                         전부 진다. 한 칸이 판정과 수를 같이 지면, 분수를 걷어 낸 이유

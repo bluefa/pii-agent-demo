@@ -210,6 +210,7 @@ export function AirflowTab({ targetSourceId, isIdc, dag }: AirflowTabProps): Rea
                 agg={agg}
                 onShowAttention={() => board.open({ filter: 'attention' })}
                 onOpenBoard={() => board.open({ filter: 'ALL' })}
+                latestTableCountSum={dag.data.latestTableCountSum}
               />
             </div>
             {/* 에이전트가 1개뿐이어도 그린다 — 요약은 리소스가 무엇인지 말하지 않는다. */}

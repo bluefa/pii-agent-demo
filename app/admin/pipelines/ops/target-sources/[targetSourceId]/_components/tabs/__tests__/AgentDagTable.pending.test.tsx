@@ -42,10 +42,13 @@ const DATA: DagStatusResponse = {
             status: 'SUCCESS',
             successTime: '2026-08-27T00:00:00Z',
           })),
+          latestTableCount: 7,
         },
       ],
+      latestTableCountSum: 7,
     },
   ],
+  latestTableCountSum: 7,
 };
 
 const table = (confirmed: Parameters<typeof AgentDagTable>[0]['confirmed']) =>

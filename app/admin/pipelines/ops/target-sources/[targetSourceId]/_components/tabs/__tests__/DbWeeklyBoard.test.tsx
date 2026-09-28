@@ -16,6 +16,8 @@ const db = (i: number, dagName: string | null): DagDatabaseStatus => ({
   succeededThisWeek: dagName !== null,
   lastSuccessAt: null,
   days: [],
+  // 이름 없는 행 = 성공 없음 = 읽을 실행 없음(null). 나머지는 0 을 포함한 수.
+  latestTableCount: dagName ? i - 1 : null,
 });
 
 const response = (rows: number, nullDagAt: number | null = null): DagStatusResponse => ({
@@ -32,8 +34,10 @@ const response = (rows: number, nullDagAt: number | null = null): DagStatusRespo
       databaseStatuses: Array.from({ length: rows }, (_, i) =>
         db(i + 1, i === nullDagAt ? null : `pii_scan_db_${i + 1}`),
       ),
+      latestTableCountSum: 0,
     },
   ],
+  latestTableCountSum: 0,
 });
 
 const mount = (data: DagStatusResponse, agentId: string | null = null) =>
@@ -66,7 +70,7 @@ describe('DbWeeklyBoard — 머리와 맥락 줄', () => {
     expect(toolbar?.textContent).not.toContain('최근 7일');
     expect(toolbar?.textContent).not.toContain('KST');
     const heads = Array.from(container.querySelectorAll('th')).map((th) => th.textContent);
-    expect(heads).toEqual(['논리 DB', '최근 7일', '판정', '마지막 성공', 'DAG']);
+    expect(heads).toEqual(['논리 DB', '최근 7일', '판정', '마지막 성공', 'Table 수', 'DAG']);
   });
 
   it('범례는 표 뒤에 선다', () => {
@@ -103,6 +107,15 @@ describe('DbWeeklyBoard — DAG 셀', () => {
     // 이름은 단추가 아니다.
     expect(container.querySelector('span[title="pii_scan_db_1"]')?.textContent).toBe('pii_scan_db_1');
     expect(Array.from(container.querySelectorAll('button')).some((b) => b.textContent === 'pii_scan_db_1')).toBe(false);
+  });
+
+  it('Table 수 — null 은 「Table 개수 확인 안 됨」, 0 은 0 이다', () => {
+    const { container } = mount(response(2, 1));
+    const cells = Array.from(container.querySelectorAll('tbody tr')).map(
+      (tr) => tr.querySelectorAll('td')[4].textContent,
+    );
+    // 문제 우선 정렬이라 성공 없음(db_2, null)이 먼저, 0 개를 읽은 실행(db_1)이 다음.
+    expect(cells).toEqual(['Table 개수 확인 안 됨', '0']);
   });
 
   it('이름이 없는 행은 DAG 없음이고 그래도 열린다', () => {

@@ -27,8 +27,10 @@ const agent = (i: number): DagAgentStatus => ({
       succeededThisWeek: true,
       lastSuccessAt: null,
       days: [],
+      latestTableCount: 10 * i,
     },
   ],
+  latestTableCountSum: 10 * i,
 });
 
 const response = (count: number): DagStatusResponse => ({
@@ -37,6 +39,7 @@ const response = (count: number): DagStatusResponse => ({
   healthStatus: 'HEALTHY',
   timezone: 'KST',
   agents: Array.from({ length: count }, (_, i) => agent(i + 1)),
+  latestTableCountSum: (10 * count * (count + 1)) / 2,
 });
 
 const headers = (container: HTMLElement): string[] =>
@@ -65,7 +68,7 @@ describe('AgentDagTable — 페이저와 카운터', () => {
   });
 });
 
-const CLOUD_HEADS = ['Resource Name', 'Resource ID', 'Database Type', 'Region', '논리 DB', 'Monitoring 상태'];
+const CLOUD_HEADS = ['Resource Name', 'Resource ID', 'Database Type', 'Region', '논리 DB', 'Table 수', 'Monitoring 상태'];
 
 describe('AgentDagTable — 확정 정보 조인 열', () => {
   it('스냅샷이 비었다고 답하면(빈 index) 네 열은 그대로, 조인 칸은 대시, 사유 문장이 선다', () => {
@@ -92,7 +95,7 @@ describe('AgentDagTable — 확정 정보 조인 열', () => {
         isIdc
       />,
     );
-    expect(headers(container)).toEqual(['접속 주소', 'Port', 'Database Type', '논리 DB', 'Monitoring 상태']);
+    expect(headers(container)).toEqual(['접속 주소', 'Port', 'Database Type', '논리 DB', 'Table 수', 'Monitoring 상태']);
     expect(cellDashes(container)).toBe(3);
     expect(container.textContent).toContain('접속 주소 · Port · 엔진은 확정 정보가 채워요');
   });

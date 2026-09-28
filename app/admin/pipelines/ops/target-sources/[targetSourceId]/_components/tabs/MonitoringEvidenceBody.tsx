@@ -17,6 +17,7 @@
  */
 import type { ReactElement } from 'react';
 import { cn } from '@/lib/theme';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
 import type { DagAggregates } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/approvalGate';
 import { attentionCount } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/tabs/dagBoard';
@@ -30,12 +31,15 @@ export interface MonitoringEvidenceBodyProps {
   onShowAttention?: () => void;
   /** 1,500행 보드 패널(논리 DB 전체 현황) 진입. */
   onOpenBoard: () => void;
+  /** 응답 최상위 `latestTableCountSum` — 논리 DB 마다 가장 최근 성공 실행이 읽은 Table 수의 합. */
+  latestTableCountSum: number;
 }
 
 export function MonitoringEvidenceBody({
   agg,
   onShowAttention,
   onOpenBoard,
+  latestTableCountSum,
 }: MonitoringEvidenceBodyProps): ReactElement {
   const b = opsStyles.tcBand;
   // 두 조각뿐이다 (오너 2026-08-26: healthy/unhealthy 로 분기) — 성공했나 아닌가.
@@ -82,6 +86,16 @@ export function MonitoringEvidenceBody({
           </span>
         ),
       )}
+      {/* Table 수 — 논리 DB 와 단위가 다른 수라 구분선 뒤에 선다(점 없음: 버킷이 아니다).
+          뜻은 (?) 가 진다: 논리 DB 마다 가장 최근 성공한 DAG 실행이 읽은 Table 수의 합.
+          0 은 그대로 0 — 성공 기록이 없어 읽은 Table 이 없다는 사실이다. */}
+      <span className="flex items-center gap-1.5 border-l border-[var(--pl-border-strong)] pl-3">
+        최근 성공 Table 수<b className={b.countValue}>{n(latestTableCountSum)}</b>
+        <InfoTooltip
+          variant="value"
+          content="논리 DB마다 가장 최근에 성공한 DAG 실행이 읽은 Table 수를 모두 더한 값이에요."
+        />
+      </span>
       {/* 1,500행 보드는 패널의 것 — 이 줄에는 진입만 남는다. */}
       <button
         type="button"

@@ -418,10 +418,19 @@ DagStatusResponse {
         status:      "SUCCESS" | "RUNNING" | "FAILED" | "NOT_SCHEDULED"
         successTime: string | null              // only on SUCCESS days
       }]
+      latestTableCount:   number | null         // tables read by the most recent SUCCESS run (added 2026-09-28);
+                                                // null = no successful run yet (dash), 0 = read zero tables (0)
     }]
+    latestTableCountSum: number                 // Σ databaseStatuses[].latestTableCount (BE-computed)
   }]
+  latestTableCountSum:  number                  // Σ agents[].latestTableCountSum (BE-computed)
 }
 ```
+
+**2026-09-28 (owner sample):** three `latestTableCount*` fields joined the response. The
+Airflow 확인 tab prints the target-level sum in its count row, the agent-level sum as
+a column of the agent table, and the per-DB count as a column of the weekly board; the
+sums are BE-computed, so the FE never re-adds them.
 
 One deliberate deviation from this doc's conventions, because the sketch is the closest
 thing to the contract: the wire is **camelCase verbatim** (not snake), so `lib/bff/http.ts`

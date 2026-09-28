@@ -46,6 +46,7 @@ const ROW: DagDbRow = {
       status: 'SUCCESS',
       successTime: '2026-08-31T20:00:00Z',
     })),
+    latestTableCount: 3,
   },
 };
 
