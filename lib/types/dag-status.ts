@@ -39,7 +39,7 @@ export interface DagDatabaseStatus {
    * `null` = no successful run to read from yet; `0` = the run read zero tables. The two are
    * different facts and render differently (dash vs 0).
    */
-  latestTableCount: number | null;
+  latestTableCount?: number | null;
 }
 
 export interface DagAgentStatus {
@@ -51,7 +51,7 @@ export interface DagAgentStatus {
   connectionStatus: string;
   databaseStatuses: DagDatabaseStatus[];
   /** Sum of `databaseStatuses[].latestTableCount` — BE computes it, FE does not re-add. */
-  latestTableCountSum: number;
+  latestTableCountSum?: number | null;
 }
 
 export interface DagStatusResponse {
@@ -61,6 +61,12 @@ export interface DagStatusResponse {
   healthStatus: string;
   timezone: string;
   agents: DagAgentStatus[];
-  /** Sum of `agents[].latestTableCountSum` — BE computes it, FE does not re-add. */
-  latestTableCountSum: number;
+  /**
+   * Sum of `agents[].latestTableCountSum` — BE computes it, FE does not re-add.
+   *
+   * All three `latestTableCount*` fields are OPTIONAL: the live BFF (2026-09-28) answered
+   * without them and the UI crashed on `undefined.toLocaleString`. Absent reads as
+   * "not confirmed", never as 0.
+   */
+  latestTableCountSum?: number | null;
 }

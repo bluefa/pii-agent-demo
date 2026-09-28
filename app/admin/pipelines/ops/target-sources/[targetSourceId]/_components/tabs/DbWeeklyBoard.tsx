@@ -376,7 +376,7 @@ export function DbWeeklyBoard({
                         확인 안 됨") — DAG 없음 칸과 같은 문법(대시는 "칸이 비었다"까지만 말한다).
                         0 은 실행이 Table 을 0 개 읽었다는 사실이라 0 으로 선다. */}
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap text-[12px]')}>
-                      {row.db.latestTableCount === null ? (
+                      {row.db.latestTableCount == null ? (
                         <span className="text-[var(--pl-text-weak)]" title="성공한 DAG 실행이 없어 읽은 Table 수를 알 수 없어요">
                           Table 개수 확인 안 됨
                         </span>
