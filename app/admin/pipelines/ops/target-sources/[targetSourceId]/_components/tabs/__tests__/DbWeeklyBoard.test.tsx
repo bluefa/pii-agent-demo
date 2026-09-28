@@ -16,6 +16,7 @@ const db = (i: number, dagName: string | null): DagDatabaseStatus => ({
   succeededThisWeek: dagName !== null,
   lastSuccessAt: null,
   days: [],
+  latestTableCount: 0,
 });
 
 const response = (rows: number, nullDagAt: number | null = null): DagStatusResponse => ({
@@ -32,8 +33,10 @@ const response = (rows: number, nullDagAt: number | null = null): DagStatusRespo
       databaseStatuses: Array.from({ length: rows }, (_, i) =>
         db(i + 1, i === nullDagAt ? null : `pii_scan_db_${i + 1}`),
       ),
+      latestTableCountSum: 0,
     },
   ],
+  latestTableCountSum: 0,
 });
 
 const mount = (data: DagStatusResponse, agentId: string | null = null) =>

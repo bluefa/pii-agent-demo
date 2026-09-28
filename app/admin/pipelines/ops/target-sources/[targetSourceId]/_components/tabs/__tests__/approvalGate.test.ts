@@ -31,6 +31,7 @@ const db = (over: Partial<DagDatabaseStatus>): DagDatabaseStatus => ({
   succeededThisWeek: false,
   lastSuccessAt: null,
   days: [],
+  latestTableCount: 0,
   ...over,
 });
 
@@ -46,8 +47,10 @@ const response = (healthStatus: string, dbs: DagDatabaseStatus[] = []): DagStatu
       gcpRegion: null,
       connectionStatus: 'SUCCESS',
       databaseStatuses: dbs,
+      latestTableCountSum: 0,
     },
   ],
+  latestTableCountSum: 0,
 });
 
 /**

@@ -34,6 +34,8 @@ export interface DagDatabaseStatus {
   lastSuccessAt: string | null;
   /** Exactly 7 entries. */
   days: DagDayStatus[];
+  /** Table count read by this DB's most recent successful DAG run (owner sample 2026-09-28). */
+  latestTableCount: number;
 }
 
 export interface DagAgentStatus {
@@ -44,6 +46,8 @@ export interface DagAgentStatus {
   /** TestConnectionStatus enum, monitoring's own reading — not the TC tab's source. */
   connectionStatus: string;
   databaseStatuses: DagDatabaseStatus[];
+  /** Sum of `databaseStatuses[].latestTableCount` — BE computes it, FE does not re-add. */
+  latestTableCountSum: number;
 }
 
 export interface DagStatusResponse {
@@ -53,4 +57,6 @@ export interface DagStatusResponse {
   healthStatus: string;
   timezone: string;
   agents: DagAgentStatus[];
+  /** Sum of `agents[].latestTableCountSum` — BE computes it, FE does not re-add. */
+  latestTableCountSum: number;
 }

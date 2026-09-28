@@ -43,10 +43,13 @@ const DAG: DagStatusResponse = {
             status: 'SUCCESS',
             successTime: '2026-08-27T00:00:00Z',
           })),
+          latestTableCount: 7,
         },
       ],
+      latestTableCountSum: 7,
     },
   ],
+  latestTableCountSum: 7,
 };
 
 describe('AirflowTab — 대기 프레임', () => {
@@ -90,5 +93,7 @@ describe('AirflowTab — 대기 프레임', () => {
     // 표는 서 있다 — 기다리는 것은 그 안의 세 칸뿐이다.
     expect(screen.getByText('arn:aws:rds:ap-northeast-2:1:db:orders')).toBeTruthy();
     expect(screen.queryByText('—')).toBeNull();
+    // 응답 최상위 latestTableCountSum 이 카운트 줄에 그대로 선다 — 다시 더한 값이 아니다.
+    expect(screen.getByText('최근 성공 Table 수').textContent).toContain('7');
   });
 });

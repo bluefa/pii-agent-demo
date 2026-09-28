@@ -183,6 +183,8 @@ export interface DagAgentSummary {
   unscheduled: number;
   /** 계약 밖의 상태값이 섞인 DB — 나쁜 값이 아니라 읽지 못한 값이다. */
   other: number;
+  /** 이 리소스의 논리 DB 마다 가장 최근 성공 실행이 읽은 Table 수의 합 — BE 가 셈, 여기서 다시 더하지 않는다. */
+  latestTableCountSum: number;
 }
 
 /** 문제 우선 정렬: 연결이 SUCCESS 가 아닌 에이전트 먼저, 그 다음 실패 DB 많은 순.
@@ -209,6 +211,7 @@ export const summarizeAgents = (data: DagStatusResponse): DagAgentSummary[] =>
         running: counts.running,
         unscheduled: counts.unscheduled,
         other: counts.other,
+        latestTableCountSum: a.latestTableCountSum,
       };
     })
     .sort((a, b) => {

@@ -38,6 +38,7 @@ const row = (dagName: string | null, successDays = 0): DagDbRow => ({
     days: Array.from({ length: 7 }, (_, i) =>
       i < successDays ? successDay(`2026-08-2${i + 1}`) : idleDay(`2026-08-2${i + 1}`),
     ),
+    latestTableCount: successDays > 0 ? 5 : 0,
   },
 });
 

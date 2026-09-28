@@ -41,9 +41,12 @@ const dagWith = (healthStatus: string, succeeded: number, total: number) => ({
         succeededThisWeek: i < succeeded,
         lastSuccessAt: null,
         days: [],
+        latestTableCount: 0,
       })),
+      latestTableCountSum: 0,
     },
   ],
+  latestTableCountSum: 0,
 });
 
 const valueOf = (rows: ReturnType<typeof statusRows>, name: string) =>

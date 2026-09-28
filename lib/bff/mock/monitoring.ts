@@ -110,8 +110,13 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
     succeededThisWeek: succeeded,
     lastSuccessAt: lastSuccess?.successTime ?? null,
     days: built,
+    // 성공 기록이 없는 DB 는 읽은 Table 이 없다 — 0.
+    latestTableCount: lastSuccess ? 20 + jitter(spec.seed, 80) : 0,
   };
 };
+
+const sumBy = <T,>(items: T[], pick: (item: T) => number): number =>
+  items.reduce((acc, item) => acc + pick(item), 0);
 
 const agent = (
   ts: number,
@@ -121,13 +126,17 @@ const agent = (
   connectionStatus: string,
   dbs: DbSpec[],
   days: string[] = kstDays(),
-): DagAgentStatus => ({
-  agentId: `agent-${ts}-${idx + 1}`,
-  resourceId,
-  gcpRegion,
-  connectionStatus,
-  databaseStatuses: dbs.map((spec) => buildDb(spec, days)),
-});
+): DagAgentStatus => {
+  const databaseStatuses = dbs.map((spec) => buildDb(spec, days));
+  return {
+    agentId: `agent-${ts}-${idx + 1}`,
+    resourceId,
+    gcpRegion,
+    connectionStatus,
+    databaseStatuses,
+    latestTableCountSum: sumBy(databaseStatuses, (db) => db.latestTableCount),
+  };
+};
 
 const spec = (
   uri: string,
@@ -179,6 +188,11 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
   );
 
 const buildResponse = (targetSourceId: number): DagStatusResponse => {
+  const base = buildBase(targetSourceId);
+  return { ...base, latestTableCountSum: sumBy(base.agents, (a) => a.latestTableCountSum) };
+};
+
+const buildBase = (targetSourceId: number): Omit<DagStatusResponse, 'latestTableCountSum'> => {
   const days = kstDays();
   switch (targetSourceId) {
     // 쿠폰서비스 AWS — everything green: the approve CTA mounts. AWS 형태를 한 대상에
