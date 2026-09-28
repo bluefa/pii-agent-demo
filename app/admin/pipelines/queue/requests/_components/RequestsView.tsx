@@ -192,19 +192,18 @@ const rq = {
    * browser: the card's inner width is 918 at 1440 (viewport − 216 sidebar − 64
    * content padding − 168 rail − 24 rail gutter − 48 card padding − 2 border)
    * and 558 at the shell's 1080 floor; the 2-up card it replaces had 536 and
-   * 340. Six gaps of 12 leave 846 / 486 for the cells themselves.
+   * 340. Seven gaps of 12 (six before the Lifecycle column) leave 834 / 474 for
+   * the cells themselves.
    *
    * Fixed columns are sized to their real ink (Range rects at 14px, not round
    * numbers) and every one of them is SHRINKABLE — no `flex-none` on a text
    * column, so when the floor budget runs out the fixed cells give way instead
    * of painting outside the card. At 1440 nothing truncates but the two preview
-   * columns that are meant to (설명 375→244, 반려 사유 932→244). At 1080 the
-   * seven-column 전체 이력 is over budget by design and the fixed cells absorb
-   * it; 일시 lands at 100 against 119 of ink, which is the floor's cost, not a
-   * width to widen — widening it takes the space from 서비스 이름.
+   * columns that are meant to (설명 375→200, 반려 사유 932→200). At 1080 every
+   * view is over budget and scrolls sideways instead (`rowsMinWidth`).
    *
-   * 승인 대기 / 반려 미확인 run the same skeleton (service · code · cloud · note ·
-   * wait · when · tail), including the same COUNT of flex-1 columns, so the two
+   * 승인 대기 / 반려 미확인 run the same skeleton (service · code · cloud · lifecycle ·
+   * note · wait · when · tail), including the same COUNT of flex-1 columns, so the two
    * 작업 views hold identical geometry as the rail switches between them. Give
    * one of them an extra flexible column and 서비스 이름 jumps width on a click.
    *

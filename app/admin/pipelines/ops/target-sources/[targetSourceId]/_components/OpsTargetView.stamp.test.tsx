@@ -89,3 +89,33 @@ describe('OpsTargetView — 최초 연동 도장', () => {
     expect(screen.queryByText(STAMP_LABEL)).toBeNull();
   });
 });
+
+/**
+ * Same hop, second field: `installation_lifecycle_status` is snake on the detail
+ * response and not declared in the schema yet, so nothing but this test notices a
+ * wrong spelling — the tag would simply never appear.
+ */
+describe('OpsTargetView — installation lifecycle tag', () => {
+  const view = () =>
+    render(<OpsTargetView targetSourceId={1013} initialTab="진행 상태" statusSlot={<div data-testid="status-slot" />} />);
+
+  it('reads the snake key of the detail response', async () => {
+    getRawTargetSourceDetail.mockResolvedValue(
+      detail({ installation_lifecycle_status: 'REINSTALLATION' }),
+    );
+    view();
+    expect(await screen.findByText('재설치')).toBeTruthy();
+  });
+
+  it('draws nothing for the camel key or an unknown value', async () => {
+    getRawTargetSourceDetail.mockResolvedValue(
+      detail({
+        installationLifecycleStatus: 'REINSTALLATION',
+        installation_lifecycle_status: 'SOMETHING_NEW',
+      }),
+    );
+    view();
+    await screen.findByTitle('실데이터 여부 변경');
+    expect(screen.queryByText('재설치')).toBeNull();
+  });
+});
