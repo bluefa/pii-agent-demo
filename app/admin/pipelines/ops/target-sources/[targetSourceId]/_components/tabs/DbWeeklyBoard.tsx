@@ -372,10 +372,17 @@ export function DbWeeklyBoard({
                     <td className={cn(opsStyles.table.cell, 'whitespace-nowrap font-mono text-[12px] tabular-nums')}>
                       {row.db.lastSuccessAt ? fmtDateTime(row.db.lastSuccessAt) : <Dash />}
                     </td>
-                    {/* null = 읽을 성공 실행이 없다 → 대시. 0 은 실행이 Table 을 0 개 읽었다는
-                        사실이라 0 으로 선다 — 두 값을 한 대시로 접지 않는다. */}
-                    <td className={cn(opsStyles.table.cell, 'whitespace-nowrap font-mono text-[12px] tabular-nums')}>
-                      {row.db.latestTableCount === null ? <Dash /> : row.db.latestTableCount.toLocaleString('ko-KR')}
+                    {/* null = 읽을 성공 실행이 없다 → 대시 대신 말로 (오너 2026-09-28: "Table 개수
+                        확인 안 됨") — DAG 없음 칸과 같은 문법(대시는 "칸이 비었다"까지만 말한다).
+                        0 은 실행이 Table 을 0 개 읽었다는 사실이라 0 으로 선다. */}
+                    <td className={cn(opsStyles.table.cell, 'whitespace-nowrap text-[12px]')}>
+                      {row.db.latestTableCount === null ? (
+                        <span className="text-[var(--pl-text-weak)]" title="성공한 DAG 실행이 없어 읽은 Table 수를 알 수 없어요">
+                          Table 개수 확인 안 됨
+                        </span>
+                      ) : (
+                        <span className="font-mono tabular-nums">{row.db.latestTableCount.toLocaleString('ko-KR')}</span>
+                      )}
                     </td>
                     {/* DAG 는 행을 실행하는 주체의 이름 — 판정이 아니라 참조라 오른쪽
                         끝, 흐린 mono 의 맨 글자. 이름이 없는 행은 대시 대신 말로(대시는 "칸이
