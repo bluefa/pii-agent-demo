@@ -37,6 +37,7 @@ const ROW: AlertListRow = {
   latestApprovalRequest: null,
   delaySeconds: 262000,
   statusChangedAt: '2026-07-17T18:56:00Z',
+  installationLifecycleStatus: 'REINSTALLATION',
 };
 
 const worklist = (props: Partial<Parameters<typeof AlertWorklist>[0]> = {}) => (
