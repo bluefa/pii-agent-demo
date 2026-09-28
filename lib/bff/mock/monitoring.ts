@@ -110,8 +110,8 @@ const buildDb = (spec: DbSpec, days: string[]): DagDatabaseStatus => {
     succeededThisWeek: succeeded,
     lastSuccessAt: lastSuccess?.successTime ?? null,
     days: built,
-    // 성공 기록이 없는 DB 는 읽은 Table 이 없다 — 0.
-    latestTableCount: lastSuccess ? 20 + jitter(spec.seed, 80) : 0,
+    // 성공 기록이 없는 DB 는 읽을 실행이 없다 — null (0 은 읽은 Table 이 0 개인 실행).
+    latestTableCount: lastSuccess ? 20 + jitter(spec.seed, 80) : null,
   };
 };
 
@@ -134,7 +134,7 @@ const agent = (
     gcpRegion,
     connectionStatus,
     databaseStatuses,
-    latestTableCountSum: sumBy(databaseStatuses, (db) => db.latestTableCount),
+    latestTableCountSum: sumBy(databaseStatuses, (db) => db.latestTableCount ?? 0),
   };
 };
 

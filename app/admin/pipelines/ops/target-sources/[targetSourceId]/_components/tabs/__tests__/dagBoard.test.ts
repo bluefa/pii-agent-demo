@@ -49,7 +49,7 @@ const db = (
   succeededThisWeek,
   lastSuccessAt: null,
   days: dayStatuses.map((s) => day(s)),
-  latestTableCount: succeededThisWeek ? 12 : 0,
+  latestTableCount: succeededThisWeek ? 12 : null,
 });
 
 const RESPONSE: DagStatusResponse = {

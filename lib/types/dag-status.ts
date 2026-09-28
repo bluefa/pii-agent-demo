@@ -34,8 +34,12 @@ export interface DagDatabaseStatus {
   lastSuccessAt: string | null;
   /** Exactly 7 entries. */
   days: DagDayStatus[];
-  /** Table count read by this DB's most recent successful DAG run (owner sample 2026-09-28). */
-  latestTableCount: number;
+  /**
+   * Table count read by this DB's most recent successful DAG run (owner sample 2026-09-28).
+   * `null` = no successful run to read from yet; `0` = the run read zero tables. The two are
+   * different facts and render differently (dash vs 0).
+   */
+  latestTableCount: number | null;
 }
 
 export interface DagAgentStatus {
