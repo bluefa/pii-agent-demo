@@ -14,6 +14,7 @@ import {
   TS_DESCRIPTION,
 } from '@/lib/bff/mock/approval-queue-fixtures';
 import type { ApprovalHistoryFixture, RequestRow } from '@/lib/bff/mock/approval-queue-fixtures';
+import { mockInstallationLifecycle } from '@/lib/bff/mock/target-sources';
 import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider, ProcessStatus } from '@/lib/types';
 import type { Project } from '@/lib/types';
 import type {
@@ -752,6 +753,8 @@ function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[n
     // 계약이 `TargetSourceInfo` 에 선언한 필드 — 시드가 안 주면 아예 안 싣는다.
     // null 로 채우면 "한 번도 연동을 마친 적 없다"를 목이 단정하게 된다.
     piiAgentFirstInstalledAt: project.piiAgentFirstInstalledAt,
+    // Not in the schema yet; TargetSourceInfo carries it camel.
+    installationLifecycleStatus: mockInstallationLifecycle(project),
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
   };

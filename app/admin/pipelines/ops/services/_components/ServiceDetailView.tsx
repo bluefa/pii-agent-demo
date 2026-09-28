@@ -26,6 +26,7 @@ import { formatDateTimeLocalDashed } from '@/lib/utils/date';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import { JiraLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import { InstallationLifecycleTag } from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { ProviderLogo } from '@/app/components/features/admin/v7';
@@ -796,6 +797,7 @@ export function ServiceDetailView({
                     {target.support_raw_data && (
                       <span className={opsStyles.rawDataTag}>실데이터</span>
                     )}
+                    <InstallationLifecycleTag status={target.installation_lifecycle_status} />
                   </div>
 
                   {/* 2층·3층은 값이 없어도 사라지지 않는다 — 조건부로 두면 대상마다 카드

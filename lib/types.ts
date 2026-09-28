@@ -92,6 +92,29 @@ export const readSupportRawData = (value: unknown): boolean | undefined => {
   return typeof raw === 'boolean' ? raw : undefined;
 };
 
+/**
+ * Where a target source stands in its install cycle, as the BFF derives it from the
+ * two install timestamps:
+ *   INITIAL_INSTALLATION  — neither `pii_agent_first_installed_at` nor `pii_agent_installed_at`
+ *   REINSTALLATION        — first-installed is set, `pii_agent_installed_at` is not
+ *   INTEGRATION_COMPLETED — `pii_agent_installed_at` is set
+ *
+ * install-v1.yaml does not declare the field yet; the BFF already sends it. The key is
+ * camel (`installationLifecycleStatus`) on TargetSourceInfo / TargetSourceResponse and
+ * snake (`installation_lifecycle_status`) on TargetSourceDetail. Each call site reads
+ * the one spelling its DTO uses and hands the raw value here.
+ */
+export const INSTALLATION_LIFECYCLE_STATUSES = [
+  'INITIAL_INSTALLATION',
+  'REINSTALLATION',
+  'INTEGRATION_COMPLETED',
+] as const;
+export type InstallationLifecycleStatus = (typeof INSTALLATION_LIFECYCLE_STATUSES)[number];
+
+/** Anything outside the three known values is "unknown" — the tag then draws nothing. */
+export const parseInstallationLifecycle = (raw: unknown): InstallationLifecycleStatus | undefined =>
+  INSTALLATION_LIFECYCLE_STATUSES.find((status) => status === raw);
+
 // Internal CloudProvider → wire metadata.provider value. The contract
 // (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
 // UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.

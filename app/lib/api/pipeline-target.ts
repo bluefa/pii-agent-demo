@@ -48,6 +48,11 @@ export interface RawTargetSourceDetail {
    * camel(`piiAgentFirstInstalledAt`)로 싣는다: 이 DTO 는 snake 쪽 철자다.
    */
   pii_agent_first_installed_at?: string | null;
+  /**
+   * Not declared on `TargetSourceDetail` yet — arrives through `.passthrough()`.
+   * Snake on this DTO. Read it with `parseInstallationLifecycle` only.
+   */
+  installation_lifecycle_status?: string | null;
   metadata?: RawTargetSourceMetadata;
   /**
    * `TargetSourceDetail` 이 아직 선언하지 않은 필드 — 스키마가 `.passthrough()` 라

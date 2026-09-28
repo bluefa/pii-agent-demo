@@ -87,3 +87,38 @@ describe('GET …/admin/ops/services/[serviceCode] — 최초 연동 시각', ()
     expect(byId.get(1011)).toBeNull();
   });
 });
+
+/**
+ * The lifecycle arrives camel on `TargetSourceInfo` and is not declared in the schema
+ * yet, so this hop is the only place a wrong spelling or an unknown value can hide.
+ */
+describe('GET …/admin/ops/services/[serviceCode] — installation lifecycle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedPage.mockResolvedValue({
+      content: [
+        row(1001, { installationLifecycleStatus: 'REINSTALLATION' }),
+        row(1002, { installationLifecycleStatus: 'SOMETHING_NEW' }),
+        row(1003, { installation_lifecycle_status: 'INTEGRATION_COMPLETED' }),
+        row(1004, {}),
+      ],
+      totalPages: 1,
+      totalElements: 4,
+    } as never);
+  });
+
+  it('carries a known camel value and folds everything else to null', async () => {
+    const detail = (await (await call()).json()) as {
+      target_sources: { target_source_id: number; installation_lifecycle_status: string | null }[];
+    };
+    const byId = new Map(
+      detail.target_sources.map((t) => [t.target_source_id, t.installation_lifecycle_status]),
+    );
+
+    expect(byId.get(1001)).toBe('REINSTALLATION');
+    expect(byId.get(1002)).toBeNull();
+    // Snake is the detail DTO's spelling, not this one's.
+    expect(byId.get(1003)).toBeNull();
+    expect(byId.get(1004)).toBeNull();
+  });
+});

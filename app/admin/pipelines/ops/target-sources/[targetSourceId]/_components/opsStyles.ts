@@ -355,6 +355,19 @@ export const opsStyles = {
    */
   rawDataTag: 'inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-semibold border border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-strong)]',
   /**
+   * Installation lifecycle tag (InstallationLifecycleTag) — 20px tall like the step
+   * pill beside it, stroked so it holds on both the white service card and the
+   * gray-200 masthead ground.
+   */
+  lifecycleTag: {
+    base: 'inline-flex flex-none cursor-default items-center whitespace-nowrap rounded border px-1.5 py-px text-[12px] font-semibold leading-4',
+    tone: {
+      INITIAL_INSTALLATION: 'border-[var(--pl-border-strong)] bg-[var(--pl-bg-card)] text-[var(--pl-text-medium)]',
+      REINSTALLATION: 'border-[var(--pl-info-text)] bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
+      INTEGRATION_COMPLETED: 'border-[var(--pl-ok-text)] bg-[var(--pl-ok-bg)] text-[var(--pl-ok-text)]',
+    },
+  },
+  /**
    * Masthead meta tags (오너 08-20 넷째 조정) — the editable values (설치모드·
    * 실데이터) read as emphasized tags and the ACTION moves to a 수정 link beside
    * them, so the tag no longer has to look clickable (no underline, no hover

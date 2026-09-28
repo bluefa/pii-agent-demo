@@ -7,6 +7,7 @@
  */
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { BffProcessStatus } from '@/app/lib/api';
+import type { InstallationLifecycleStatus } from '@/lib/types';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -201,6 +202,8 @@ export interface OpsServiceTargetRow {
    * 다시 설치해도 그대로다. 현재 단계와 독립인 사실이라 도장이 이 값을 쓴다.
    */
   pii_agent_first_installed_at: string | null;
+  /** `TargetSourceInfo.installationLifecycleStatus`. null = the response did not say. */
+  installation_lifecycle_status: InstallationLifecycleStatus | null;
   /** 정렬 키 (updatedAt ?? createdAt). */
   last_changed_at: string;
   metadata: OpsTargetSourceAccount;
