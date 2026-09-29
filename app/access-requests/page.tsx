@@ -124,23 +124,22 @@ const serviceColumns = (t: AccessCopy): readonly Column[] => [
 ];
 
 /**
- * 그 표의 로딩 자리. 꼬리 칸의 막대는 **요청 탭에만** 그린다 — 접근 가능 탭의 행은 그 칸이
- * 비어 있어서, 늘 그리면 첫 그림에 다섯 줄 끝마다 회색 버튼이 섰다가 사라지고 행이
- * 52 → 40 으로 내려앉는다. 진입 탭이라 매 방문 처음 보는 화면이다. 스켈레톤은 도착할
+ * 그 표의 로딩 자리. Both tabs draw the tail bar — accessible-tab rows now carry the owners
+ * button too, so the skeleton keeps the 52px row the data arrives with. 스켈레톤은 도착할
  * 행의 모양이지 표의 모양이 아니다.
  *
  * 막대는 꼬리 트랙을 통째로 차지한다(`w-full`) — 폭은 토큰이 정하고, 높이만 버튼 그룹에
  * 맞춘 32px 로 남긴다. 폭을 손으로 박아 두면 토큰이 넓어질 때 그 숫자만 옛 값에 남고,
  * 애초에 두 로케일에 다 맞는 숫자도 없다(한국어 그룹 ~140px, 영어 191px).
  */
-const serviceSkeleton = (withAction: boolean, loadingLabel: string): ReactElement => (
+const serviceSkeleton = (loadingLabel: string): ReactElement => (
   <div role="rowgroup" aria-busy="true" aria-label={loadingLabel} className={a.tableBody}>
     {Array.from({ length: ACCESS_PAGE_SIZE }, (_, row) => (
       <div key={row} role="row" className={a.rowMid} aria-hidden="true">
         <span role="cell" className={cn(a.code, a.skeletonBar)} />
         <span role="cell" className={cn(a.name, a.skeletonBar)} />
         <span role="cell" className={a.svcActionCell}>
-          {withAction && <span className={cn(a.skeletonBar, 'h-8 w-full')} />}
+          <span className={cn(a.skeletonBar, 'h-8 w-full')} />
         </span>
       </div>
     ))}
@@ -279,10 +278,19 @@ export default function MyAccessRequestsPage(): ReactElement {
   // 관리자에겐 이쪽도 카탈로그 전체가 걸리는 목록이고, 끝까지 읽어야 하는 이유가 같다.
   const fetchOwned = useCallback(
     async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      const all = await fetchEveryPage((n) =>
-        getUserServices(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
-      );
-      const rows = all.filter((row) => row.accessStatus === 'OWNED');
+      // Owners ride only on the catalog contract, so join them in by service code.
+      const [all, catalog] = await Promise.all([
+        fetchEveryPage((n) =>
+          getUserServices(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
+        ),
+        fetchEveryPage((n) =>
+          getServicesPage(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
+        ),
+      ]);
+      const byCode = new Map(catalog.map((row) => [row.serviceCode, row]));
+      const rows = all
+        .filter((row) => row.accessStatus === 'OWNED')
+        .map((row) => byCode.get(row.serviceCode) ?? row);
       return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
     },
     [debounced],
@@ -433,7 +441,7 @@ export default function MyAccessRequestsPage(): ReactElement {
             />
           }
           columns={serviceColumns(t)}
-          skeleton={serviceSkeleton(requestTab, t.loadingList)}
+          skeleton={serviceSkeleton(t.loadingList)}
           empty={
             debounced
               ? {
@@ -452,8 +460,8 @@ export default function MyAccessRequestsPage(): ReactElement {
           }
         >
           {/* 행 자체는 버튼이 아니다 — 고르는 목록이 아니라 요청하는 목록이라, 누를 수
-                있는 건 꼬리의 버튼 그룹뿐이다. 이미 가진 서비스는 그 자리가 비어 있다:
-                할 일이 없는 행에 회색 버튼을 두면 눌러 보고 나서야 없다는 걸 알게 된다. */}
+                있는 건 꼬리의 버튼 그룹뿐이다. Services already owned show only the owners
+                button — there is nothing to request. */}
           {(rows) => (
             <div role="rowgroup" className={a.tableBody}>
               {rows.map((row) => (
@@ -467,7 +475,7 @@ export default function MyAccessRequestsPage(): ReactElement {
                   {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 이름이
                       탭을 옮길 때마다 이 폭만큼 튄다. */}
                   <span role="cell" className={a.svcActionCell}>
-                    {requestTab && hasOwners(row) && (
+                    {hasOwners(row) && (
                       <span className={a.svcActions}>
                         <button
                           type="button"
@@ -478,14 +486,16 @@ export default function MyAccessRequestsPage(): ReactElement {
                         >
                           {row.ownerCount > 0 ? t.viewOwners : t.noOwners}
                         </button>
-                        <button
-                          type="button"
-                          className={a.svcActionBtnGo}
-                          aria-haspopup="dialog"
-                          onClick={() => setTarget(row)}
-                        >
-                          {t.requestAccess}
-                        </button>
+                        {requestTab && (
+                          <button
+                            type="button"
+                            className={a.svcActionBtnGo}
+                            aria-haspopup="dialog"
+                            onClick={() => setTarget(row)}
+                          >
+                            {t.requestAccess}
+                          </button>
+                        )}
                       </span>
                     )}
                   </span>
