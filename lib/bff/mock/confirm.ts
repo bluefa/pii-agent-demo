@@ -1175,9 +1175,12 @@ export const mockConfirm = {
 
     // ADR-019: flat ApprovedIntegrationResponseDto; the stored `resource_infos` maps
     // to the swagger `resources` array; excluded items tagged selected:false.
+    // The contract's ids are numbers and the route parses with that schema; the store keys
+    // are strings that end in the timestamp they were minted at, so that run is the id.
+    const numericId = (storeId: string): number => Number(storeId.match(/\d+$/)?.[0] ?? 0);
     return NextResponse.json({
-      id: approved.id,
-      request_id: approved.request_id,
+      id: numericId(approved.id),
+      request_id: numericId(approved.request_id),
       approved_at: approved.approved_at,
       resources: [
         ...approved.resource_infos.map((s) => ({ ...s, selected: true })),

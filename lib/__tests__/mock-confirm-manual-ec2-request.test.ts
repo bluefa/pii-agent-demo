@@ -4,6 +4,7 @@ import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus, type Project } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
+import { schemas } from '@/lib/generated/install-v1';
 
 const TEST_PROJECT_ID = 'test-manual-ec2-request';
 const TEST_TARGET_SOURCE_ID = 9997;
@@ -126,5 +127,23 @@ describe('mockConfirm.createApprovalRequest — manually added EC2 row', () => {
     expect(await latest.json()).toMatchObject({
       resources: [{ resource_id: SCANNED_ID, metadata: ENDPOINT }],
     });
+  });
+
+  // The route parses this response with the contract schema — ids that are not numbers
+  // turn every live-approved target into a 500 at step 3.
+  it('answers approved-integration in the contract shape once the request is approved', async () => {
+    const approval = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
+    expect(approval.status).toBe(200);
+
+    const approved = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
+    expect(approved.status).toBe(200);
+    const parsed = schemas.ApprovedIntegrationResponseDto.parse(await approved.json());
+    expect(parsed.resources).toMatchObject([
+      {
+        resource_id: INSTANCE_ID,
+        selected: true,
+        metadata: ENDPOINT,
+      },
+    ]);
   });
 });
