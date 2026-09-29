@@ -93,7 +93,10 @@ export type TaskOperation =
   // 정의가 네 CSP 를 모두 실행하고, 대상의 provider 는 파이프라인 생성 시 저장된
   // 값에서 온다(TaskDefinition 의 provider 가 아니다).
   | 'DELETE_CONFIRMED_RESOURCES'
-  | 'CONFIRM_RESOURCES_FROM_RECOMMENDATION';
+  | 'CONFIRM_RESOURCES_FROM_RECOMMENDATION'
+  // AWS China install only — run in this order after the Terraform steps.
+  | 'SERVICE_ACCOUNT_CREATE'
+  | 'CHINA_SECRET_ROTATION_TRIGGER';
 
 /**
  * Terraform job action, derived server-side from the operation (backend

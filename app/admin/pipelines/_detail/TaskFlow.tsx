@@ -137,6 +137,7 @@ const DETAIL_CSS = `
    glyph, status on the badge) — never --pl-err/--pl-ok, which are the corner badges. */
 .pl-flow.pl-detail .nd-mark.m-delete{color:var(--pl-type-delete)}
 .pl-flow.pl-detail .nd-mark.m-reconfirm{color:var(--pl-type-reconfirm)}
+.pl-flow.pl-detail .nd-mark.m-install{color:var(--pl-type-install)}
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 /* 14px (owner 2026-08-16) — the card title stops outranking the page header's
@@ -155,7 +156,7 @@ const DETAIL_CSS = `
    .nd-run-row, so the taller digits sit on the same line as the unit. */
 .pl-flow.pl-detail .nd-run-el-v{font-size:14px;font-weight:700}
 `;
-/* nd-meta at text-weak/14px — faint(#98A2B3) measured 2.6:1 on the white node
+/* nd-meta at text-weak/14px — faint (gray-400) measured 2.6:1 on the white node
  * card; this line is the failure-cause reader (design-guide floor 4.5:1). */
 
 /** Provider mark tile — logo when known, text chip for IDC/SDU (owner: 글자만). */

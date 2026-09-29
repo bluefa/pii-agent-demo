@@ -262,6 +262,19 @@ describe('mockPipeline (in-memory orchestrator)', () => {
       expect(preview.steps[2].definition).not.toHaveProperty('dispatch_api');
     });
 
+    it('appends SA create → secret rotation to an AWS China install, and to nothing else', () => {
+      const tail = ['SERVICE_ACCOUNT_CREATE_V1', 'CHINA_SECRET_ROTATION_TRIGGER_V1'];
+      const china = mockPipeline.preview('1018', 'INSTALL').body as RecipePreview; // 1018 = AWS China
+      expect(china.steps.map((s) => s.task_definition).slice(7)).toEqual(tail);
+      expect(china.steps.slice(7).every((s) => s.kind === 'HTTP_REQUEST')).toBe(true);
+
+      const chinaDelete = mockPipeline.preview('1018', 'DELETE').body as RecipePreview;
+      expect(chinaDelete.steps).toHaveLength(3);
+
+      const created = mockPipeline.create('1018', { type: 'INSTALL' }).body as PipelineDetail;
+      expect(created.tasks.map((t) => t.task_definition).slice(7)).toEqual(tail);
+    });
+
     it('rejects CUSTOM with UNSUPPORTED_RECIPE and unknown target with 503', () => {
       expect(asError(mockPipeline.preview('1006', 'CUSTOM').body).code).toBe('ORCHESTRATION_UNSUPPORTED_RECIPE');
       const unknown = mockPipeline.preview('99999', 'INSTALL');
@@ -344,9 +357,9 @@ describe('mockPipeline (in-memory orchestrator)', () => {
   describe('task definitions', () => {
     it('filters the catalog by provider', () => {
       const all = mockPipeline.taskDefinitions(undefined).body as TaskCatalogResponse;
-      expect(all.task_definitions).toHaveLength(25);
+      expect(all.task_definitions).toHaveLength(27);
       const aws = mockPipeline.taskDefinitions('AWS').body as TaskCatalogResponse;
-      expect(aws.task_definitions).toHaveLength(12); // 9 terraform + NETWORK_READY_V1 + 2 common (ADR-023)
+      expect(aws.task_definitions).toHaveLength(14); // 9 terraform + NETWORK_READY_V1 + 2 common (ADR-023) + 2 China
       expect(aws.task_definitions.every((d) => d.provider === 'AWS')).toBe(true);
     });
 

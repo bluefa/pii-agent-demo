@@ -60,7 +60,7 @@ import type {
 } from '@/lib/pipeline/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Task catalog (25 TaskDefinitions) — faithful to pipeline-orchestrator source
+// Task catalog (27 TaskDefinitions) — faithful to pipeline-orchestrator source
 // ═══════════════════════════════════════════════════════════════════════════
 
 type JobType = 'PLAN' | 'APPLY' | 'DESTROY';
@@ -113,6 +113,13 @@ const HTTP_SUCCESS_POLICY =
 const HTTP_RESULT_STORAGE =
   '호출마다 응답 원문을 attempt에 저장한다(기본 1 MiB 상한, 넘으면 truncated로 표시). 성공한 추천 원문은 Task의 입력 행에 '
   + '따로 고정돼 등록 재시도가 같은 원문을 다시 쓴다.';
+
+const CHINA_HTTP_SUCCESS_POLICY =
+  'API를 직접 호출하고 2xx를 받으면 성공이다. 401·403과 계약을 벗어난 응답은 재시도하지 않는다. '
+  + '429·5xx·연결 장애·per-call timeout만 재시도 예산 안에서 다시 호출한다.';
+
+const CHINA_HTTP_RESULT_STORAGE =
+  '호출마다 응답 원문을 attempt에 저장한다(기본 1 MiB 상한, 넘으면 truncated로 표시).';
 
 const tf = (
   name: string,
@@ -305,6 +312,30 @@ const CATALOG_DEFS: CatalogDef[] = [
     successPolicy: HTTP_SUCCESS_POLICY,
     resultStorage: HTTP_RESULT_STORAGE,
   },
+  // ── HTTP_REQUEST · AWS China install ──
+  // Endpoints and policy text are assumed — neither is in the contract yet.
+  {
+    name: 'SERVICE_ACCOUNT_CREATE_V1',
+    provider: 'AWS',
+    operation: 'SERVICE_ACCOUNT_CREATE',
+    kind: 'HTTP_REQUEST',
+    displayName: 'Service Account 생성',
+    description: '중국 리전 대상이 쓸 Service Account를 생성한다.',
+    statusApi: 'POST /infra/target-sources/{targetSourceId}/service-accounts (실제 API 미확정 — 가정 엔드포인트)',
+    successPolicy: CHINA_HTTP_SUCCESS_POLICY,
+    resultStorage: CHINA_HTTP_RESULT_STORAGE,
+  },
+  {
+    name: 'CHINA_SECRET_ROTATION_TRIGGER_V1',
+    provider: 'AWS',
+    operation: 'CHINA_SECRET_ROTATION_TRIGGER',
+    kind: 'HTTP_REQUEST',
+    displayName: 'Secret Key Rotation 실행',
+    description: '생성된 Service Account의 Secret Key rotation을 시작한다.',
+    statusApi: 'POST /infra/target-sources/{targetSourceId}/china/secret-rotation (실제 API 미확정 — 가정 엔드포인트)',
+    successPolicy: CHINA_HTTP_SUCCESS_POLICY,
+    resultStorage: CHINA_HTTP_RESULT_STORAGE,
+  },
 ];
 
 const CATALOG: Map<string, CatalogDef> = new Map(CATALOG_DEFS.map((d) => [d.name, d]));
@@ -413,6 +444,18 @@ const RECIPES: RecipeDef[] = [
 
 const findRecipe = (provider: CloudProvider, type: PipelineType): RecipeDef | undefined =>
   RECIPES.find((r) => r.provider === provider && r.type === type);
+
+// ponytail: the China tail rides on AWS_INSTALL_V1 rather than a recipe of its own —
+// the backend's recipe name is unknown. Split it into a RecipeDef once that name lands.
+const CHINA_INSTALL_TAIL = ['SERVICE_ACCOUNT_CREATE_V1', 'CHINA_SECRET_ROTATION_TRIGGER_V1'];
+
+const stepsFor = (recipe: RecipeDef, targetSourceId: string): string[] => {
+  const project = getProjectByTargetSourceId(Number(targetSourceId));
+  const isChina = project?.isChinaRegion ?? project?.awsRegionType === 'china';
+  return recipe.name === 'AWS_INSTALL_V1' && isChina
+    ? [...recipe.steps, ...CHINA_INSTALL_TAIL]
+    : recipe.steps;
+};
 
 // Effective settings (constants — ADR-016 global defaults, no per-task override in mock).
 const POLLING_INTERVAL = 'PT10M';
@@ -1945,7 +1988,7 @@ export const mockPipeline = {
     if (!recipe) {
       return err(400, 'UNSUPPORTED_RECIPE', `no recipe for provider ${provider} and type ${type}`, path);
     }
-    const steps: RecipePreviewStep[] = recipe.steps.map((defName, index) => {
+    const steps: RecipePreviewStep[] = stepsFor(recipe, targetSourceId).map((defName, index) => {
       const def = CATALOG.get(defName)!;
       return {
         sequence: index,
@@ -1996,7 +2039,7 @@ export const mockPipeline = {
       return err(409, 'PIPELINE_ALREADY_ACTIVE', `target '${targetSourceId}' already has an active run`, path);
     }
     const created = buildPendingPipeline(
-      targetSourceId, provider, type, recipe.name, recipe.steps, requesterFrom(body),
+      targetSourceId, provider, type, recipe.name, stepsFor(recipe, targetSourceId), requesterFrom(body),
     );
     store().push(created);
     return ok(toDetail(created));
