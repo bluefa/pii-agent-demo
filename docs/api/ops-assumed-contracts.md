@@ -355,6 +355,39 @@ wire, or absent). The two surfaces fold them differently, and on purpose:
   value: 포함 / 미포함 / 미확인. Writing 미포함 for a value we could not read would have
   the screen assert something it never received.
 
+## The field the lifecycle tags read: `installationLifecycleStatus`
+
+`install-v1.yaml` does **not** declare this field on any response. The spellings, values
+and endpoints below are the owner's description of what the BFF sends (2026-09-28); no
+live response has been captured in this repo yet.
+
+| DTO | Key | Endpoints |
+|---|---|---|
+| `TargetSourceInfo`, `TargetSourceResponse` | `installationLifecycleStatus` (camel) | `GET /target-sources`, `GET /target-sources/page`, `POST /target-sources/services/{serviceCode}/target-sources`, `GET /dashboard/target-sources/{confirming,need-install,need-test-connection,need-pii-agent-confirm,recent}` |
+| `TargetSourceDetail` | `installation_lifecycle_status` (snake) | `GET /target-sources/{targetSourceId}`, `GET /target-sources/services/{serviceCode}` |
+
+| Value | BFF rule | Screen name |
+|---|---|---|
+| `INITIAL_INSTALLATION` | neither `pii_agent_first_installed_at` nor `pii_agent_installed_at` | 최초 연동 |
+| `REINSTALLATION` | first-installed set, `pii_agent_installed_at` not set — the integration was modified or is being reinstalled, after a reset to step 1 | 연동 내용 변경 |
+| `INTEGRATION_COMPLETED` | `pii_agent_installed_at` set — step 7 done, admin approved | 연동 완료 |
+
+It is read the way `supportRawData` is: the generated schemas are `.partial().passthrough()`,
+so the key survives `parse()`. `parseInstallationLifecycle` (`lib/types.ts`) validates the
+value; each call site reads the **one** spelling its DTO uses. A missing or unknown value
+draws nothing (a tag) or `—` (a table cell).
+
+Screens keyed to it: the service-ops card, the ops target-source header, the 운영 알림
+table, the 연동 요청 lists (승인 대기 · 반려 미확인 · 최근 생성) and the request detail
+header. 전체 이력 is not: `GET /approval-history` does not carry the field.
+
+Two things to settle:
+
+1. Ask BE to declare the field in the swagger. Until then `contract-check` fails on any
+   change that touches these readers.
+2. Capture one live response per DTO. A wrong spelling is silent — no tag anywhere, suite
+   green — because the mock emits whatever the readers read.
+
 ## 10. DAG weekly health status (관리자 승인 gate)
 
 DRAFT CONTRACT — transcribed verbatim from the owner's sketch (2026-08-19), not yet in
