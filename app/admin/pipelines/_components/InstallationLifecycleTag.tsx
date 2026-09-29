@@ -47,13 +47,19 @@ export interface InstallationLifecycleTagProps {
   className?: string;
 }
 
+/**
+ * The value's name inside a tooltip. The tooltip body is 11.5px; the name stands two
+ * sizes up — 13.5 rounded to the even 14 the design rule asks for.
+ */
+const TIP_LABEL = 'text-[14px] font-semibold';
+
 /** All three values with their first line — tooltip content for a column header. */
 export function InstallationLifecycleLegend(): ReactElement {
   return (
     <>
       {INSTALLATION_LIFECYCLE_STATUSES.map((status) => (
         <span key={status} className="block">
-          <span className="font-semibold">{INSTALLATION_LIFECYCLE_COPY[status].label}</span>{' '}
+          <span className={TIP_LABEL}>{INSTALLATION_LIFECYCLE_COPY[status].label}</span>{' '}
           {INSTALLATION_LIFECYCLE_COPY[status].lines[0]}
         </span>
       ))}
@@ -75,7 +81,7 @@ export function InstallationLifecycleTag({
       triggerClassName="flex-none"
       content={
         <>
-          <span className="block font-semibold">{copy.label}</span>
+          <span className={cn('block', TIP_LABEL)}>{copy.label}</span>
           {copy.lines.map((line) => (
             <span key={line} className="block">
               {line}
