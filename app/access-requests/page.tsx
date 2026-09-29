@@ -580,6 +580,14 @@ export default function MyAccessRequestsPage(): ReactElement {
         serviceName={owners?.serviceName ?? ''}
         owners={owners?.owners ?? []}
         ownerCount={owners?.ownerCount ?? 0}
+        onRequest={
+          owners && tab === 'services'
+            ? () => {
+                setTarget(owners);
+                setOwners(null);
+              }
+            : undefined
+        }
       />
       <RequestAccessModal
         open={target != null}

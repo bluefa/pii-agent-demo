@@ -446,6 +446,8 @@ export interface OwnersModalProps {
   owners: string[];
   /** `owners` 는 잘려 올 수 있고, 이쪽은 언제나 맞는 전체 수다. */
   ownerCount: number;
+  /** Set only where the viewer can still request access — adds a footer that hands off to the request modal. */
+  onRequest?: () => void;
 }
 
 /**
@@ -474,8 +476,9 @@ const OWNER_SEARCH_MIN = 24;
  * 인원수는 제목을 떠나 칩 흐름 바로 위 줄로 갔다. 거기서는 검색이 걸러 낸 수를 그대로
  * 말할 수 있다 — 제목에 있었으면 31 을 말하면서 7개를 그리고 있었을 것이다.
  *
- * 읽기만 하는 모달이라 footer 가 없다 — TqModal 은 그때 머리에 X 를 그린다(닫기 하나만
- * 든 footer 를 두지 않는다).
+ * Opened from a service the viewer already has, it only reads, so there is no footer and
+ * TqModal draws the header X. Opened from the requestable tab, `onRequest` adds
+ * [닫기][권한 요청] so the next step sits beside the names (benchmark D, 2026-09-29).
  *
  * 새로 조회하지 않는다. 이 이름들은 목록 행이 이미 싣고 온 값이고(`/services-page` 의
  * `owners`), 전체를 주는 담당자 조회는 ADMIN 전용이라 요청자는 부를 수 없다.
@@ -487,6 +490,7 @@ export function OwnersModal({
   serviceName,
   owners,
   ownerCount,
+  onRequest,
 }: OwnersModalProps): ReactElement {
   const { locale } = useLocale();
   const t = COPY[locale].access;
@@ -517,6 +521,18 @@ export function OwnersModal({
       title={t.ownersTitle}
       meta={<ServiceLine serviceCode={serviceCode} serviceName={serviceName} />}
       sub={t.ownersSubtitle}
+      footer={
+        onRequest && (
+          <>
+            <PlButton variant="secondary" onClick={onClose}>
+              {COPY[locale].common.close}
+            </PlButton>
+            <PlButton variant="primary" onClick={onRequest}>
+              {t.requestAccess}
+            </PlButton>
+          </>
+        )
+      }
     >
       {/* 인원수는 지금 그려진 수다 — 걸러 낸 상태에서 전체를 말하면 화면과 어긋난다. */}
       <div className={a.ownerBar}>

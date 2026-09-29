@@ -209,7 +209,7 @@ const ko = {
     request: '요청',
 
     ownersTitle: '담당자 확인',
-    ownersSubtitle: '이 서비스의 접근 권한 요청을 검토하는 사람들이에요.',
+    ownersSubtitle: '이 서비스에 권한이 있는 사람들이에요.',
     ownersSearchPlaceholder: 'Knox ID 검색',
     ownersSearchLabel: '담당자 검색',
     ownersNoMatch: (query: string) => `‘${query}’와 일치하는 담당자가 없습니다`,
@@ -560,7 +560,7 @@ const en: typeof ko = {
     request: 'Request',
 
     ownersTitle: 'Service owners',
-    ownersSubtitle: 'These are the people who review access requests for this service.',
+    ownersSubtitle: 'These people have access to this service.',
     ownersSearchPlaceholder: 'Search Knox ID',
     ownersSearchLabel: 'Search owners',
     ownersNoMatch: (query: string) => `No owner matches ‘${query}’`,
