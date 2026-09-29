@@ -67,6 +67,7 @@ const HEADER_ROW: RequestListRow = {
   confirmStatus: 'CONFIRMED',
   createdAt: '2026-07-10T09:00:00Z',
   latestApprovalRequest: null,
+  installationLifecycleStatus: null,
 };
 
 const idcRow = (overrides: Partial<RequestResourceRow> = {}): RequestResourceRow => ({

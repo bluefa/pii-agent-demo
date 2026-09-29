@@ -14,6 +14,7 @@ import {
   TS_DESCRIPTION,
 } from '@/lib/bff/mock/approval-queue-fixtures';
 import type { ApprovalHistoryFixture, RequestRow } from '@/lib/bff/mock/approval-queue-fixtures';
+import { mockInstallationLifecycle } from '@/lib/bff/mock/target-sources';
 import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider, ProcessStatus } from '@/lib/types';
 import type { Project } from '@/lib/types';
 import type {
@@ -78,6 +79,13 @@ const PROC: ProcRow[] = [
   { ts: 1287, svc: '통계서비스', code: 'STA', pv: 'GCP', st: 'COMPLETED', delay: 3020000, at: '2026-06-15T16:47:00Z' },
   { ts: 1255, svc: '메일서비스', code: 'MAI', pv: 'AWS', st: 'CONNECTED', delay: 52100, at: '2026-07-20T05:11:00Z' },
 ];
+
+// A few targets that finished once and are going round again — one per alert bucket,
+// one pending request (2113), one rejected (1907). The rest are on their first install.
+// Not in the swagger yet; TargetSourceInfo carries it camel.
+const PROC_REINSTALLING = new Set([1430, 1861, 1583, 1462, 2113, 1907]);
+const fixtureLifecycle = (ts: number) =>
+  PROC_REINSTALLING.has(ts) ? 'REINSTALLATION' : 'INITIAL_INSTALLATION';
 
 // ts → header identity (service/provider), sourced from the monitor list.
 const TS_INDEX = new Map(PROC.map((p) => [p.ts, p]));
@@ -752,6 +760,8 @@ function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[n
     // 계약이 `TargetSourceInfo` 에 선언한 필드 — 시드가 안 주면 아예 안 싣는다.
     // null 로 채우면 "한 번도 연동을 마친 적 없다"를 목이 단정하게 된다.
     piiAgentFirstInstalledAt: project.piiAgentFirstInstalledAt,
+    // Not in the schema yet; TargetSourceInfo carries it camel.
+    installationLifecycleStatus: mockInstallationLifecycle(project),
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
   };
@@ -768,6 +778,7 @@ function toTargetSourceInfoWire(r: RequestRow) {
     serviceCode: r.code,
     cloudProvider: r.pv,
     confirmStatus: r.cs,
+    installationLifecycleStatus: fixtureLifecycle(r.ts),
     metadata: toMetadataWire(r),
     latest_approval_request: hasRequest
       ? {
@@ -962,6 +973,7 @@ export const mockTaskQueue = {
       // alert drill-down and /process-statuses never disagree about a delay.
       status_changed_at: p.at,
       delay_seconds: p.delay,
+      installationLifecycleStatus: fixtureLifecycle(p.ts),
     }));
     return NextResponse.json(wirePage(content, query.page, query.size));
   },

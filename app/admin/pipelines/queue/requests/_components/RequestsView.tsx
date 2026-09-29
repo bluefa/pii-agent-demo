@@ -29,7 +29,12 @@ import { passRoutes } from '@/lib/routes';
 import { fmtDateTime, WAIT_WARN_DAYS, waitedDays } from '@/lib/pipeline/format';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
+import {
+  InstallationLifecycleLegend,
+  InstallationLifecycleTag,
+} from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 // 대기 경과는 접근 권한 큐가 이미 쓰는 알약 그대로다 — 같은 질문("이건 얼마나
 // 오래 서 있었나")에 두 화면이 다른 잉크로 답하면 임계가 화면마다 달라 보인다.
@@ -187,19 +192,18 @@ const rq = {
    * browser: the card's inner width is 918 at 1440 (viewport − 216 sidebar − 64
    * content padding − 168 rail − 24 rail gutter − 48 card padding − 2 border)
    * and 558 at the shell's 1080 floor; the 2-up card it replaces had 536 and
-   * 340. Six gaps of 12 leave 846 / 486 for the cells themselves.
+   * 340. Seven gaps of 12 (six before the Lifecycle column) leave 834 / 474 for
+   * the cells themselves.
    *
    * Fixed columns are sized to their real ink (Range rects at 14px, not round
    * numbers) and every one of them is SHRINKABLE — no `flex-none` on a text
    * column, so when the floor budget runs out the fixed cells give way instead
    * of painting outside the card. At 1440 nothing truncates but the two preview
-   * columns that are meant to (설명 375→244, 반려 사유 932→244). At 1080 the
-   * seven-column 전체 이력 is over budget by design and the fixed cells absorb
-   * it; 일시 lands at 100 against 119 of ink, which is the floor's cost, not a
-   * width to widen — widening it takes the space from 서비스 이름.
+   * columns that are meant to (설명 375→196, 반려 사유 932→196). At 1080 every
+   * view is over budget and scrolls sideways instead (`rowsMinWidth`).
    *
-   * 승인 대기 / 반려 미확인 run the same skeleton (service · code · cloud · note ·
-   * wait · when · tail), including the same COUNT of flex-1 columns, so the two
+   * 승인 대기 / 반려 미확인 run the same skeleton (service · code · cloud · lifecycle ·
+   * note · wait · when · tail), including the same COUNT of flex-1 columns, so the two
    * 작업 views hold identical geometry as the rail switches between them. Give
    * one of them an extra flexible column and 서비스 이름 jumps width on a click.
    *
@@ -218,6 +222,9 @@ const rq = {
   target: 'w-[48px] min-w-0 shrink truncate',
   // 72 = ProvTag 의 가장 긴 조합('Azure' + 글리프 + gap). 64 에서는 글리프가 붙었다.
   cloud: 'w-[72px] min-w-0 shrink truncate',
+  // 84 = the widest tag ('연동 내용 변경', measured 80.1) with slack. The header
+  // ('Lifecycle' + the 13px (?) glyph) is 64.
+  lifecycle: 'flex w-[84px] min-w-0 shrink items-center gap-1',
   // 잘린 전문은 행을 눌러 상세에서 읽는다 — pointer-events-none 이라야 이 셀이
   // 행 링크 오버레이의 클릭을 가로채지 않는다.
   note: 'min-w-[72px] flex-1 truncate pointer-events-none',
@@ -254,7 +261,16 @@ const rq = {
 interface Column {
   label?: string;
   className: string;
+  /** Sits after the label. The header is the one place in this table that can take
+   *  the pointer — the rows are under the row-link overlay. */
+  hint?: ReactNode;
 }
+
+const LIFECYCLE_COLUMN: Column = {
+  label: 'Lifecycle',
+  className: rq.lifecycle,
+  hint: <InfoTooltip content={<InstallationLifecycleLegend />} label="Lifecycle 설명" />,
+};
 
 /** The two 작업 views share one skeleton — same widths, same flex-1 count — so
  *  the table holds its geometry as the rail switches. Only the note/date labels
@@ -263,11 +279,20 @@ const actionColumns = (note: string, when: string): readonly Column[] => [
   { label: '서비스 이름', className: rq.service },
   { label: '서비스 코드', className: rq.code },
   { label: 'Cloud', className: rq.cloud },
+  LIFECYCLE_COLUMN,
   { label: note, className: rq.note },
   { label: '대기', className: rq.wait },
   { label: when, className: rq.when },
   { className: rq.chev },
 ];
+
+/**
+ * 670 = service 72 + code 76 + cloud 72 + lifecycle 84 + note 72 + wait 60 + when 136
+ * + chev 14 (586) + seven gaps of 12. The Lifecycle column put the 작업 views over the
+ * 558 the card has at the 1080 floor; below 670 the card scrolls sideways rather than
+ * letting 요청 일자 lose its minutes (the same call 전체 이력 made).
+ */
+const ACTION_ROWS_MIN_WIDTH = 'min-w-[670px]';
 
 const PENDING_COLUMNS = actionColumns('설명', '요청 일자');
 const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
@@ -277,14 +302,15 @@ const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
  * 줄에도 서 있지 않으니 "얼마나 오래 서 있었나"에 답할 것이 없다. 나머지는 같은 열,
  * 같은 폭이라 레일이 작업 묶음 안에서 움직여도 표의 신원 열이 안 흔들린다.
  *
- * 고정 열 합은 76 + 72 + 136 + 14 = 298 이고 다섯 gap 이 60 이라, 바닥(1080)의 카드
- * 안쪽 558 에서 두 유연 열이 200 을 나눠 갖는다 — 각자의 바닥값 72 를 넘으므로
- * rowsMinWidth 가 필요 없다(전체 이력만 그것을 쓴다).
+ * With the Lifecycle column the fixed cells come to 76 + 72 + 84 + 136 + 14 = 382
+ * and six gaps to 72; the two flexible columns need 72 each, so the rows want 598
+ * against 558 at the 1080 floor — hence `rowsMinWidth` below.
  */
 const RECENT_COLUMNS: readonly Column[] = [
   { label: '서비스 이름', className: rq.service },
   { label: '서비스 코드', className: rq.code },
   { label: 'Cloud', className: rq.cloud },
+  LIFECYCLE_COLUMN,
   { label: '설명', className: rq.note },
   { label: '생성 일자', className: rq.when },
   { className: rq.chev },
@@ -334,6 +360,19 @@ function RowLink({
   );
 }
 
+/** Plain tag — the explanation lives on the column header (see `Column.hint`). */
+function LifecycleCell({ row }: { row: RequestListRow }): ReactElement {
+  return (
+    <span role="cell" className={rq.lifecycle}>
+      {row.installationLifecycleStatus ? (
+        <InstallationLifecycleTag status={row.installationLifecycleStatus} plain />
+      ) : (
+        '—'
+      )}
+    </span>
+  );
+}
+
 /** 대기 경과 셀. 날짜가 없으면 일수도 없다 — 0일이라고 말하지 않는다. */
 function WaitCell({ since }: { since: string | null | undefined }): ReactElement {
   if (!since) return <span role="cell" className={rq.wait}>—</span>;
@@ -375,6 +414,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     desc: '승인이 필요한 연동 요청이에요 — 검토 후 승인하거나 반려해 주세요',
     tone: 'primary',
     columns: PENDING_COLUMNS,
+    rowsMinWidth: ACTION_ROWS_MIN_WIDTH,
     empty: {
       title: '승인을 기다리는 요청이 없어요',
       caption: '새 연동 요청이 들어오면 여기에 표시돼요',
@@ -386,6 +426,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     desc: '반려했으나 서비스 측 담당자가 아직 확인하지 않았어요 — 행을 눌러 사유와 요청 내역을 볼 수 있어요',
     tone: 'danger',
     columns: REJECTED_COLUMNS,
+    rowsMinWidth: ACTION_ROWS_MIN_WIDTH,
     empty: {
       title: '확인 대기 중인 반려 건이 없어요',
       caption: '반려 처리한 요청이 여기에 모여요',
@@ -401,6 +442,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     desc: '최근 14일 이내에 만들어진 연동 대상이에요 — 행을 눌러 지금 어디까지 왔는지 볼 수 있어요',
     tone: 'muted',
     columns: RECENT_COLUMNS,
+    rowsMinWidth: 'min-w-[598px]',
     empty: {
       title: '최근 14일 안에 만들어진 대상이 없어요',
       caption: '새 연동 대상이 만들어지면 여기에 표시돼요',
@@ -419,9 +461,6 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
      * 분 단위가 조용히 사라졌다. 이력의 일이 "언제 일어났나" 하나인데 그 값의 정밀도를
      * 말없이 버리는 것은 밀도 절충이 아니라 데이터 결함이다. 좁으면 옆으로 민다.
      *
-     * 두 작업 뷰에는 이 값이 없다 — 바닥에서 요청/반려 일자는 130 상자에 119 잉크로
-     * 안 잘리고, 잘리는 것은 잘리라고 둔 설명뿐이다. 거기에 바닥값을 주면 지금 맞는
-     * 레이아웃에 가로 스크롤만 생긴다.
      */
     rowsMinWidth: 'min-w-[730px]',
     empty: {
@@ -496,6 +535,7 @@ function ViewCard<T>({ meta, state, children }: ViewCardProps<T>): ReactElement 
             {columns.map((col) => (
               <span key={col.label ?? 'tail'} role="columnheader" className={col.className}>
                 {col.label}
+                {col.hint}
               </span>
             ))}
           </div>
@@ -571,6 +611,7 @@ const actionRows = (
         <span role="cell" className={rq.cloud}>
           <ProvTag provider={row.cloudProvider ?? ''} />
         </span>
+        <LifecycleCell row={row} />
         {/* 미리보기 한 줄. 전문은 행을 눌러 연동 요청 상세에서 —
             hover 툴팁은 두지 않는다: 툴팁을 띄우려면 이 셀이 포인터를 받아야 하고,
             그러면 같은 자리에서 행 링크 클릭이 죽는다. */}
@@ -701,6 +742,7 @@ export function RequestsView({ initialView }: RequestsViewProps): ReactElement {
                       <span role="cell" className={rq.cloud}>
                         <ProvTag provider={row.cloudProvider ?? ''} />
                       </span>
+                      <LifecycleCell row={row} />
                       <span role="cell" className={rq.note}>
                         {row.description ?? '—'}
                       </span>

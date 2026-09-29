@@ -11,6 +11,7 @@
  * The wire schemas are ADR-019 loose codegen (every field optional/nullable), so
  * the reshapers coalesce absent values to `null` / `[]`.
  */
+import { parseInstallationLifecycle, type InstallationLifecycleStatus } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -88,6 +89,8 @@ export interface RequestListRow {
     requestedAt: string | null;
     processedAt: string | null;
   } | null;
+  /** `TargetSourceInfo.installationLifecycleStatus` — not in the swagger yet. null = not sent. */
+  installationLifecycleStatus: InstallationLifecycleStatus | null;
 }
 
 /**
@@ -266,6 +269,9 @@ function toRequestListRow(row: z.infer<typeof schemas.TargetSourceInfo>): Reques
           processedAt: latest.processed_at ?? null,
         }
       : null,
+    // Undeclared on `TargetSourceInfo` for now — survives the parse via `.passthrough()`.
+    installationLifecycleStatus:
+      parseInstallationLifecycle(row.installationLifecycleStatus) ?? null,
   };
 }
 

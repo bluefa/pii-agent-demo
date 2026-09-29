@@ -22,8 +22,11 @@
  * 아예 사라지는 것과 다른 상태).
  */
 import Link from 'next/link';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { cn, pipelineStyles } from '@/lib/theme';
+import type { InstallationLifecycleStatus } from '@/lib/types';
+import { Tooltip } from '@/app/components/ui/Tooltip';
+import { INSTALLATION_LIFECYCLE_COPY } from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, fmtDateTime, providerLabel } from '@/lib/pipeline/format';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
@@ -37,6 +40,8 @@ interface MetaItem {
   key: string;
   /** null = the fact is still in flight — the value line wears a pulse bar. */
   value: string | null;
+  /** Explains the value on hover/focus. The value stays text so the 12px line holds. */
+  tip?: ReactNode;
 }
 
 /** Sits INSIDE the real value span, so the 12px/1.3 line box (and the header's
@@ -56,7 +61,15 @@ function MetaRun({ items }: { items: readonly MetaItem[] }): ReactElement {
         <span key={item.key} className="flex min-w-0 flex-col gap-1">
           <span className="text-[12px] font-normal text-[var(--pl-text-weak)]">{item.key}</span>
           <span className="min-w-0 truncate text-[12px] font-semibold leading-[1.3] tabular-nums text-[var(--pl-text-medium)]">
-            {item.value ?? VALUE_BAR}
+            {item.tip && item.value != null ? (
+              <Tooltip content={item.tip}>
+                <span tabIndex={0} className="cursor-help underline decoration-dotted underline-offset-2">
+                  {item.value}
+                </span>
+              </Tooltip>
+            ) : (
+              item.value ?? VALUE_BAR
+            )}
           </span>
         </span>
       ))}
@@ -105,6 +118,8 @@ export interface RequestDetailHeaderProps {
   serviceCode: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
+  /** `installationLifecycleStatus` — omitted from the run when the response did not say. */
+  lifecycle?: InstallationLifecycleStatus | null;
   /** The request facts (approval-requests/latest) are still in flight — 요청
    *  시각/요청자 wear pulse bars and the CTA renders disabled. */
   pending?: boolean;
@@ -122,6 +137,7 @@ export function RequestDetailHeader({
   serviceCode,
   requestedBy,
   requestedAt,
+  lifecycle,
   pending,
   onApprove,
   onReject,
@@ -132,6 +148,19 @@ export function RequestDetailHeader({
   // label already says which field this is, so the dot only re-encoded the value.
   const meta: MetaItem[] = [
     { key: 'Provider', value: providerLabel(displayProvider(provider, isSdu)) },
+    ...(lifecycle
+      ? [
+          {
+            key: 'Lifecycle',
+            value: INSTALLATION_LIFECYCLE_COPY[lifecycle].label,
+            tip: INSTALLATION_LIFECYCLE_COPY[lifecycle].lines.map((line) => (
+              <span key={line} className="block">
+                {line}
+              </span>
+            )),
+          },
+        ]
+      : []),
     { key: '요청 시각', value: pending ? null : fmtDateTime(requestedAt) },
     { key: '요청자', value: pending ? null : (requestedBy ?? '—') },
   ];

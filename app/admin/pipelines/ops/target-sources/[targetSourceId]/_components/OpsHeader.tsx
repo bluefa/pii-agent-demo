@@ -39,7 +39,8 @@ import Link from 'next/link';
 import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
-import { isSduTarget, normalizeCloudProvider } from '@/lib/types';
+import { isSduTarget, normalizeCloudProvider, parseInstallationLifecycle } from '@/lib/types';
+import { InstallationLifecycleTag } from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
 import { awsRoleArnDisplay } from '@/lib/constants/aws-role';
 import { gcpServiceAccountDisplay } from '@/lib/constants/gcp-service-account';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
@@ -343,6 +344,13 @@ export function OpsHeader({
                 /* 20px = 알약의 실측 높이. 폭은 아무것도 주장하지 않는다 — 어느 라벨도
                    아직 모르고, 이 자리 오른쪽에는 지금 아무것도 서 있지 않다. */
                 <span className={cn(opsStyles.skeletonWash, 'h-5 w-[92px] flex-none rounded-full')} aria-hidden />
+              )}
+              {/* Known with the detail, but seated with the pill so nothing to its
+                  right is drawn twice (same rule as the partition tag). */}
+              {processLoaded && (
+                <InstallationLifecycleTag
+                  status={parseInstallationLifecycle(detail.installation_lifecycle_status)}
+                />
               )}
               {processLoaded && partitionTag}
             </span>

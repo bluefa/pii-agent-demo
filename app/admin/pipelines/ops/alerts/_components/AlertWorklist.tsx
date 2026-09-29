@@ -28,6 +28,11 @@ import type { AlertStageIcon } from '@/app/admin/pipelines/ops/alerts/_component
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
+import {
+  InstallationLifecycleLegend,
+  InstallationLifecycleTag,
+} from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { DelayText } from '@/app/admin/pipelines/queue/_components/DelayText';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
@@ -97,8 +102,18 @@ function WorklistHead(): ReactElement {
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
         <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
-        <th className={cn(worklist.th, 'w-[28%]')}>서비스 이름</th>
-        <th className={cn(worklist.th, 'w-[28%]')}>설명</th>
+        <th className={cn(worklist.th, 'w-[21%]')}>서비스 이름</th>
+        <th className={cn(worklist.th, 'w-[21%]')}>설명</th>
+        {/* The explanation sits here, not on the row tag: the row is itself a button,
+            and a focus stop inside it nests one control in another. */}
+        {/* 14% holds the widest tag ('연동 내용 변경', 80px + 40px cell padding) from a
+            1440 viewport up. */}
+        <th className={cn(worklist.th, 'w-[14%] min-w-[124px]')}>
+          <span className="inline-flex items-center gap-1">
+            Lifecycle
+            <InfoTooltip content={<InstallationLifecycleLegend />} label="Lifecycle 설명" />
+          </span>
+        </th>
         <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>지연</th>
         <th className={cn(worklist.th, 'w-[6%] min-w-[64px]')} />
       </tr>
@@ -161,13 +176,13 @@ export function AlertWorklist({
         <tbody className={worklist.body}>
           {failed ? (
             <tr>
-              <td colSpan={7} className={worklist.state}>
+              <td colSpan={8} className={worklist.state}>
                 목록을 불러오지 못했습니다.
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className={worklist.state}>
+              <td colSpan={8} className={worklist.state}>
                 해당 단계의 대상이 없습니다.
               </td>
             </tr>
@@ -194,6 +209,13 @@ export function AlertWorklist({
                     <span className={worklist.descText} title={row.description ?? undefined}>
                       {row.description ?? '—'}
                     </span>
+                  </td>
+                  <td className={cn(d.cell, 'whitespace-nowrap')}>
+                    {row.installationLifecycleStatus ? (
+                      <InstallationLifecycleTag status={row.installationLifecycleStatus} plain />
+                    ) : (
+                      <span className={d.elapsed}>—</span>
+                    )}
                   </td>
                   <td className={d.cell}>
                     {row.delaySeconds != null ? (
@@ -279,7 +301,7 @@ export function AlertWorklistSkeleton({
               도착하면 그 시프트가 스켈레톤이 막으려던 바로 그 흔들림이다. */}
           {Array.from({ length: Math.min(Math.max(count ?? PAGE_SIZE, 1), PAGE_SIZE) }, (_, row) => (
             <tr key={row} aria-hidden="true">
-              {Array.from({ length: 6 }, (_, col) => (
+              {Array.from({ length: 7 }, (_, col) => (
                 <td key={col} className={d.cell}>
                   <span className={worklist.skeletonBar} />
                 </td>

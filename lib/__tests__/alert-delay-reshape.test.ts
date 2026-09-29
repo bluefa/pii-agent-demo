@@ -68,3 +68,18 @@ describe('toAlertListPage — 계약 밖 지연 쌍', () => {
     expect(row.statusChangedAt).toBeNull();
   });
 });
+
+describe('toAlertListPage — installation lifecycle (not in the swagger yet, read by toRequestListRow)', () => {
+  it('carries a known camel value', () => {
+    expect(firstRow({ ...ROW, installationLifecycleStatus: 'REINSTALLATION' }).installationLifecycleStatus)
+      .toBe('REINSTALLATION');
+  });
+
+  it('is null when absent, unknown, or spelled snake', () => {
+    expect(firstRow(ROW).installationLifecycleStatus).toBeNull();
+    expect(firstRow({ ...ROW, installationLifecycleStatus: 'SOMETHING_NEW' }).installationLifecycleStatus)
+      .toBeNull();
+    expect(firstRow({ ...ROW, installation_lifecycle_status: 'REINSTALLATION' }).installationLifecycleStatus)
+      .toBeNull();
+  });
+});

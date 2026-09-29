@@ -13,7 +13,7 @@ import { mockProjects } from '@/lib/bff/mock/projects';
 import { opsInstallModeOverride, opsRoleArnOverride } from '@/lib/bff/mock/ops';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
-import type { CloudProvider, Project } from '@/lib/types';
+import type { CloudProvider, InstallationLifecycleStatus, Project } from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 type TargetSourceCreationCandidateMetadataWire = z.infer<typeof schemas.TargetSourceCreationCandidateMetadata>;
@@ -155,6 +155,15 @@ const getBffMetadata = (project: Project) => {
   };
 };
 
+/**
+ * The BFF derives this from `pii_agent_first_installed_at` + `pii_agent_installed_at`.
+ * The seed has no second timestamp, so step 7 stands in for "installed_at is set".
+ */
+export const mockInstallationLifecycle = (project: Project): InstallationLifecycleStatus => {
+  if (project.processStatus === ProcessStatus.INSTALLATION_COMPLETE) return 'INTEGRATION_COMPLETED';
+  return project.piiAgentFirstInstalledAt ? 'REINSTALLATION' : 'INITIAL_INSTALLATION';
+};
+
 // swagger `TargetSourceDetail` (snake wire) — flat, used by 37 (`list`) and the
 // detail `get`. `service_code`/`service_name` are part of the swagger DTO.
 const toBffTargetSourceDetail = (project: Project) => ({
@@ -177,6 +186,7 @@ const toBffTargetSourceDetail = (project: Project) => ({
   // 아니라 "미확인" 을 그린다. 세 번째 상태는 계약 반영 전 실서버의 상태이지 목이
   // 흉내 낼 상태가 아니다.
   supportRawData: project.supportRawData === true,
+  installation_lifecycle_status: mockInstallationLifecycle(project),
   ...(Object.keys(getBffMetadata(project)).length > 0
     ? { metadata: getBffMetadata(project) }
     : {}),
