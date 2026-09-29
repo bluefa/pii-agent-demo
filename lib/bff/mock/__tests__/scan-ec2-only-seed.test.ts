@@ -18,19 +18,20 @@ describe('EC2-only seed target (1035)', () => {
 
   it('has a finished scan that counted EC2 instances and no DB type', async () => {
     const response = await mockScan.getStatus(EC2_ONLY_TARGET_SOURCE_ID);
-    expect(await response.json()).toMatchObject({
-      scan_status: 'SUCCESS',
-      resource_count_by_resource_type: EC2_ONLY_COUNTS,
-    });
+    const body: unknown = await response.json();
+    expect(body).toHaveProperty('scan_status', 'SUCCESS');
+    // Exact, not a subset match: an extra DB type in the map must fail.
+    expect(body).toHaveProperty('resource_count_by_resource_type', EC2_ONLY_COUNTS);
   });
 
   // The scan history modal opens from the same screen — the same scan must not read
   // as 590 DB instances there.
   it('reports the same counts in the scan history', async () => {
     const response = await mockScan.getHistory(EC2_ONLY_TARGET_SOURCE_ID, { limit: 10, offset: 0 });
-    expect(await response.json()).toMatchObject({
-      content: [{ resource_count_by_resource_type: EC2_ONLY_COUNTS }],
-    });
+    expect(await response.json()).toHaveProperty(
+      'content[0].resource_count_by_resource_type',
+      EC2_ONLY_COUNTS,
+    );
   });
 
   it('answers /resources with 200 and no candidate', async () => {
