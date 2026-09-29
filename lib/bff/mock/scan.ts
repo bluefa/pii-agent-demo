@@ -341,7 +341,13 @@ export const mockScan = {
         scan_progress: saving ? 100 : null,
         duration_seconds: last.duration,
         resource_count_by_resource_type:
-          last.result && !saving ? demoCountMap(last.provider, last.version) : null,
+          last.result && !saving
+            ? mockData.EC2_ONLY_SCAN_TARGET_SOURCE_IDS.has(targetSourceId)
+              // The synthesized map carries DB types; this account has none. 10 = the
+              // instances the EC2 search mock holds (EC2_SCAN_RESULTS in mock/aws.ts).
+              ? { AWS_EC2_INSTANCE: 10 }
+              : demoCountMap(last.provider, last.version)
+            : null,
         scan_error: last.error ?? null,
         // Only while the seed scan is still the latest one: a real rescan writes a new
         // job id, so the flag clears the way the server would clear it — the demo can

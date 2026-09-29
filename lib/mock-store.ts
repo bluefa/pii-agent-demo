@@ -2,7 +2,7 @@ import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, Pr
 import type { TestConnectionJob } from '@/lib/mock-test-connection';
 import { buildSeedTestConnectionJobs } from '@/lib/mock-test-connection';
 import { buildSeedProjectHistory } from '@/lib/mock-history';
-import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
+import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings, EC2_ONLY_SCAN_TARGET_SOURCE_IDS } from '@/lib/mock-data';
 
 type Store = {
     users: User[];
@@ -40,10 +40,13 @@ declare global {
  *
  * 스캔한 적 없는 상태는 리소스 없이 태어난 타겟소스가 그대로 보여준다(IDC 1028 과 같은 짝).
  * 시각은 프로젝트의 updatedAt — 쿨다운(5분) 밖이라 `스캔 시작`이 429 로 막히지 않는다.
+ *
+ * 예외는 EC2_ONLY_SCAN_TARGET_SOURCE_IDS — 스캔은 성공했지만 후보가 0건인 대상이다.
  */
 const buildSeedScanHistory = (projects: Project[]): ScanHistory[] =>
   projects
-    .filter((project) => project.cloudProvider !== 'IDC' && project.resources.length > 0)
+    .filter((project) => project.cloudProvider !== 'IDC'
+      && (project.resources.length > 0 || EC2_ONLY_SCAN_TARGET_SOURCE_IDS.has(project.targetSourceId)))
     .map((project) => ({
       id: `seed-scan-${project.targetSourceId}`,
       targetSourceId: project.targetSourceId,
