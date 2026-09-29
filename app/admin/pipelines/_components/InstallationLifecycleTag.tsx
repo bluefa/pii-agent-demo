@@ -17,21 +17,21 @@ export const INSTALLATION_LIFECYCLE_COPY: Record<
   { label: string; lines: string[] }
 > = {
   INITIAL_INSTALLATION: {
-    label: '최초 설치',
+    label: '최초 연동',
     lines: [
       '연동을 마친 적이 없는 대상입니다.',
       '같은 서비스의 다른 대상과는 무관합니다.',
     ],
   },
   REINSTALLATION: {
-    label: '재설치',
+    label: '연동 내용 변경',
     lines: [
-      '연동을 마친 뒤 다시 설치하고 있습니다.',
+      '연동을 마친 뒤 연동 내용이 바뀐 대상입니다.',
       '연동 초기화 뒤 1단계부터 다시 진행합니다.',
     ],
   },
   INTEGRATION_COMPLETED: {
-    label: '설치 완료',
+    label: '연동 완료',
     lines: ['7단계까지 마쳤습니다.', '관리자 승인이 끝난 상태입니다.'],
   },
 };
@@ -53,14 +53,19 @@ export interface InstallationLifecycleTagProps {
  */
 const TIP_LABEL = 'text-[14px] font-semibold';
 
-/** All three values with their first line — tooltip content for a column header. */
+/**
+ * All three values with their first line — tooltip content for a column header.
+ * Name over sentence: '연동 내용 변경' beside its sentence does not fit the 280px box.
+ */
 export function InstallationLifecycleLegend(): ReactElement {
   return (
     <>
       {INSTALLATION_LIFECYCLE_STATUSES.map((status) => (
-        <span key={status} className="block">
-          <span className={TIP_LABEL}>{INSTALLATION_LIFECYCLE_COPY[status].label}</span>{' '}
-          {INSTALLATION_LIFECYCLE_COPY[status].lines[0]}
+        <span key={status} className="mt-1.5 block first:mt-0">
+          <span className={cn('block', TIP_LABEL)}>
+            {INSTALLATION_LIFECYCLE_COPY[status].label}
+          </span>
+          <span className="block">{INSTALLATION_LIFECYCLE_COPY[status].lines[0]}</span>
         </span>
       ))}
     </>

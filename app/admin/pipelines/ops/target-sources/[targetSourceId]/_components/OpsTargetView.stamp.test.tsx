@@ -104,7 +104,7 @@ describe('OpsTargetView — installation lifecycle tag', () => {
       detail({ installation_lifecycle_status: 'REINSTALLATION' }),
     );
     view();
-    expect(await screen.findByText('재설치')).toBeTruthy();
+    expect(await screen.findByText('연동 내용 변경')).toBeTruthy();
   });
 
   it('draws nothing for the camel key or an unknown value', async () => {
@@ -116,6 +116,6 @@ describe('OpsTargetView — installation lifecycle tag', () => {
     );
     view();
     await screen.findByTitle('실데이터 여부 변경');
-    expect(screen.queryByText('재설치')).toBeNull();
+    expect(screen.queryByText('연동 내용 변경')).toBeNull();
   });
 });

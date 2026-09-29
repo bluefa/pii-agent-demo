@@ -243,14 +243,14 @@ describe('좁으면 옆으로 민다 — 뷰마다 제 열 합이 바닥값이�
     });
     // The Lifecycle column put the 작업 views over the 558 floor budget.
     expect(screen.getByRole('table', { name: '연동 요청 확인 목록' }).className).toContain(
-      'min-w-[662px]',
+      'min-w-[670px]',
     );
   });
 
   it('최근 생성은 대기 열이 없어 바닥값이 더 낮다', async () => {
     await draw('recent');
     expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' }).className).toContain(
-      'min-w-[590px]',
+      'min-w-[598px]',
     );
   });
 });
@@ -262,7 +262,7 @@ describe('Lifecycle 열', () => {
     );
     await draw('pending');
 
-    const tag = screen.getByText('재설치');
+    const tag = screen.getByText('연동 내용 변경');
     // A focus stop or a tooltip wrapper here would take the pointer from the row link.
     expect(tag.getAttribute('tabindex')).toBeNull();
     expect(screen.getByRole('button', { name: 'Lifecycle 설명' })).toBeTruthy();
@@ -270,8 +270,8 @@ describe('Lifecycle 열', () => {
 
   it('값이 없으면 — 를 그린다', async () => {
     await draw('pending');
-    expect(screen.queryByText('최초 설치')).toBeNull();
-    expect(screen.queryByText('재설치')).toBeNull();
+    expect(screen.queryByText('최초 연동')).toBeNull();
+    expect(screen.queryByText('연동 내용 변경')).toBeNull();
   });
 });
 

@@ -199,7 +199,7 @@ const rq = {
    * numbers) and every one of them is SHRINKABLE — no `flex-none` on a text
    * column, so when the floor budget runs out the fixed cells give way instead
    * of painting outside the card. At 1440 nothing truncates but the two preview
-   * columns that are meant to (설명 375→200, 반려 사유 932→200). At 1080 every
+   * columns that are meant to (설명 375→196, 반려 사유 932→196). At 1080 every
    * view is over budget and scrolls sideways instead (`rowsMinWidth`).
    *
    * 승인 대기 / 반려 미확인 run the same skeleton (service · code · cloud · lifecycle ·
@@ -222,9 +222,9 @@ const rq = {
   target: 'w-[48px] min-w-0 shrink truncate',
   // 72 = ProvTag 의 가장 긴 조합('Azure' + 글리프 + gap). 64 에서는 글리프가 붙었다.
   cloud: 'w-[72px] min-w-0 shrink truncate',
-  // 76 = the 'Lifecycle' header (12px ≈ 50) + gap + the 13px (?) glyph. The widest
-  // tag ('최초 설치') is 57.
-  lifecycle: 'flex w-[76px] min-w-0 shrink items-center gap-1',
+  // 84 = the widest tag ('연동 내용 변경', measured 80.1) with slack. The header
+  // ('Lifecycle' + the 13px (?) glyph) is 64.
+  lifecycle: 'flex w-[84px] min-w-0 shrink items-center gap-1',
   // 잘린 전문은 행을 눌러 상세에서 읽는다 — pointer-events-none 이라야 이 셀이
   // 행 링크 오버레이의 클릭을 가로채지 않는다.
   note: 'min-w-[72px] flex-1 truncate pointer-events-none',
@@ -287,12 +287,12 @@ const actionColumns = (note: string, when: string): readonly Column[] => [
 ];
 
 /**
- * 662 = service 72 + code 76 + cloud 72 + lifecycle 76 + note 72 + wait 60 + when 136
- * + chev 14 (578) + seven gaps of 12. The Lifecycle column put the 작업 views over the
- * 558 the card has at the 1080 floor; below 662 the card scrolls sideways rather than
+ * 670 = service 72 + code 76 + cloud 72 + lifecycle 84 + note 72 + wait 60 + when 136
+ * + chev 14 (586) + seven gaps of 12. The Lifecycle column put the 작업 views over the
+ * 558 the card has at the 1080 floor; below 670 the card scrolls sideways rather than
  * letting 요청 일자 lose its minutes (the same call 전체 이력 made).
  */
-const ACTION_ROWS_MIN_WIDTH = 'min-w-[662px]';
+const ACTION_ROWS_MIN_WIDTH = 'min-w-[670px]';
 
 const PENDING_COLUMNS = actionColumns('설명', '요청 일자');
 const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
@@ -302,8 +302,8 @@ const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
  * 줄에도 서 있지 않으니 "얼마나 오래 서 있었나"에 답할 것이 없다. 나머지는 같은 열,
  * 같은 폭이라 레일이 작업 묶음 안에서 움직여도 표의 신원 열이 안 흔들린다.
  *
- * With the Lifecycle column the fixed cells come to 76 + 72 + 76 + 136 + 14 = 374
- * and six gaps to 72; the two flexible columns need 72 each, so the rows want 590
+ * With the Lifecycle column the fixed cells come to 76 + 72 + 84 + 136 + 14 = 382
+ * and six gaps to 72; the two flexible columns need 72 each, so the rows want 598
  * against 558 at the 1080 floor — hence `rowsMinWidth` below.
  */
 const RECENT_COLUMNS: readonly Column[] = [
@@ -442,7 +442,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     desc: '최근 14일 이내에 만들어진 연동 대상이에요 — 행을 눌러 지금 어디까지 왔는지 볼 수 있어요',
     tone: 'muted',
     columns: RECENT_COLUMNS,
-    rowsMinWidth: 'min-w-[590px]',
+    rowsMinWidth: 'min-w-[598px]',
     empty: {
       title: '최근 14일 안에 만들어진 대상이 없어요',
       caption: '새 연동 대상이 만들어지면 여기에 표시돼요',

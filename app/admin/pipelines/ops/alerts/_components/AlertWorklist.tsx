@@ -102,11 +102,13 @@ function WorklistHead(): ReactElement {
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Cloud</th>
         <th className={cn(worklist.th, 'w-[9%] min-w-[96px]')}>Target</th>
         <th className={cn(worklist.th, 'w-[10%] min-w-[104px]')}>서비스 코드</th>
-        <th className={cn(worklist.th, 'w-[22%]')}>서비스 이름</th>
-        <th className={cn(worklist.th, 'w-[22%]')}>설명</th>
+        <th className={cn(worklist.th, 'w-[21%]')}>서비스 이름</th>
+        <th className={cn(worklist.th, 'w-[21%]')}>설명</th>
         {/* The explanation sits here, not on the row tag: the row is itself a button,
             and a focus stop inside it nests one control in another. */}
-        <th className={cn(worklist.th, 'w-[12%] min-w-[120px]')}>
+        {/* 14% holds the widest tag ('연동 내용 변경', 80px + 40px cell padding) from a
+            1440 viewport up. */}
+        <th className={cn(worklist.th, 'w-[14%] min-w-[124px]')}>
           <span className="inline-flex items-center gap-1">
             Lifecycle
             <InfoTooltip content={<InstallationLifecycleLegend />} label="Lifecycle 설명" />

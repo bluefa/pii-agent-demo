@@ -168,13 +168,13 @@ describe('Lifecycle 열', () => {
     render(worklist());
 
     // The row is role="button": a focus stop inside it would nest one control in another.
-    const tag = screen.getByText('재설치');
+    const tag = screen.getByText('연동 내용 변경');
     expect(tag.getAttribute('tabindex')).toBeNull();
     expect(screen.getByRole('button', { name: 'Lifecycle 설명' })).toBeTruthy();
   });
 
   it('값이 없으면 — 를 그린다', () => {
     render(worklist({ rows: [{ ...ROW, installationLifecycleStatus: null }] }));
-    expect(screen.queryByText('재설치')).toBeNull();
+    expect(screen.queryByText('연동 내용 변경')).toBeNull();
   });
 });

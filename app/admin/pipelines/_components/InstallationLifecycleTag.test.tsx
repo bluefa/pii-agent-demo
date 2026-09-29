@@ -12,7 +12,7 @@ describe('InstallationLifecycleTag', () => {
 
   it('names the state and explains it on hover', async () => {
     render(<InstallationLifecycleTag status="REINSTALLATION" />);
-    const tag = screen.getByText('재설치');
+    const tag = screen.getByText('연동 내용 변경');
     expect(screen.queryByText(/연동 초기화 뒤 1단계부터/)).toBeNull();
 
     fireEvent.mouseEnter(tag);
