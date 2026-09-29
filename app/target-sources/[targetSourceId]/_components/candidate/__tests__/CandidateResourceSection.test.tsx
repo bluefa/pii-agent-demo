@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import type { ScanControllerRenderProps } from '@/app/components/features/scan/ScanPanel';
 import { cardStyles } from '@/lib/theme';
 
@@ -33,8 +33,11 @@ const SUCCESS_JOB = {
 // Two candidates → the EMPTY-scan fixture below lands in the 'list' phase, which
 // mounts the lifted approval CardActionBar (C-2). c-1 seeds as selected; c-2 is an
 // unselected TARGET without a reason, so the approval CTA rests disabled.
+// Flipped by the 'EC2-only' describe: a finished scan that proposed no candidate.
+const catalog = vi.hoisted(() => ({ empty: false }));
+
 vi.mock('@/lib/resource-catalog', () => ({
-  catalogToCandidates: () => [
+  catalogToCandidates: () => catalog.empty ? [] : [
     {
       id: 'c-1',
       resourceId: 'res-1',
@@ -504,6 +507,52 @@ describe('CandidateResourceSection — 수동 EC2 행', () => {
 
 // 결과 테이블은 성공한 스캔의 산출물이다. 응답에는 어느 스캔에서 나온 행인지 말해 주는
 // 칸이 없으므로(계약에 scan_version 없음), "표를 그려도 되는가"는 스캔 잡만 답할 수 있다.
+// 스캔은 EC2 위의 DB를 후보로 올리지 않는다 — EC2만 있는 계정은 스캔이 끝나도 0건이고,
+// 입구가 목록 툴바에만 있으면 연동 대상을 담을 길이 없다(목 대상 1035).
+describe('CandidateResourceSection — 스캔 후 0건 (EC2만 있는 계정)', () => {
+  beforeEach(() => {
+    catalog.empty = true;
+    getConfirmResources.mockReset();
+    getConfirmResources.mockResolvedValue({ resources: [] });
+    getLatestScanJob.mockReset();
+    getLatestScanJob.mockResolvedValue(SUCCESS_JOB);
+    scanRenderProps.latestJob = SUCCESS_JOB as ScanControllerRenderProps['latestJob'];
+    capturedEc2Add = undefined;
+  });
+  afterEach(() => {
+    catalog.empty = false;
+    scanRenderProps.latestJob = null;
+  });
+
+  const renderSection = (provider: 'AWS' | 'Azure') =>
+    render(
+      <CandidateResourceSection
+        targetSourceId={1}
+        provider={provider}
+        readonly={false}
+        refreshProject={async () => {}}
+      />,
+    );
+
+  it('AWS 는 빈 화면에서 EC2 를 담고, 담으면 목록이 선다', async () => {
+    renderSection('AWS');
+    fireEvent.click(await screen.findByRole('button', { name: 'EC2 추가' }));
+
+    act(() => capturedEc2Add?.(
+      { instanceId: 'i-0a1b2c3d4e5f67890', privateIpAddress: '10.10.1.24', privateDnsName: 'ip-10-10-1-24' },
+      { databaseType: 'mysql', port: 3306 },
+    ));
+
+    expect(screen.getByTestId('table').getAttribute('data-count')).toBe('1');
+  });
+
+  it('AWS 가 아니면 입구가 없다', async () => {
+    renderSection('Azure');
+    await screen.findByText(/발견된 리소스가 없어요. 다시 스캔/);
+    expect(screen.queryByRole('button', { name: 'EC2 추가' })).toBeNull();
+  });
+});
+
 describe('CandidateResourceSection — 스캔 게이트', () => {
   beforeEach(() => {
     getConfirmResources.mockReset();

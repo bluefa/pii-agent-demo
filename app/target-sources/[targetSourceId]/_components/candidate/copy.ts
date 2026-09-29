@@ -44,6 +44,7 @@ const ko = {
     noResources: '발견된 리소스가 없습니다',
     noFilterMatch: '조건에 맞는 결과가 없어요.',
     emptyAfterScan: '발견된 리소스가 없어요. 다시 스캔으로 최신 상태를 확인해보세요.',
+    emptyEc2Hint: 'EC2에 직접 설치해 운영 중인 데이터베이스는 Instance ID로 검색해 추가할 수 있어요.',
     retry: '다시 시도',
 
     // ----- columns -----
@@ -330,6 +331,7 @@ const en: typeof ko = {
     noResources: 'No resources found',
     noFilterMatch: 'No results match your filters.',
     emptyAfterScan: 'No resources found. Rescan to check the latest state.',
+    emptyEc2Hint: 'A database you installed and run on EC2 yourself can be added by searching its instance ID.',
     retry: 'Try again',
 
     columnSelect: 'Select',

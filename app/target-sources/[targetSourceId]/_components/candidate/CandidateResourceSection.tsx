@@ -699,9 +699,24 @@ export const CandidateResourceSection = ({
                     starting={starting}
                   />
                 ) : (
-                  <p className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-                    {t.emptyAfterScan}
-                  </p>
+                  // 후보 0건이어도 EC2 입구는 남는다 — 스캔은 EC2 위의 DB를 후보로 올리지
+                  // 않으므로, EC2만 있는 계정은 이 화면이 연동 대상을 담는 유일한 길이다.
+                  <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                    <p className={cn('text-sm', textColors.tertiary)}>{t.emptyAfterScan}</p>
+                    {showEc2Add && (
+                      <>
+                        <p className={cn('text-sm', textColors.tertiary)}>{t.emptyEc2Hint}</p>
+                        <button
+                          type="button"
+                          onClick={() => setEc2AddOpen(true)}
+                          className={idcStyles.triggerBtn.ghostSm}
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          {t.addEc2}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 );
               default:
                 phase satisfies never;
