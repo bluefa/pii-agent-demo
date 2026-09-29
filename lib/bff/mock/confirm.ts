@@ -397,7 +397,9 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
       // real BFF sends, and `null` would still let a `?? ''` render an empty Region cell
       // as though the field had been answered.
       ...(region ? { region } : {}),
-      database_type: r.databaseType,
+      // The declared engine travels with its endpoint — the approved and confirmed
+      // serializers read it the same way, so a row never pairs MYSQL with an Oracle SID.
+      database_type: vm?.databaseType ?? r.databaseType,
       ...(idc ? { idc_host_format: idc.inputFormat } : {}),
       ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
       ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
@@ -794,7 +796,7 @@ export const mockConfirm = {
         const isDomain = meta.idc_host_format === 'HOST';
         // A manually added EC2 instance arrives here too — its connection info is a VM
         // endpoint (host · port · Oracle SID), not an IDC one.
-        const vmDatabaseConfig = endpointConfigMap.get(item.resource_id!);
+        const vmDatabaseConfig = item.resource_id ? endpointConfigMap.get(item.resource_id) : undefined;
         return {
           id: item.resource_id!,
           type: item.resource_type ?? 'IDC_RESOURCE',

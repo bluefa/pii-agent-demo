@@ -48,7 +48,7 @@ const request = {
   ],
 };
 
-const ENDPOINT = { host: '10.10.1.24', port: 1522, oracle_service_id: 'ORCL' };
+const ENDPOINT = { database_type: 'oracle', host: '10.10.1.24', port: 1522, oracle_service_id: 'ORCL' };
 
 /**
  * A manually added EC2 instance is unknown to `project.resources`, so the approval request is
@@ -92,6 +92,39 @@ describe('mockConfirm.createApprovalRequest — manually added EC2 row', () => {
           metadata: ENDPOINT,
         },
       ],
+    });
+  });
+
+  // A VM the scan stored as MYSQL, then declared as Oracle: the engine has to travel with
+  // the endpoint, or the request reads MYSQL beside an Oracle port and SID.
+  it('reads the declared engine back, not the one the scan stored', async () => {
+    const SCANNED_ID = 'i-0b73d5a91e8c246f0';
+    const store = getStore();
+    store.projects = store.projects.filter((project) => project.id !== TEST_PROJECT_ID);
+    store.projects.push({
+      ...createTestProject(),
+      resources: [
+        {
+          id: SCANNED_ID,
+          type: 'AWS_EC2_INSTANCE',
+          awsType: 'EC2',
+          resourceId: SCANNED_ID,
+          connectionStatus: 'PENDING',
+          isSelected: false,
+          databaseType: 'MYSQL',
+          integrationCategory: 'NO_INSTALL_NEEDED',
+        },
+      ],
+    });
+
+    const response = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {
+      resources: [{ ...request.resources[0], resource_id: SCANNED_ID }],
+    });
+    expect(response.status).toBe(200);
+
+    const latest = await mockConfirm.getApprovalRequestLatest(TEST_TARGET_SOURCE_ID_STR);
+    expect(await latest.json()).toMatchObject({
+      resources: [{ resource_id: SCANNED_ID, metadata: ENDPOINT }],
     });
   });
 });
