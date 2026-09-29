@@ -75,6 +75,21 @@ const demoCountMap = (provider: string, version: number | null | undefined): Rec
 };
 
 /**
+ * Counts for one finished scan of one target — the latest job and the history rows read
+ * the same function, so a scan never reports two different totals. An EC2-only account
+ * has no DB type to count: 10 = the instances the EC2 search mock holds
+ * (EC2_SCAN_RESULTS in mock/aws.ts).
+ */
+const scanCountMap = (
+  targetSourceId: number,
+  provider: string,
+  version: number | null | undefined,
+): Record<string, number> =>
+  mockData.EC2_ONLY_SCAN_TARGET_SOURCE_IDS.has(targetSourceId)
+    ? { AWS_EC2_INSTANCE: 10 }
+    : demoCountMap(provider, version);
+
+/**
  * Demo seed: these targets answer with a scan past its policy age (one per provider) so
  * the stale state is reachable without waiting out the real threshold. Deriving it from
  * completedAt is not an option — every fixture timestamp is already months old, which
@@ -191,7 +206,7 @@ export const mockScan = {
           // Failed scans have no aggregation (null), and a saving scan has not
           // written its totals yet — only settled successes get demo counts.
           resource_count_by_resource_type:
-            h.result && !saving ? demoCountMap(h.provider, h.version) : null,
+            h.result && !saving ? scanCountMap(targetSourceId, h.provider, h.version) : null,
           scan_error: h.error ?? null,
         };
       }),
@@ -341,7 +356,7 @@ export const mockScan = {
         scan_progress: saving ? 100 : null,
         duration_seconds: last.duration,
         resource_count_by_resource_type:
-          last.result && !saving ? demoCountMap(last.provider, last.version) : null,
+          last.result && !saving ? scanCountMap(targetSourceId, last.provider, last.version) : null,
         scan_error: last.error ?? null,
         // Only while the seed scan is still the latest one: a real rescan writes a new
         // job id, so the flag clears the way the server would clear it — the demo can

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/mock-data', () => ({
   getCurrentUser: vi.fn(),
   getProjectByTargetSourceId: vi.fn(),
+  EC2_ONLY_SCAN_TARGET_SOURCE_IDS: new Set<number>(),
 }));
 // Only the two store readers are stubbed — isSavingWindow is the predicate under
 // test, so it stays real. Stubbing it would make these assertions tautological.

@@ -1,4 +1,5 @@
 import { getStore } from '@/lib/mock-store';
+import { EC2_ONLY_SCAN_TARGET_SOURCE_IDS } from '@/lib/mock-data';
 import {
   CloudProvider,
   Project,
@@ -268,7 +269,10 @@ const completeScan = (scan: ScanJob): ScanJob => {
   }
 
   const existingResources = project.resources;
-  const { newResources, result, addedIds } = generateResourceChanges(project.cloudProvider, existingResources);
+  // An EC2-only account stays EC2-only: a rescan proposes no DB candidate.
+  const { newResources, result, addedIds } = EC2_ONLY_SCAN_TARGET_SOURCE_IDS.has(project.targetSourceId)
+    ? { newResources: existingResources, result: buildScanResult(existingResources), addedIds: [] }
+    : generateResourceChanges(project.cloudProvider, existingResources);
 
   // 프로젝트 리소스 업데이트
   const projectIndex = store.projects.findIndex((p) => p.id === project.id);

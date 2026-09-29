@@ -1426,7 +1426,41 @@ export const mockProjects: Project[] = [
     updatedAt: "2026-02-01T09:00:00Z",
     isRejected: false,
   },
+  {
+    // Scanned, and the account holds EC2 instances only: the candidate list is empty
+    // because the scan proposes DB services, while EC2 hosts are reached through the
+    // search-add flow alone. See EC2_ONLY_SCAN_TARGET_SOURCE_IDS.
+    id: "proj-10",
+    targetSourceId: 1035,
+    projectCode: "DATA-010",
+    name: "PII Agent 설치 - EC2만 있는 계정",
+    description:
+      "Step 1. 연동 대상 확정 — 스캔은 끝났지만 계정에 EC2 인스턴스만 있어 후보 목록이 비어 있는 상태입니다. 이 화면에서 EC2 검색·추가에 닿을 수 있는지 확인합니다.",
+    serviceCode: "aws",
+    cloudProvider: "AWS",
+    awsAccountId: "710293845612",
+    awsRegionType: "global",
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(
+      ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ),
+    resources: [],
+    terraformState: {
+      serviceTf: "PENDING",
+      bdcTf: "PENDING",
+    },
+    createdAt: "2026-02-01T09:00:00Z",
+    updatedAt: "2026-02-01T09:00:00Z",
+    isRejected: false,
+  },
 ];
+
+/**
+ * Targets whose scan succeeded and found EC2 instances only. They are born without
+ * resources yet carry a seed scan (mock-store), and a rescan adds nothing (mock-scan) —
+ * otherwise one click on 다시 스캔 would put a random DB in the list and the state is gone.
+ */
+export const EC2_ONLY_SCAN_TARGET_SOURCE_IDS: ReadonlySet<number> = new Set([1035]);
 
 // ===== IDC 데모 프로젝트 (Step 1~7) =====
 // Step 2~7 read the STANDARD integration endpoints (approval-requests/latest,
