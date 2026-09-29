@@ -387,6 +387,7 @@ function toResourceCatalogItem(
 function toApprovalResourceItems(project: Project): Array<Record<string, unknown>> {
   return project.resources.map((r) => {
     const idc = r.idcConfig;
+    const vm = r.vmDatabaseConfig;
     const region = demoRegion(project.cloudProvider, r);
     const resourceName = demoResourceName(project.cloudProvider, r);
     const metadata: Record<string, unknown> = {
@@ -410,6 +411,9 @@ function toApprovalResourceItems(project: Project): Array<Record<string, unknown
         ? { port: r.port ?? DEFAULT_PORT_BY_DB[String(r.databaseType).toUpperCase()] ?? null }
         : {}),
       ...(idc?.oracleSid ? { oracle_service_id: idc.oracleSid } : {}),
+      // A VM row (EC2 · Azure VM) reads back the endpoint the request declared.
+      ...(vm ? { host: vm.host, port: vm.port } : {}),
+      ...(vm?.oracleServiceId ? { oracle_service_id: vm.oracleServiceId } : {}),
       // RDS 클러스터: 멤버 목록은 사실이라 선택 여부와 무관하게 실리고, 접속 인스턴스
       // 선택은 요청이 실어 보낸 값(POST 가 기록)만 되돌려준다.
       ...(r.rdsInstanceCandidates ? { rds_instance_candidates: r.rdsInstanceCandidates } : {}),
@@ -788,6 +792,9 @@ export const mockConfirm = {
           ? meta.idc_source_ips.filter((ip): ip is string => typeof ip === 'string')
           : [];
         const isDomain = meta.idc_host_format === 'HOST';
+        // A manually added EC2 instance arrives here too — its connection info is a VM
+        // endpoint (host · port · Oracle SID), not an IDC one.
+        const vmDatabaseConfig = endpointConfigMap.get(item.resource_id!);
         return {
           id: item.resource_id!,
           type: item.resource_type ?? 'IDC_RESOURCE',
@@ -796,7 +803,11 @@ export const mockConfirm = {
           isSelected: item.selected !== false,
           // The request sends database_type lowercase; the mock domain keys off UPPERCASE.
           databaseType: String(meta.database_type ?? '').toUpperCase(),
-          integrationCategory: 'TARGET',
+          // EC2/VM rows are never a mandatory target; every other manual row is one.
+          integrationCategory: item.integration_category === 'NO_INSTALL_NEEDED' ? 'NO_INSTALL_NEEDED' : 'TARGET',
+          ...(vmDatabaseConfig ? { vmDatabaseConfig } : {}),
+          // Without it the row is renamed by the demo synthesis between step 1 and step 2.
+          ...(item.resource_name ? { resourceName: item.resource_name } : {}),
           ...(typeof meta.port === 'number' ? { port: meta.port } : {}),
           ...(meta.idc_host_format
             ? {
