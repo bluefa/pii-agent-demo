@@ -288,12 +288,12 @@ const actionColumns = (note: string, when: string): readonly Column[] => [
 ];
 
 /**
- * 670 = service 72 + code 76 + cloud 72 + lifecycle 84 + note 72 + wait 60 + when 136
- * + chev 14 (586) + seven gaps of 12. The Lifecycle column put the 작업 views over the
- * 558 the card has at the 1080 floor; below 670 the card scrolls sideways rather than
+ * 686 = service 72 + code 76 + cloud 88 + lifecycle 84 + note 72 + wait 60 + when 136
+ * + chev 14 (602) + seven gaps of 12. The Lifecycle column put the 작업 views over the
+ * 558 the card has at the 1080 floor; below 686 the card scrolls sideways rather than
  * letting 요청 일자 lose its minutes (the same call 전체 이력 made).
  */
-const ACTION_ROWS_MIN_WIDTH = 'min-w-[670px]';
+const ACTION_ROWS_MIN_WIDTH = 'min-w-[686px]';
 
 const PENDING_COLUMNS = actionColumns('설명', '요청 일자');
 const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
@@ -303,8 +303,8 @@ const REJECTED_COLUMNS = actionColumns('반려 사유', '반려 일자');
  * 줄에도 서 있지 않으니 "얼마나 오래 서 있었나"에 답할 것이 없다. 나머지는 같은 열,
  * 같은 폭이라 레일이 작업 묶음 안에서 움직여도 표의 신원 열이 안 흔들린다.
  *
- * With the Lifecycle column the fixed cells come to 76 + 72 + 84 + 136 + 14 = 382
- * and six gaps to 72; the two flexible columns need 72 each, so the rows want 598
+ * With the Lifecycle column the fixed cells come to 76 + 88 + 84 + 136 + 14 = 398
+ * and six gaps to 72; the two flexible columns need 72 each, so the rows want 614
  * against 558 at the 1080 floor — hence `rowsMinWidth` below.
  */
 const RECENT_COLUMNS: readonly Column[] = [
@@ -443,7 +443,7 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     desc: '최근 14일 이내에 만들어진 연동 대상이에요 — 행을 눌러 지금 어디까지 왔는지 볼 수 있어요',
     tone: 'muted',
     columns: RECENT_COLUMNS,
-    rowsMinWidth: 'min-w-[598px]',
+    rowsMinWidth: 'min-w-[614px]',
     empty: {
       title: '최근 14일 안에 만들어진 대상이 없어요',
       caption: '새 연동 대상이 만들어지면 여기에 표시돼요',
@@ -456,14 +456,14 @@ const VIEW_META: Record<RequestView, ViewMeta> = {
     tone: 'muted',
     columns: HISTORY_COLUMNS,
     /**
-     * 730 = 고정 열 합(service 72 + code 76 + target 48 + cloud 72 + status 116
-     * + actor 112 + when 136 + chev 14 = 646) + gap 7칸 × 12. 여덟 열은 바닥(1080)의 카드
+     * 746 = 고정 열 합(service 72 + code 76 + target 48 + cloud 88 + status 116
+     * + actor 112 + when 136 + chev 14 = 662) + gap 7칸 × 12. 여덟 열은 바닥(1080)의 카드
      * 안쪽 558 에 안 들어간다 — 그때 줄어드는 것은 **일시**였고(101 상자에 119 잉크),
      * 분 단위가 조용히 사라졌다. 이력의 일이 "언제 일어났나" 하나인데 그 값의 정밀도를
      * 말없이 버리는 것은 밀도 절충이 아니라 데이터 결함이다. 좁으면 옆으로 민다.
      *
      */
-    rowsMinWidth: 'min-w-[730px]',
+    rowsMinWidth: 'min-w-[746px]',
     empty: {
       title: '표시할 승인 이력이 없어요',
       caption: '연동 요청이 처리되면 이력이 여기에 쌓여요',

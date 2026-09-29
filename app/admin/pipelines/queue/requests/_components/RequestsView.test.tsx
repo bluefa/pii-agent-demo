@@ -239,7 +239,7 @@ describe('좁으면 옆으로 민다 — 뷰마다 제 열 합이 바닥값이�
     // 바닥값은 스크롤러가 아니라 **안쪽** 블록에 있어야 한다 — 블록의 scrollWidth 는
     // 제 상자 폭이라, 안쪽에 min-width 가 없으면 넘칠 것이 없어 스크롤러가 안 열린다.
     const historyRows = screen.getByRole('table', { name: '전체 History 확인 목록' });
-    expect(historyRows.className).toContain('min-w-[730px]');
+    expect(historyRows.className).toContain('min-w-[746px]');
     expect(historyRows.parentElement?.className).toContain('overflow-x-auto');
 
     await act(async () => {
@@ -247,14 +247,14 @@ describe('좁으면 옆으로 민다 — 뷰마다 제 열 합이 바닥값이�
     });
     // The Lifecycle column put the 작업 views over the 558 floor budget.
     expect(screen.getByRole('table', { name: '연동 요청 확인 목록' }).className).toContain(
-      'min-w-[670px]',
+      'min-w-[686px]',
     );
   });
 
   it('최근 생성은 대기 열이 없어 바닥값이 더 낮다', async () => {
     await draw('recent');
     expect(screen.getByRole('table', { name: '최근 생성 대상 확인 목록' }).className).toContain(
-      'min-w-[598px]',
+      'min-w-[614px]',
     );
   });
 });

@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { schemas } from '@/lib/generated/install-v1';
 import {
   toAlertListPage,
   toApprovalHistoryPage,
@@ -30,11 +31,16 @@ const NEITHER: TargetKindFlags = { isSduType: false, isChinaRegion: false };
 
 describe('SDU / 중국 flags survive every list adapter', () => {
   it('process-statuses — camel pair on target_source', () => {
+    // Parsed the way the route parses it: the pair is not declared on
+    // `TargetSourceMetadataResponse`, so a schema that strips unknown keys would drop it
+    // before the adapter ever ran.
     const [sdu, plain] = toProcessStatusPage(
-      page([
-        { target_source: { cloudProvider: 'AWS', isSduType: true, isChinaRegion: true } },
-        { target_source: { cloudProvider: 'AWS' } },
-      ]),
+      schemas.PageProcessStatusCurrentResponse.parse(
+        page([
+          { target_source: { cloudProvider: 'AWS', isSduType: true, isChinaRegion: true } },
+          { target_source: { cloudProvider: 'AWS' } },
+        ]),
+      ),
     ).content;
     expect(sdu.cloudProvider).toBe('AWS');
     expect(flags(sdu)).toEqual(BOTH);
