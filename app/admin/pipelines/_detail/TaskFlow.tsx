@@ -137,6 +137,7 @@ const DETAIL_CSS = `
    glyph, status on the badge) — never --pl-err/--pl-ok, which are the corner badges. */
 .pl-flow.pl-detail .nd-mark.m-delete{color:var(--pl-type-delete)}
 .pl-flow.pl-detail .nd-mark.m-reconfirm{color:var(--pl-type-reconfirm)}
+.pl-flow.pl-detail .nd-mark.m-install{color:var(--pl-type-install)}
 .pl-flow.pl-detail .nd-mark svg{width:56px;height:56px}
 .pl-flow.pl-detail .nd-body{flex:1;min-width:0;display:flex;flex-direction:column}
 /* 14px (owner 2026-08-16) — the card title stops outranking the page header's

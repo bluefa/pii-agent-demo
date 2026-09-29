@@ -96,7 +96,7 @@ export function AddTaskMenu({ entries, onPick }: AddTaskMenuProps): ReactElement
           onClick={() => onPick(e.name)}
         >
           <span className="mt-0.5 [&_.r24-ticon_svg]:!h-4 [&_.r24-ticon_svg]:!w-4 [&_.r24-ticon.cond_svg]:!m-0">
-            <KindMark kind={e.kind} />
+            <KindMark kind={e.kind} definition={e.name} />
           </span>
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5">
@@ -398,7 +398,7 @@ export function CustomBuildStep({
                     >
                       <Icon name="x" size="sm" className="!h-2.5 !w-2.5" />
                     </button>
-                    <KindMark kind={t.kind} />
+                    <KindMark kind={t.kind} definition={t.name} />
                     <div className="r24-tx">
                       {t.terraform_action && (
                         <div className="mb-1">

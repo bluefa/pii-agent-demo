@@ -31,6 +31,8 @@ export type IconName =
   | 'install'
   | 'package-plus'
   | 'trash'
+  | 'user-plus'
+  | 'rotate-ccw-key'
   | 'blocks'
   | 'stop'
   | 'play'
@@ -160,6 +162,24 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <path d="M21 10.535V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l1.675-.955" />
       <path d="M3.29 7 12 12l8.71-5" />
       <path d="m7.5 4.27 8.997 5.148" />
+    </>
+  ),
+  // AWS China install task marks — Lucide 1.48.0 verbatim.
+  'user-plus': (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M19 8v6" />
+      <path d="M22 11h-6" />
+    </>
+  ),
+  'rotate-ccw-key': (
+    <>
+      <path d="M12 7v6" />
+      <path d="M12 9h2" />
+      <path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <circle cx="12" cy="15" r="2" />
     </>
   ),
   blocks: (

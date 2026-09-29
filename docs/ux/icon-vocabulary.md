@@ -54,6 +54,8 @@ tiptap 마크·DB 어휘·도메인 낱말로도 쓰인다.
 | `flow` | 실행 기록 빈 상태 | `TcRunHistoryModal` | 1 |
 | `trash` | 삭제 — DELETE 타입 타일, 재확정의 「확정 정보 삭제」 태스크 마크(2026-09-15 추가) | `r24Task` · `TaskFlow` | 2 |
 | `clipboard-check` | 확정 — 재확정의 「확정 정보 등록」 태스크 마크(2026-09-15 추가) | `TaskFlow` | 2 |
+| `user-plus` | 계정 생성 — AWS 중국 설치의 「Service Account 생성」 태스크 마크(2026-09-29 추가, `taskMark.ts`) | `TaskFlow` · `r24Task` | 1 |
+| `rotate-ccw-key` | 키 교체 — AWS 중국 설치의 「Secret Key Rotation」 태스크 마크(2026-09-29 추가, `taskMark.ts`) | `TaskFlow` · `r24Task` | 1 |
 | `cloud` · `package-plus` · `blocks` · `dots-v` · `table` · `bolt` | 각 1건 | — | 1 |
 
 ## 아직 비어 있는 이름 (뜻을 새로 붙일 수 있음)

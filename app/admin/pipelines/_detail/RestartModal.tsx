@@ -192,6 +192,7 @@ export function RestartModal({
         ...preview.skipped_tasks.map((t) => ({
           key: `skip-${t.sequence}`,
           kind: names.get(t.task_definition)?.kind ?? ('TERRAFORM_JOB' as const),
+          definition: t.task_definition,
           name: displayName(t.task_definition),
           desc: '이미 완료되어 건너뜁니다.',
           action: names.get(t.task_definition)?.terraform_action ?? null,
@@ -202,6 +203,7 @@ export function RestartModal({
         ...preview.tasks_to_run.map((t, i) => ({
           key: `run-${t.sequence}`,
           kind: t.kind,
+          definition: t.task_definition,
           name: displayName(t.task_definition),
           desc:
             i === 0
@@ -259,6 +261,7 @@ export function RestartModal({
                   {i > 0 && <FlowArrow />}
                   <R24TaskNode
                     kind={n.kind}
+                    definition={n.definition}
                     name={n.name}
                     desc={n.desc}
                     action={n.action}
