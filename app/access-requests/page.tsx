@@ -82,6 +82,8 @@ import {
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
 const SEARCH_DEBOUNCE_MS = 300;
+/** Page size for the on-click owners lookup by service code (see `openOwners`). */
+const OWNER_LOOKUP_SIZE = 50;
 
 /**
  * 헤더 판정이 세는 축. 필요한 건 건수뿐이라 상태마다 `size=1` 로 한 줄씩만 받아
@@ -113,8 +115,8 @@ const serviceColumns = (t: AccessCopy): readonly Column[] => [
 ];
 
 /**
- * 그 표의 로딩 자리. Both tabs draw the tail bar — accessible-tab rows now carry the owners
- * button too, so the skeleton keeps the 52px row the data arrives with. 스켈레톤은 도착할
+ * 그 표의 로딩 자리. 꼬리 칸의 막대는 두 탭 모두 그린다 — 접근 가능 탭의 행도 이제 담당자
+ * 버튼을 들고 오므로, 스켈레톤이 도착할 행과 같은 52px 를 지킨다. 스켈레톤은 도착할
  * 행의 모양이지 표의 모양이 아니다.
  *
  * 막대는 꼬리 트랙을 통째로 차지한다(`w-full`) — 폭은 토큰이 정하고, 높이만 버튼 그룹에
@@ -318,13 +320,15 @@ export default function MyAccessRequestsPage(): ReactElement {
   const [owners, setOwners] = useState<ServiceRow | null>(null);
 
   // Owned rows carry no owners (`/user/services/page`), so the catalog row is read on click.
+  // Server search matches name as well as code, so ask for a page wide enough that the exact
+  // code is not pushed out by name hits — the `find` below is what picks it.
   const openOwners = async (row: UserServiceRow): Promise<void> => {
     if (hasOwners(row)) {
       setOwners(row);
       return;
     }
     try {
-      const found = await getServicesPage(row.serviceCode, 0, { size: ACCESS_PAGE_SIZE });
+      const found = await getServicesPage(row.serviceCode, 0, { size: OWNER_LOOKUP_SIZE });
       const hit = found.content.find((item) => item.serviceCode === row.serviceCode);
       if (!hit || hit.ownerCount === 0) toast.show(t.noOwners);
       else setOwners(hit);
