@@ -793,6 +793,24 @@ function projectToTargetSourceInfoWire(project: (typeof mockData.mockProjects)[n
   };
 }
 
+/** A catalogue (store) project as a 연동 요청 큐 row — the status derived the way the timeline does. */
+function catalogueRequestRow(project: (typeof mockData.mockProjects)[number]) {
+  const confirmStatus = timelineConfirmStatus(project);
+  return {
+    ...projectToTargetSourceInfoWire(project),
+    confirmStatus,
+    latest_approval_request: confirmStatus === 'NO_REQUEST'
+      ? undefined
+      : {
+          request_id: project.targetSourceId,
+          status: confirmStatus,
+          requested_at: project.updatedAt,
+          reason: project.rejectionReason ?? null,
+          processed_at: confirmStatus === 'REJECTED' ? project.rejectedAt ?? null : null,
+        },
+  };
+}
+
 function toTargetSourceInfoWire(r: RequestRow) {
   const isRejected = r.cs === 'REJECTED';
   const rejected = tq().reasonByTs.get(r.ts) ?? r;
@@ -1021,7 +1039,9 @@ export const mockTaskQueue = {
 
   // GET /target-sources/page?confirmStatus=&targetSourceId=&serviceCode=&page=&size=
   getTargetSourcesPage: async (query: { confirmStatus?: string; targetSourceId?: number; serviceCode?: string; page: number; size: number }) => {
-    // Single-target header lookup (api-spec P3) — resolve from the monitor index.
+    // Single-target header lookup (api-spec P3) — resolve from the monitor index, else
+    // from the catalogue: a target that reached 승인 대기 through the user flow is a store
+    // project the fixture has never heard of, and without this the P3 head stays empty.
     if (query.targetSourceId !== undefined) {
       const p = TS_INDEX.get(query.targetSourceId);
       const cs =
@@ -1030,7 +1050,12 @@ export const mockTaskQueue = {
       const row: RequestRow | null = p
         ? { ts: p.ts, svc: p.svc, code: p.code, pv: p.pv, cs }
         : null;
-      const content = row ? [toTargetSourceInfoWire(row)] : [];
+      const project = row ? undefined : mockData.getProjectByTargetSourceId(query.targetSourceId);
+      const content = row
+        ? [toTargetSourceInfoWire(row)]
+        : project
+          ? [catalogueRequestRow(project)]
+          : [];
       return NextResponse.json(wirePage(content, query.page, query.size));
     }
 
@@ -1078,7 +1103,17 @@ export const mockTaskQueue = {
       );
       return NextResponse.json(wirePage(rows, query.page, query.size));
     }
-    return NextResponse.json(wirePage(byStatus.map(toTargetSourceInfoWire), query.page, query.size));
+    // 승인 대기 view: the fixture rows plus every catalogue target the user flow has put at
+    // 승인 대기 — the request made a minute ago on the user screen must be approvable here.
+    const fromFlow = query.confirmStatus === 'PENDING'
+      ? getStore().projects
+        .filter((project) => timelineConfirmStatus(project) === 'PENDING'
+          && !byStatus.some((r) => r.ts === project.targetSourceId))
+        .map(catalogueRequestRow)
+      : [];
+    return NextResponse.json(
+      wirePage([...fromFlow, ...byStatus.map(toTargetSourceInfoWire)], query.page, query.size),
+    );
   },
 
   // PUT …/approval-requests/nlb-indices — single { resource_id, nlb_index }.
