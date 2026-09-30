@@ -46,7 +46,8 @@ const styles = {
   fact: 'flex min-w-0 flex-col gap-1 border-l border-[var(--pl-gray-200)] px-5 first:border-l-0 first:pl-0',
   factKey: 'truncate text-[12px] font-medium leading-4 text-[var(--pl-gray-600)]',
   factValue: 'flex min-h-[24px] min-w-0 items-center text-[16px] font-semibold leading-[1.4] tabular-nums text-[var(--pl-text-strong)]',
-  factNone: 'font-medium text-[var(--pl-text-faint)]',
+  // weak, not faint: faint (#98A2B3) is 2.58:1 on white and the design gate refuses it on a light surface.
+  factNone: 'font-medium text-[var(--pl-text-weak)]',
   link: 'inline-flex min-w-0 items-center gap-1 text-[var(--pl-primary)] hover:underline',
   linkText: 'min-w-0 truncate',
   /** 동작 블록은 본문 스크롤을 갖는다 — 표와 배너가 길어져도 머리·카드는 선다. */
