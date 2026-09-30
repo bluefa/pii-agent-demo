@@ -589,6 +589,17 @@ They feed the `Jira Ticket` sidebar badge (their sum) and the console's tiles. T
 NOT added to the 운영 알림 badge or page. An absent count is null (unknown) on the console
 and 0 in `toDashboardSummary`.
 
+**Manual watcher registration** uses the EXISTING real contract
+`POST /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}/watchers { userId }`
+→ 204 (docs/api/jira-tickets.md §2), one call per person, from the Watcher 등록 실패
+modal. `cloudProvider` is the console's displayed provider upper-cased (`SDU` for SDU
+targets). **BE question (open):** the modal sends the channel's `failed_watchers[].username`
+(a Jira username per §4) as `userId`; the watcher API's `userId` was documented as a
+PASS/knox id, so this assumes the two identifiers coincide. The modal does not re-GET the
+channel after a registration — the failed list is jira-manager state and may lag — it
+keeps a local 등록됨 mark and re-reads only when the user pages (`// ponytail` in
+`JiraChannelModal.tsx`).
+
 Consumers: `lib/types/task-queue.ts` (`JIRA_ALERT_KINDS`, `toJiraListPage`,
 `toDashboardSummary`), mock `lib/bff/mock/task-queue.ts` (fixtures in
 `lib/bff/mock/ops.ts`).
