@@ -269,11 +269,10 @@ export default function MyAccessRequestsPage(): ReactElement {
     [],
   );
 
-  // A tab fetches the first time it is opened, not on entry.
-  const [opened, setOpened] = useState<ReadonlySet<TabKey>>(() => new Set<TabKey>(['owned']));
-  const requestable = usePagedSection(fetchRequestable, opened.has('services'));
-  const owned = usePagedSection(fetchOwned, opened.has('owned'));
-  const mine = usePagedSection(fetchMine, opened.has('mine'));
+  // Only the shown tab fetches; a hidden one catches up when shown, and only if its search changed.
+  const requestable = usePagedSection(fetchRequestable, tab === 'services');
+  const owned = usePagedSection(fetchOwned, tab === 'owned');
+  const mine = usePagedSection(fetchMine, tab === 'mine');
   const toast = usePlToast();
 
   // 헤더 판정용 건수 — 상태마다 한 줄씩(`size=1`), 세 번. 요청을 넣으면 다시 센다.
@@ -377,10 +376,7 @@ export default function MyAccessRequestsPage(): ReactElement {
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => {
-              setTab(item.key);
-              setOpened((prev) => new Set(prev).add(item.key));
-            }}
+            onClick={() => setTab(item.key)}
             className={cn(a.tab, a.tabLg, active ? a.tabActive : a.tabIdle)}
           >
             {item.label}

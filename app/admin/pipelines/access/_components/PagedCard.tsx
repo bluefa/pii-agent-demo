@@ -11,7 +11,7 @@
  * `fetcher` 는 반드시 안정된 참조여야 한다(모듈 상수 또는 useCallback) — 매 렌더
  * 새 함수가 들어오면 effect 가 끝없이 다시 돈다.
  */
-import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { COPY } from '@/lib/copy';
@@ -38,10 +38,20 @@ export interface PagedSection<T> {
 
 export function usePagedSection<T>(
   fetcher: (page: number, opts: { signal: AbortSignal }) => Promise<AccessPage<T>>,
-  /** false holds the first fetch back — a tab that has not been opened costs no call. */
+  /** false = the section is hidden: it does not fetch, and on showing again it fetches only
+   *  if its query, page or retry changed while hidden. */
   enabled = true,
 ): PagedSection<T> {
   const [page, setPage] = useState(0);
+  // A new query (new fetcher) starts at page 0 — asking the old page number first costs a
+  // wasted call whenever the result is shorter. Adjusted during render so the effect below
+  // never sees the stale page.
+  const [lastFetcher, setLastFetcher] = useState(() => fetcher);
+  if (lastFetcher !== fetcher) {
+    setLastFetcher(() => fetcher);
+    setPage(0);
+  }
+  const loaded = useRef<{ fetcher: unknown; page: number; retry: number } | null>(null);
   const [paged, setPaged] = useState<AccessPage<T> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -50,6 +60,8 @@ export function usePagedSection<T>(
   useAbortableEffect(
     (signal) => {
       if (!enabled) return;
+      const at = loaded.current;
+      if (at && at.fetcher === fetcher && at.page === page && at.retry === retry) return;
       setLoading(true);
       setError(null);
       return fetcher(page, { signal })
@@ -64,6 +76,7 @@ export function usePagedSection<T>(
             setPage(last);
             return;
           }
+          loaded.current = { fetcher, page, retry };
           setPaged(result);
           setLoading(false);
         })
