@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * 「다시 생성」 — 티켓 버킷 모달의 섹션. `POST …/collaboration-channel/retry` 로 생성을
+ * 티켓 버킷 모달의 동작 — 버튼 하나와 배너. `POST …/collaboration-channel/retry` 로 생성을
  * 한 번 더 요청한다. 202 는 접수이지 생성이 아니라, 결과는 [다시 조회] 로 채널을 읽어
  * `status` 로 본다. 접수 중(`manualRetryPending`)에는 버튼이 잠긴다.
  */
 import { useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { cn, pipelineStyles } from '@/lib/theme';
+import { cn } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
 import { localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -17,8 +17,6 @@ import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/er
 import { retryCollaborationChannel } from '@/app/lib/api/ops';
 
 const styles = {
-  heading: cn(pipelineStyles.text.subsectionTitle, 'block'),
-  desc: cn(pipelineStyles.modal.desc, 'mt-1'),
   banner: 'mt-3 flex items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-[14px] leading-[1.6]',
   bannerLines: 'flex min-w-0 flex-col',
   bannerSub: 'text-[12px] tabular-nums',
@@ -98,15 +96,7 @@ export function RetryPanel({
   };
 
   return (
-    <section aria-labelledby="ops-jira-retry-heading">
-      <h4 id="ops-jira-retry-heading" className={styles.heading}>
-        다시 생성
-      </h4>
-      <p className={styles.desc}>
-        jira-manager 에 티켓 생성을 한 번 더 요청합니다. 접수 뒤 결과는 조회로 확인하고, 자동 재시도 종료
-        시각은 늘어나지 않습니다.
-      </p>
-
+    <div>
       {linked ? null : (
         <PlButton variant="primary" onClick={() => void retry()} disabled={busy || sending || pending}>
           {sending ? '요청 중…' : '티켓 다시 생성'}
@@ -135,6 +125,6 @@ export function RetryPanel({
           ) : null}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }
