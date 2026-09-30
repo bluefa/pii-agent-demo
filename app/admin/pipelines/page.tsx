@@ -16,7 +16,7 @@
  * is what the owner asked to differ, and it is written down in that file.
  * The list wears NO card — docs/ux/benchmark/pipelines-dashboard-flat.md. The
  * screen is one white surface (`dashboard.bleed`) with the table standing on it,
- * because a #FFFFFF card on a #F9FAFB page measured 1.05:1 and the boundary was
+ * because a white card on the `--pl-bg-page` ground measured 1.05:1 and the boundary was
  * doing the work of a boundary nowhere.
  */
 import { useMemo, useState } from 'react';
@@ -39,6 +39,7 @@ import type {
 } from '@/lib/pipeline/types';
 
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
+import { isSduTarget } from '@/lib/types';
 import { SegControl } from '@/app/admin/pipelines/_components/SegControl';
 import { SearchBox } from '@/app/admin/pipelines/_components/SearchBox';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -444,7 +445,8 @@ export default function DashboardPage(): ReactElement {
                         code={row.service_code}
                         targetId={String(row.target_source_id)}
                         provider={row.cloud_provider}
-                        isSdu={row.is_sdu_type}
+                        isSdu={isSduTarget(row)}
+                        isChina={row.is_china_region === true}
                       />
                     </td>
                     <td className={d.cell}>

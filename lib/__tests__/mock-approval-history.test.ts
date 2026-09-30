@@ -66,6 +66,8 @@ describe('approval history wire — historyRecordId unique, actorId present', ()
       serviceCode: 'ORD',
       actorId: 'admin',
       cloudProvider: 'AWS',
+      isSduType: false,
+      isChinaRegion: false,
     });
   });
 });

@@ -266,7 +266,15 @@ export default function QueueDashboardPage(): ReactElement {
                             {row.targetSourceId != null ? `#${row.targetSourceId}` : '—'}
                           </td>
                           <td className={cn(table.td, table.tdColor)}>
-                            {row.cloudProvider ? <ProvTag provider={row.cloudProvider} /> : '—'}
+                            {row.cloudProvider ? (
+                              <ProvTag
+                                provider={row.cloudProvider}
+                                isSdu={row.isSduType}
+                                isChina={row.isChinaRegion}
+                              />
+                            ) : (
+                              '—'
+                            )}
                           </td>
                           <td className={cn(table.td, table.tdColor)}>
                             {status ? <StepStack status={status} /> : '—'}

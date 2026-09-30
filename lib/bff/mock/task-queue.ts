@@ -78,6 +78,11 @@ const PROC: ProcRow[] = [
   { ts: 1322, svc: '예약서비스', code: 'RSV', pv: 'AZURE', st: 'INSTALLED', delay: 15800, at: '2026-07-20T15:17:00Z' },
   { ts: 1287, svc: '통계서비스', code: 'STA', pv: 'GCP', st: 'COMPLETED', delay: 3020000, at: '2026-06-15T16:47:00Z' },
   { ts: 1255, svc: '메일서비스', code: 'MAI', pv: 'AWS', st: 'CONNECTED', delay: 52100, at: '2026-07-20T05:11:00Z' },
+  // SDU targets, as the real wire carries them: `pv` is the underlying CSP and only the
+  // flag says SDU. Without them no queue table ever draws the SDU tag in the mock.
+  // 1099 is also 중국, so the two tags meet on one row.
+  { ts: 1099, svc: 'SDU', code: 'SDU', pv: 'AWS', st: 'COMPLETED', delay: 731000, at: '2026-07-12T08:30:00Z' },
+  { ts: 1100, svc: 'SDU', code: 'SDU', pv: 'AWS', st: 'CONFIRMED', delay: 21400, at: '2026-07-20T13:44:00Z' },
 ];
 
 // A few targets that finished once and are going round again — one per alert bucket,
@@ -600,6 +605,24 @@ function wirePage<T>(all: T[], page: number, size: number): WirePage<T> {
   };
 }
 
+const isChinaProject = (project: Project): boolean =>
+  project.cloudProvider === 'AWS'
+  && (project.isChinaRegion ?? project.awsRegionType === 'china');
+
+/**
+ * SDU / 중국 for a queue-fixture target. The catalogue answers first, so a target says
+ * the same thing here and on its ops detail; an id the catalogue does not hold falls
+ * back to the queue's own account rule.
+ */
+const targetKind = (ts: number, pv: string): { isSduType: boolean; isChinaRegion: boolean } => {
+  const project = mockData.getProjectByTargetSourceId(ts);
+  if (!project) {
+    const account = approvalQueueAccount(ts, pv);
+    return { isSduType: account.isSduType, isChinaRegion: account.isChinaRegion };
+  }
+  return { isSduType: project.isSduType === true, isChinaRegion: isChinaProject(project) };
+};
+
 function toProcessWire(p: ProcRow) {
   return {
     target_source_id: p.ts,
@@ -609,6 +632,8 @@ function toProcessWire(p: ProcRow) {
     target_source: {
       id: p.ts,
       cloudProvider: p.pv,
+      // Requested pair (2026-09-28) — camel, like the rest of this DTO.
+      ...targetKind(p.ts, p.pv),
       service_info: { serviceName: p.svc, code: p.code, abbr: p.code },
     },
   };
@@ -699,15 +724,16 @@ const ALERT_OVERFLOW_FIXTURE: Record<number, { serviceName: string; description:
  * 보내는 `{"aws_account_id": null}` 모양을 목이 한 번도 재현하지 못한다 — 소비자가 언젠가
  * `!== undefined` 로 재는 순간 목은 그 회귀를 못 잡는다.
  */
-function toMetadataWire(r: RequestRow) {
+function toMetadataWire(r: { ts: number; pv: string }) {
   const account = approvalQueueAccount(r.ts, r.pv);
+  const kind = targetKind(r.ts, r.pv);
   return {
     tenant_id: account.tenantId,
     subscription_id: account.subscriptionId,
     gcp_project_id: account.gcpProjectId,
     aws_account_id: account.awsAccountId,
-    is_sdu_type: account.isSduType,
-    is_china_region: account.isChinaRegion,
+    is_sdu_type: kind.isSduType,
+    is_china_region: kind.isChinaRegion,
   };
 }
 
@@ -859,6 +885,9 @@ const toTimelineWire = (project: Project): IntegrationTimelineWire => {
     created_at: project.createdAt,
     pii_agent_first_installed_at: firstInstalledAt,
     lead_time_seconds: leadTimeSeconds(project.createdAt, firstInstalledAt),
+    // Requested pair (2026-09-28).
+    is_sdu_type: project.isSduType === true,
+    is_china_region: isChinaProject(project),
   };
 };
 
@@ -917,9 +946,12 @@ const TIMELINE_CSV_COLUMNS = [
   'created_at',
   'pii_agent_first_installed_at',
   'lead_time_seconds',
+  // Appended, never inserted — a downstream sheet reads the columns above by position.
+  'is_sdu_type',
+  'is_china_region',
 ] as const;
 
-const csvCell = (value: string | number | null | undefined): string => {
+const csvCell = (value: string | number | boolean | null | undefined): string => {
   if (value === null || value === undefined) return '';
   const text = String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
@@ -965,6 +997,7 @@ export const mockTaskQueue = {
       description: ALERT_OVERFLOW_FIXTURE[p.ts]?.description ?? TS_DESCRIPTION[p.ts],
       serviceCode: p.code,
       cloudProvider: p.pv,
+      metadata: toMetadataWire(p),
       confirmStatus: p.st === 'CONFIRMING' ? 'CONFIRMING' : 'CONFIRMED',
       updatedAt: p.at,
       // Proposed pair (mock-first, not in swagger yet — see
@@ -1065,7 +1098,9 @@ export const mockTaskQueue = {
       const wanted = new Set(query.toStatuses);
       rows = rows.filter((r) => wanted.has(r.status));
     }
-    return NextResponse.json(wirePage(rows, query.page, query.size));
+    // Requested pair (2026-09-28) — camel, like the rest of the row.
+    const content = rows.map((r) => ({ ...r, ...targetKind(r.targetSourceId, r.cloudProvider) }));
+    return NextResponse.json(wirePage(content, query.page, query.size));
   },
 
   // GET …/{id}/approval-requests/latest/nlb-index-mappings — off-contract wire.

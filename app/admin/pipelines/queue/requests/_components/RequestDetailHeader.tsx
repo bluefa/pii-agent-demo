@@ -29,6 +29,7 @@ import { Tooltip } from '@/app/components/ui/Tooltip';
 import { INSTALLATION_LIFECYCLE_COPY } from '@/app/admin/pipelines/_components/InstallationLifecycleTag';
 import { passRoutes } from '@/lib/routes';
 import { displayProvider, fmtDateTime, providerLabel } from '@/lib/pipeline/format';
+import { ChinaTag } from '@/app/admin/pipelines/_components/ChinaTag';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { tqStyles } from '@/app/admin/pipelines/queue/_components/tqStyles';
@@ -39,7 +40,7 @@ const { tag, outLink } = tqStyles;
 interface MetaItem {
   key: string;
   /** null = the fact is still in flight — the value line wears a pulse bar. */
-  value: string | null;
+  value: ReactNode | null;
   /** Explains the value on hover/focus. The value stays text so the 12px line holds. */
   tip?: ReactNode;
 }
@@ -115,6 +116,8 @@ export interface RequestDetailHeaderProps {
   description?: string | null;
   provider: string;
   isSdu?: boolean;
+  /** 중국 리전 — a chip after the provider, kept on an SDU target too. */
+  isChina?: boolean;
   serviceCode: string | null;
   requestedBy: string | null;
   requestedAt: string | null;
@@ -134,6 +137,7 @@ export function RequestDetailHeader({
   description,
   provider,
   isSdu,
+  isChina,
   serviceCode,
   requestedBy,
   requestedAt,
@@ -147,7 +151,17 @@ export function RequestDetailHeader({
   // tag row of its own made a one-item tier out of it. The brand dot goes with it: the
   // label already says which field this is, so the dot only re-encoded the value.
   const meta: MetaItem[] = [
-    { key: 'Provider', value: providerLabel(displayProvider(provider, isSdu)) },
+    {
+      key: 'Provider',
+      value: isChina ? (
+        <span className="inline-flex items-center gap-1.5">
+          {providerLabel(displayProvider(provider, isSdu))}
+          <ChinaTag />
+        </span>
+      ) : (
+        providerLabel(displayProvider(provider, isSdu))
+      ),
+    },
     ...(lifecycle
       ? [
           {
