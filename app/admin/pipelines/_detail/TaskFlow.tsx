@@ -305,7 +305,7 @@ export function TaskFlow({
           // failure line (fail count + error code) for FAILED. Both come from the
           // catalog + summary via resolveMeta — no per-task detail fetch.
           const meta = resolveMeta(task);
-          const side = taskInfraSide(task.task_definition);
+          const side = taskInfraSide(task.task_definition, task.kind);
           // Verdict + timing (시안 F): the run window moves out of the 500px drawer
           // onto the card, which had room to spare — so the drawer's first block can
           // lead with the judgment instead of a timestamp.
