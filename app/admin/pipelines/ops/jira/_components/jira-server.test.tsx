@@ -45,7 +45,7 @@ describe('JiraWorklistSection', () => {
 
     expect(getAlertTargetSources).toHaveBeenCalledWith({ kind: 'jira-ticket-failed', page: 0, size: 10 });
     expect(getCollaborationChannel).toHaveBeenCalledTimes(2);
-    expect(getCollaborationChannel).toHaveBeenCalledWith(2113);
+    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
     // attempt_count 0 → no (n/m)
     expect(screen.getByText('재시도 중')).toBeDefined();
     expect(screen.getByText('09-30 14:30')).toBeDefined();

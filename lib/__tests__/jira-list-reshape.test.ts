@@ -83,7 +83,7 @@ describe('toCollaborationChannel', () => {
 
   it('watcher page: [] and echoed page/size by default, entries parsed, malformed dropped', () => {
     const bare = toCollaborationChannel({ status: 'NONE' });
-    expect(bare).toMatchObject({ failedWatchers: [], failedWatchersTotal: 0, watcherPage: 0, watcherSize: 10 });
+    expect(bare).toMatchObject({ failedWatchers: [], failedWatchersTotal: 0, watcherPage: 0, watcherSize: 5 });
 
     const channel = toCollaborationChannel({
       status: 'CREATED', issue_key: 'BDCDIP-2211',

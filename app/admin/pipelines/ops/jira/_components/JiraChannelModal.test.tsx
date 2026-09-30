@@ -127,7 +127,7 @@ describe('JiraChannelModal — 티켓 연결', () => {
     });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(putCollaborationChannel).toHaveBeenCalledWith(2113, 'BDCDIP-1234');
-    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, undefined);
+    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
     expect(screen.getByRole('link', { name: /BDCDIP-1234/ })).toBeDefined();
     expect(screen.queryByLabelText('Jira 이슈 키')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe('JiraChannelModal — 티켓 연결', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
     });
-    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, undefined);
+    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
     expect(screen.queryByLabelText('Jira 이슈 키')).toBeNull();
     expect(screen.getByRole('link', { name: /BDCDIP-777/ }).getAttribute('href')).toBe(
       'https://jira.example.com/browse/BDCDIP-777',
@@ -282,7 +282,7 @@ describe('JiraChannelModal — watcher 버킷', () => {
     getCollaborationChannel.mockResolvedValue(lastPage);
     watcherModal(watcherRow({ failedWatchers: names, failedWatchersTotal: 100, watcherSize: 10 }));
     const box = screen.getByTestId('watcher-table-box');
-    expect(box.className).toContain('h-[392px]');
+    expect(box.className).toContain('h-[212px]');
     expect(screen.getAllByRole('button', { name: /^user\.\d\d 등록$/ })).toHaveLength(10);
     expect(screen.getByRole('navigation', { name: '페이지' })).toBeDefined();
     // 창은 5쪽씩 — 첫 창은 1..5, 마지막 쪽(10)은 넘겨서 확인한다
@@ -291,11 +291,11 @@ describe('JiraChannelModal — watcher 버킷', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '5' }));
     });
-    expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherPage: 4 });
+    expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherSize: 5, watcherPage: 4 });
     // 서버가 9쪽(마지막)을 돌려주면 10 이 현재 쪽이고, 2행짜리 상자 높이는 그대로다
     expect(screen.getByRole('button', { name: '10' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getAllByRole('button', { name: /^zed\.[ab] 등록$/ })).toHaveLength(2);
-    expect(screen.getByTestId('watcher-table-box').className).toContain('h-[392px]');
+    expect(screen.getByTestId('watcher-table-box').className).toContain('h-[212px]');
   });
 
   it('페이지를 넘기면 watcher_page 로 다시 읽고 등록 표시는 비운다', async () => {
@@ -311,7 +311,7 @@ describe('JiraChannelModal — watcher 버킷', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }));
     });
-    expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherPage: 1 });
+    expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherSize: 5, watcherPage: 1 });
     expect(screen.getByText('lee.mj')).toBeDefined();
     expect(screen.queryByText('등록됨')).toBeNull();
   });

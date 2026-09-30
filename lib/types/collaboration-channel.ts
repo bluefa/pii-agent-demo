@@ -8,6 +8,9 @@
  * about what a response means.
  */
 
+/** How many failed watchers one modal page shows — the FE sends this as `watcher_size` (owner: 5). */
+export const WATCHER_PAGE_SIZE = 5;
+
 export const COLLABORATION_CHANNEL_STATUSES = [
   'CREATED',
   'PENDING',
@@ -118,7 +121,7 @@ export function toCollaborationChannel(raw: unknown): CollaborationChannel | nul
     failedWatchers,
     failedWatchersTotal: typeof total === 'number' ? total : failedWatchers.length,
     watcherPage: typeof page === 'number' ? page : 0,
-    watcherSize: typeof size === 'number' && size > 0 ? size : 10,
+    watcherSize: typeof size === 'number' && size > 0 ? size : WATCHER_PAGE_SIZE,
   };
 }
 

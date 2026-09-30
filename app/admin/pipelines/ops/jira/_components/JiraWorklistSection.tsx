@@ -13,7 +13,7 @@ import { bff } from '@/lib/bff/client';
 import { redirectIfSessionExpired } from '@/lib/bff/session-expired';
 import { schemas } from '@/lib/generated/install-v1';
 import { toJiraListPage, type JiraAlertKind } from '@/lib/types/task-queue';
-import { toCollaborationChannel } from '@/lib/types/collaboration-channel';
+import { WATCHER_PAGE_SIZE, toCollaborationChannel } from '@/lib/types/collaboration-channel';
 import { jiraBucket } from '@/app/admin/pipelines/ops/jira/_components/jiraBuckets';
 import { JiraWorklist, type JiraWorklistRow } from '@/app/admin/pipelines/ops/jira/_components/JiraWorklist';
 
@@ -52,7 +52,7 @@ export async function JiraWorklistSection({
       list.content.map((row) =>
         row.targetSourceId == null
           ? Promise.reject(new Error('no id'))
-          : bff.ops.getCollaborationChannel(row.targetSourceId),
+          : bff.ops.getCollaborationChannel(row.targetSourceId, { watcherSize: WATCHER_PAGE_SIZE }),
       ),
     );
     rows = list.content.map((row, index) => {

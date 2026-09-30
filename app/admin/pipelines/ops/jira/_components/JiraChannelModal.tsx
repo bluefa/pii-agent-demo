@@ -19,7 +19,7 @@ import { AppError } from '@/lib/errors';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import type { JiraAlertKind } from '@/lib/types/task-queue';
-import { localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
+import { WATCHER_PAGE_SIZE, localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -62,10 +62,10 @@ const styles = {
   /** 표 머리 동작 줄 — 페이지 단위 등록 버튼이 표 위에 선다. */
   tableHead: 'mt-3 flex items-center justify-end',
   /**
-   * Watcher 표 영역 — 높이가 **10행으로 고정**이다(머리 32 + 36×10). 마지막 페이지가 2행이어도
+   * Watcher 표 영역 — 높이가 **5행으로 고정**이다(머리 32 + 36×5, `WATCHER_PAGE_SIZE`). 마지막 페이지가 2행이어도
    * 창이 줄지 않고, 100명이어도 창은 이 높이 그대로다: 넘치는 사람은 페이저가 받는다.
    */
-  tableBox: 'mt-2 h-[392px] overflow-hidden',
+  tableBox: 'mt-2 h-[212px] overflow-hidden',
   table: 'w-full table-fixed text-[14px]',
   th: 'h-8 px-2 text-left text-[12px] font-semibold text-[var(--pl-text-medium)] border-b border-[var(--pl-border)]',
   td: 'h-9 px-2 text-[var(--pl-text-strong)] border-b border-[var(--pl-gray-100)]',
@@ -163,7 +163,12 @@ export function JiraChannelModal({
     if (id == null) return;
     setBusy(true);
     try {
-      setChannel(await getCollaborationChannel(id, watcherPage != null ? { watcherPage } : undefined));
+      setChannel(
+        await getCollaborationChannel(id, {
+          watcherSize: WATCHER_PAGE_SIZE,
+          ...(watcherPage != null ? { watcherPage } : {}),
+        }),
+      );
       setBanner(null);
       // 다른 페이지는 다른 사람들이다 — 이 페이지의 등록 표시는 함께 떠난다.
       if (watcherPage != null) setRegistrations({});
@@ -242,7 +247,7 @@ export function JiraChannelModal({
       } else if (err instanceof AppError && err.status === 409) {
         setBanner({ tone: 'info', text: '그 사이 다른 경로에서 먼저 연결됐습니다. 현재 값을 다시 불러왔어요.', refetch: false });
         try {
-          setChannel(await getCollaborationChannel(id));
+          setChannel(await getCollaborationChannel(id, { watcherSize: WATCHER_PAGE_SIZE }));
         } catch {
           setChannel(null);
         }

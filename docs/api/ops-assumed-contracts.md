@@ -90,6 +90,7 @@ drop lands.
 ```
 GET /install/v1/target-sources/{targetSourceId}/collaboration-channel?watcher_page=0&watcher_size=10
     watcher_page ≥ 0 (default 0) · watcher_size 1..100 (default 10) · out of range → 400
+    The FE always sends watcher_size=5 (`WATCHER_PAGE_SIZE`, owner 2026-09-30): five people per modal page.
 → 200 always
 {
   "issue_key": "BDCDIP-1234",          // "" for PENDING/RETRYING/FAILED, null for NONE
