@@ -54,16 +54,17 @@ import {
   OwnersModal,
   RequestAccessModal,
 } from '@/app/admin/pipelines/access/_components/AccessModals';
-import { RequestStatusPill } from '@/app/admin/pipelines/access/_components/AccessPills';
+import {
+  RequestStatusPill,
+  ServiceAccessPill,
+} from '@/app/admin/pipelines/access/_components/AccessPills';
 import { accessStyles as a } from '@/app/admin/pipelines/access/_components/accessStyles';
 import {
   ACCESS_PAGE_SIZE,
   createAccessRequest,
   getMyAccessRequests,
   getServicesPage,
-  fetchEveryPage,
   getUserServices,
-  sliceToPage,
   type AccessPage,
   type AccessRequestStatus,
   type MyAccessRequest,
@@ -74,24 +75,12 @@ import {
 /**
  * 요청 가능한 서비스 = access_status 가 NONE 이거나 REJECTED 인 것.
  *
- * 거르는 일은 화면 몫이다 — 계약에 `access_status` 필터가 없다(갭 B6).
- *
- * 거른 뒤에 나눈다. 서버가 나눠 준 다섯 줄 안에서 걸렀더니 장마다 남는 수가 달랐다 —
- * 카탈로그 20 개 기준으로 요청 가능이 3·2·2·2, 접근 가능이 2·3·2·1 이었다. 다섯 줄짜리
- * 칸에 두세 줄이 서고, 다음 장으로 넘겨도 여전히 두세 줄이다. 한 장은 다섯 줄이어야
- * 한다(오너 지시 2026-08-18).
- *
- * 그러려면 카탈로그가 통째로 손에 있어야 해서 `fetchEveryPage` 로 끝까지 읽는다. 08-14
- * 에 전체 훑기를 접었던 이유는 **왕복 횟수**였는데(다섯 줄씩이면 2,059 개에서 열한 번)
- * 그 전제는 장 크기에 달린 것이다 — 500 이면 그 카탈로그가 다섯 번, 흔한 크기는 한 번.
- * 중간에 끊고 전체인 척하지는 않는다: 못 받은 서비스는 신청 목록에서 존재하지 않는 것이
- * 되는데 페이저는 다 보여 준 얼굴을 하고, 목이 한 장에 들어가 화면으로는 안 보인다.
- *
- * 관리자 화면 둘(`admins`, `services/[[...code]]`)이 이미 같은 `sliceToPage` 를 쓴다.
+ * The contract has no `access_status` filter (gap B6). Reading the whole catalog to filter
+ * it cost one call per server page on every pager click, so each tab now asks for exactly
+ * the page it shows (owner, 2026-09-30). Rows the viewer cannot request stay in the page and
+ * say why with a status pill instead of the request button.
  */
 const REQUESTABLE = new Set(['NONE', 'REJECTED']);
-/** 한 왕복에 받는 줄 수 — 카탈로그를 몇 번에 나눠 받느냐만 정한다(전체는 어차피 받는다). */
-const CATALOG_FETCH_SIZE = 500;
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
@@ -260,39 +249,17 @@ export default function MyAccessRequestsPage(): ReactElement {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // 검색은 서버가, 상태는 화면이 거른다. 카탈로그를 끝까지 받아 거른 뒤 다섯 줄씩
-  // 나눈다(위 REQUESTABLE 주석). `page` 는 걸러진 목록의 장 번호지 서버 장 번호가 아니다.
+  // One call per shown page — search and paging are the server's.
   const fetchRequestable = useCallback(
-    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> => {
-      const all = await fetchEveryPage((n) =>
-        getServicesPage(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
-      );
-      const rows = all.filter((row) => REQUESTABLE.has(row.accessStatus));
-      return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
-    },
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<ServiceRow>> =>
+      getServicesPage(debounced || undefined, page, { ...opts, size: ACCESS_PAGE_SIZE }),
     [debounced],
   );
 
-  // 다른 호출이다 — `/user/services/page` 는 내가 담당인 것만 준다. 다만 ADMIN 에게는
-  // 전체가 오므로(role 로 통과할 뿐 담당자는 아니다) 여기서 한 번 더 거른다. 그래서
-  // 관리자에겐 이쪽도 카탈로그 전체가 걸리는 목록이고, 끝까지 읽어야 하는 이유가 같다.
+  // `/user/services/page` 는 내가 담당인 것만 준다(ADMIN 은 역할로 전부 접근하므로 전체).
   const fetchOwned = useCallback(
-    async (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> => {
-      // Owners ride only on the catalog contract, so join them in by service code.
-      const [all, catalog] = await Promise.all([
-        fetchEveryPage((n) =>
-          getUserServices(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
-        ),
-        fetchEveryPage((n) =>
-          getServicesPage(debounced || undefined, n, { ...opts, size: CATALOG_FETCH_SIZE }),
-        ),
-      ]);
-      const byCode = new Map(catalog.map((row) => [row.serviceCode, row]));
-      const rows = all
-        .filter((row) => row.accessStatus === 'OWNED')
-        .map((row) => byCode.get(row.serviceCode) ?? row);
-      return sliceToPage(rows, page, ACCESS_PAGE_SIZE);
-    },
+    (page: number, opts: { signal: AbortSignal }): Promise<AccessPage<UserServiceRow>> =>
+      getUserServices(debounced || undefined, page, { ...opts, size: ACCESS_PAGE_SIZE }),
     [debounced],
   );
 
@@ -302,9 +269,11 @@ export default function MyAccessRequestsPage(): ReactElement {
     [],
   );
 
-  const requestable = usePagedSection(fetchRequestable);
-  const owned = usePagedSection(fetchOwned);
-  const mine = usePagedSection(fetchMine);
+  // A tab fetches the first time it is opened, not on entry.
+  const [opened, setOpened] = useState<ReadonlySet<TabKey>>(() => new Set<TabKey>(['owned']));
+  const requestable = usePagedSection(fetchRequestable, opened.has('services'));
+  const owned = usePagedSection(fetchOwned, opened.has('owned'));
+  const mine = usePagedSection(fetchMine, opened.has('mine'));
   const toast = usePlToast();
 
   // 헤더 판정용 건수 — 상태마다 한 줄씩(`size=1`), 세 번. 요청을 넣으면 다시 센다.
@@ -349,6 +318,22 @@ export default function MyAccessRequestsPage(): ReactElement {
    */
   const [owners, setOwners] = useState<ServiceRow | null>(null);
 
+  // Owned rows carry no owners (`/user/services/page`), so the catalog row is read on click.
+  const openOwners = async (row: UserServiceRow): Promise<void> => {
+    if (hasOwners(row)) {
+      setOwners(row);
+      return;
+    }
+    try {
+      const found = await getServicesPage(row.serviceCode, 0, { size: ACCESS_PAGE_SIZE });
+      const hit = found.content.find((item) => item.serviceCode === row.serviceCode);
+      if (!hit || hit.ownerCount === 0) toast.show(t.noOwners);
+      else setOwners(hit);
+    } catch (err) {
+      toast.show(errorMessage(err));
+    }
+  };
+
   const submit = async (reason: string): Promise<void> => {
     if (!target) return;
     try {
@@ -372,9 +357,7 @@ export default function MyAccessRequestsPage(): ReactElement {
    * 목록 상태(`usePagedSection`)는 셋 다 이 페이지가 들고 있다. 그래서 탭을 옮겨도
    * 다시 읽지 않는다.
    *
-   * 건수는 **내 요청 내역에만** 붙는다. 서비스 두 탭도 이제는 셀 수 있다 — 거른 뒤에
-   * 나누므로 `totalElements` 가 걸러진 수다(전에는 서버가 센 전체라 '내가 접근할 수
-   * 있는 서비스 20' 옆에 빈 목록이 서곤 했다). 다만 붙일지는 별개 판단이라 그대로 둔다.
+   * 건수는 **내 요청 내역에만** 붙고, 그 탭을 처음 연 뒤에 선다(열기 전에는 조회하지 않는다).
    *
    * 순서는 가진 것 → 가질 수 있는 것 → 요청의 결과다(오너 지시 2026-08-18). 첫 탭이
    * 기본값이기도 하다.
@@ -394,7 +377,10 @@ export default function MyAccessRequestsPage(): ReactElement {
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => setTab(item.key)}
+            onClick={() => {
+              setTab(item.key);
+              setOpened((prev) => new Set(prev).add(item.key));
+            }}
             className={cn(a.tab, a.tabLg, active ? a.tabActive : a.tabIdle)}
           >
             {item.label}
@@ -474,30 +460,33 @@ export default function MyAccessRequestsPage(): ReactElement {
                   </span>
                   {/* 칸은 두 탭 모두 자리를 지킨다 — 접근 가능 탭에서만 비우면 이름이
                       탭을 옮길 때마다 이 폭만큼 튄다. */}
-                  <span role="cell" className={a.svcActionCell}>
-                    {hasOwners(row) && (
-                      <span className={a.svcActions}>
+                  <span role="cell" className={cn(a.svcActionCell, 'items-center gap-2')}>
+                    {requestTab && !REQUESTABLE.has(row.accessStatus) && (
+                      <ServiceAccessPill
+                        status={row.accessStatus === 'OWNED' ? 'OWNED' : 'REQUESTED'}
+                      />
+                    )}
+                    <span className={a.svcActions}>
+                      <button
+                        type="button"
+                        aria-haspopup="dialog"
+                        disabled={hasOwners(row) && row.ownerCount === 0}
+                        className={a.svcActionBtn}
+                        onClick={() => void openOwners(row)}
+                      >
+                        {hasOwners(row) && row.ownerCount === 0 ? t.noOwners : t.viewOwners}
+                      </button>
+                      {requestTab && hasOwners(row) && REQUESTABLE.has(row.accessStatus) && (
                         <button
                           type="button"
+                          className={a.svcActionBtnGo}
                           aria-haspopup="dialog"
-                          disabled={row.ownerCount === 0}
-                          className={a.svcActionBtn}
-                          onClick={() => setOwners(row)}
+                          onClick={() => setTarget(row)}
                         >
-                          {row.ownerCount > 0 ? t.viewOwners : t.noOwners}
+                          {t.requestAccess}
                         </button>
-                        {requestTab && (
-                          <button
-                            type="button"
-                            className={a.svcActionBtnGo}
-                            aria-haspopup="dialog"
-                            onClick={() => setTarget(row)}
-                          >
-                            {t.requestAccess}
-                          </button>
-                        )}
-                      </span>
-                    )}
+                      )}
+                    </span>
                   </span>
                 </div>
               ))}

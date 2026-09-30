@@ -60,6 +60,17 @@ const requestTone = (
   REJECTED: { label: t.pillRejected, tone: 'err' },
 });
 
+/** A catalog row the viewer cannot request — says why instead of offering the button. */
+export function ServiceAccessPill({ status }: { status: 'OWNED' | 'REQUESTED' }): ReactElement {
+  const { locale } = useLocale();
+  const t = COPY[locale].access;
+  return status === 'OWNED' ? (
+    <Pill label={t.statusOwned} tone="ok" />
+  ) : (
+    <Pill label={t.pillPending} tone="warn" />
+  );
+}
+
 export function RequestStatusPill({
   status,
   className,

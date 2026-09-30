@@ -38,6 +38,8 @@ export interface PagedSection<T> {
 
 export function usePagedSection<T>(
   fetcher: (page: number, opts: { signal: AbortSignal }) => Promise<AccessPage<T>>,
+  /** false holds the first fetch back — a tab that has not been opened costs no call. */
+  enabled = true,
 ): PagedSection<T> {
   const [page, setPage] = useState(0);
   const [paged, setPaged] = useState<AccessPage<T> | null>(null);
@@ -47,6 +49,7 @@ export function usePagedSection<T>(
 
   useAbortableEffect(
     (signal) => {
+      if (!enabled) return;
       setLoading(true);
       setError(null);
       return fetcher(page, { signal })
@@ -70,7 +73,7 @@ export function usePagedSection<T>(
           setLoading(false);
         });
     },
-    [fetcher, page, retry],
+    [fetcher, page, retry, enabled],
   );
 
   const reload = useCallback(() => setRetry((n) => n + 1), []);

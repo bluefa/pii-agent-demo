@@ -189,6 +189,7 @@ const ko = {
 
     // status pills
     pillPending: '승인 대기',
+    statusOwned: '접근 가능',
     pillApproved: '승인',
     pillRejected: '반려',
     historyApproved: '요청 승인',
@@ -541,6 +542,7 @@ const en: typeof ko = {
     requested: (serviceName: string) => `Requested access to ${serviceName}`,
 
     pillPending: 'Pending',
+    statusOwned: 'Has access',
     pillApproved: 'Approved',
     pillRejected: 'Rejected',
     historyApproved: 'Request approved',
