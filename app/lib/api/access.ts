@@ -276,7 +276,7 @@ const toUserService = (wire: UserServiceRowWire): UserServiceRow => ({
 const toServicePageRow = (wire: ServicePageRowWire): ServiceRow => ({
   ...toUserService(wire),
   serviceAbbrName: wire.service_abbr_name ?? null,
-  owners: wire.owners ?? [],
+  owners: (wire.owners ?? []).map((owner) => owner.knox_id),
   ownerCount: wire.owner_count ?? 0,
 });
 

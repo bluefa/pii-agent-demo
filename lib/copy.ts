@@ -189,6 +189,7 @@ const ko = {
 
     // status pills
     pillPending: '승인 대기',
+    statusOwned: '접근 가능',
     pillApproved: '승인',
     pillRejected: '반려',
     historyApproved: '요청 승인',
@@ -209,13 +210,14 @@ const ko = {
     request: '요청',
 
     ownersTitle: '담당자 확인',
-    ownersSubtitle: '이 서비스의 접근 권한 요청을 검토하는 사람들이에요.',
+    ownersSubtitle: '이 서비스에 권한이 있는 사람들이에요.',
     ownersSearchPlaceholder: 'Knox ID 검색',
     ownersSearchLabel: '담당자 검색',
     ownersNoMatch: (query: string) => `‘${query}’와 일치하는 담당자가 없습니다`,
     ownersNamesMissing: (count: number) => `담당자 ${count}명이 있지만 이름이 오지 않았어요`,
     ownerCount: (n: number) => `${n}명`,
     ownersHidden: (n: number) => `여기 없는 담당자가 ${n}명 더 있어요`,
+    ownersLookupMissed: '담당자를 찾지 못했어요. 다시 시도해 주세요',
 
     userSearchPlaceholder: 'Knox ID · 이메일 검색',
     userSearchLabel: '사용자 검색',
@@ -541,6 +543,7 @@ const en: typeof ko = {
     requested: (serviceName: string) => `Requested access to ${serviceName}`,
 
     pillPending: 'Pending',
+    statusOwned: 'Has access',
     pillApproved: 'Approved',
     pillRejected: 'Rejected',
     historyApproved: 'Request approved',
@@ -560,7 +563,7 @@ const en: typeof ko = {
     request: 'Request',
 
     ownersTitle: 'Service owners',
-    ownersSubtitle: 'These are the people who review access requests for this service.',
+    ownersSubtitle: 'These people have access to this service.',
     ownersSearchPlaceholder: 'Search Knox ID',
     ownersSearchLabel: 'Search owners',
     ownersNoMatch: (query: string) => `No owner matches ‘${query}’`,
@@ -569,6 +572,7 @@ const en: typeof ko = {
     ownerCount: (n: number) => `${n}`,
     ownersHidden: (n: number) =>
       `${n} more ${plural(n, 'owner is', 'owners are')} not listed here`,
+    ownersLookupMissed: 'Could not find the owners. Please try again',
 
     userSearchPlaceholder: 'Search Knox ID or email',
     userSearchLabel: 'Search users',

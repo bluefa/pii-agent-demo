@@ -784,10 +784,8 @@ export type UserServicePageWire = AccessPageWire<UserServiceRowWire>;
 /**
  * `GET /services/page` — 전체 서비스 + 내 접근 상태 + 담당자. 신청 대상 선택용.
  *
- * `owners` 는 오너 스펙의 "담당자 표시명"이다 — `UserSummary` 가 아니라 문자열 배열로
- * 읽는다. 사람 이름 필드가 계약 어디에도 없으므로 목은 Knox ID 를 싣는다(화면이 사람을
- * 부르는 이름이 그것이다). **실제 원소 모양은 확인 대기** — UserSummary 로 오면
- * `toServiceRow` 한 곳만 바뀐다.
+ * `owners` elements are `{ knox_id }` objects — confirmed against the live BFF by the owner
+ * (2026-09-30). The screen reads them as Knox ID strings via `toServicePageRow`.
  */
 export interface ServicePageRowWire {
   service_code: string;
@@ -796,7 +794,7 @@ export interface ServicePageRowWire {
   service_abbr_name: string | null;
   access_status: ServiceAccessStatusWire;
   is_eos_service: boolean | null;
-  owners: string[];
+  owners: { knox_id: string }[];
   owner_count: number;
 }
 
