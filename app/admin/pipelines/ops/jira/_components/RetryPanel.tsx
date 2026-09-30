@@ -7,7 +7,7 @@
  * 결과가 오면 띠가 답한다(생성됨 → 띠 사라짐 + toast, 또 실패 → 띠 복귀 + 경고 배너); 2분이
  * 지나면 [다시 조회] 가 돌아온다. 배너는 띠 바로 아래 제 블록으로 선다.
  */
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
@@ -18,6 +18,7 @@ import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import { getCollaborationChannel, retryCollaborationChannel } from '@/app/lib/api/ops';
+import { useApiMutation } from '@/app/hooks/useApiMutation';
 
 /** 접수 뒤 결과를 기다리는 리듬 — 5초마다, 최대 2분(24 tick). 연속 3 tick 실패면 멈춘다. */
 export const RETRY_POLL_MS = 5_000;
@@ -73,7 +74,7 @@ export function RetryPanel({
   channel: CollaborationChannel | null;
   /** 상위가 채널을 읽는 중 — 그동안 버튼이 잠긴다. */
   busy: boolean;
-  reload: () => Promise<void>;
+  reload: () => Promise<CollaborationChannel | null>;
   /** 폴링이 읽어 온 채널을 상위에 올린다 — 카드 태그와 사실 칸이 같이 바뀐다. */
   onChannel: (channel: CollaborationChannel) => void;
 }): ReactElement {
@@ -81,18 +82,34 @@ export function RetryPanel({
   const toast = usePlToast();
   const refreshCounts = useNavCountsRefresh();
   const [banner, setBanner] = useState<Banner>(null);
-  const [sending, setSending] = useState(false);
-  // 접수 상태로 열렸으면 바로 기다리기 시작한다.
-  // 폴링이 멈췄는데 여전히 접수 중이면 그것이 "손으로 조회할 차례" 다 — 따로 든 상태가 없다.
+  // A successful POST remains accepted even when the following GET fails.
+  const [accepted, setAccepted] = useState(channel?.manualRetryPending === true);
   const [polling, setPolling] = useState(channel?.manualRetryPending === true);
 
-  const pending = channel?.manualRetryPending === true;
+  const pending = accepted || channel?.manualRetryPending === true;
   const linked = channel?.status === 'CREATED' && !!channel.issueKey;
   const requestedAt = localClock(channel?.manualRetryRequestedAt ?? null);
 
   // 폴링 tick 이 부르는 것들은 ref 로 — 효과가 tick 마다 다시 걸리지 않게.
   const latest = useRef({ onChannel, toast, router, refreshCounts });
-  latest.current = { onChannel, toast, router, refreshCounts };
+  useEffect(() => {
+    latest.current = { onChannel, toast, router, refreshCounts };
+  }, [onChannel, toast, router, refreshCounts]);
+
+  /** Polling and manual reads apply the same completion side effects. */
+  const applyChannel = useCallback((next: CollaborationChannel): void => {
+    latest.current.onChannel(next);
+    setAccepted(next.manualRetryPending);
+    if (next.manualRetryPending) return;
+    setPolling(false);
+    if (next.status === 'CREATED' && next.issueKey) {
+      latest.current.toast.show(`티켓이 생성됐어요 · ${next.issueKey}`);
+      latest.current.router.refresh();
+      latest.current.refreshCounts();
+    } else {
+      setBanner({ tone: 'warn', text: '이번 재시도도 실패했어요. 상태와 다음 시도 시각을 확인해 주세요.', refetch: false });
+    }
+  }, []);
 
   useEffect(() => {
     if (!polling || id == null) return;
@@ -111,16 +128,9 @@ export function RetryPanel({
         const next = await getCollaborationChannel(id, { watcherSize: WATCHER_PAGE_SIZE });
         if (settled) return;
         failures = 0;
-        if (next) latest.current.onChannel(next);
+        if (next) applyChannel(next);
         if (next && !next.manualRetryPending) {
           stop();
-          if (next.status === 'CREATED' && next.issueKey) {
-            latest.current.toast.show(`티켓이 생성됐어요 · ${next.issueKey}`);
-            latest.current.router.refresh();
-            latest.current.refreshCounts();
-          } else {
-            setBanner({ tone: 'warn', text: '이번 재시도도 실패했어요. 상태와 다음 시도 시각을 확인해 주세요.', refetch: false });
-          }
           return;
         }
       } catch {
@@ -137,32 +147,37 @@ export function RetryPanel({
       settled = true;
       clearInterval(timer);
     };
-  }, [polling, id]);
+  }, [polling, id, applyChannel]);
 
-  const retry = async (): Promise<void> => {
-    if (id == null) return;
-    setBanner(null);
-    setSending(true);
-    try {
-      await retryCollaborationChannel(id);
+  const { mutate, loading: sending } = useApiMutation<number, void>(
+    async (targetSourceId) => {
+      await retryCollaborationChannel(targetSourceId);
+      setAccepted(true);
       latest.current.router.refresh();
       latest.current.refreshCounts();
-      // 202 는 접수뿐 — 접수 시각과 pending 은 서버가 안다. 다시 읽고, 결과를 기다리기 시작한다.
-      await reload();
-      setPolling(true);
-    } catch (err) {
-      setBanner(bannerFor(err));
-      // 다시 생성할 수 없는 상태 — 화면이 낡은 것이니 현재 값을 바로 다시 읽는다.
-      if (err instanceof AppError && err.rawCode === 'JIRA_MANUAL_RETRY_UNAVAILABLE') await reload();
-    } finally {
-      setSending(false);
-    }
+      const next = await reload();
+      if (next) applyChannel(next);
+      if (!next || next.manualRetryPending) setPolling(true);
+    },
+    {
+      onError: (err) => {
+        setBanner(bannerFor(err));
+        if (err instanceof AppError && err.rawCode === 'JIRA_MANUAL_RETRY_UNAVAILABLE') void reload();
+      },
+    },
+  );
+
+  const retry = async (): Promise<void> => {
+    if (id == null || pending || sending) return;
+    setBanner(null);
+    await mutate(id);
   };
 
   /** 손 조회 — 2분 상한 뒤의 한 번. 여전히 접수 중이면 그 상태에 머문다. */
   const refetch = async (): Promise<void> => {
     setBanner(null);
-    await reload();
+    const next = await reload();
+    if (next) applyChannel(next);
   };
 
   return (

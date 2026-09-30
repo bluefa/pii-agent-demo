@@ -73,8 +73,8 @@ export function WatcherPanel({
   channel: CollaborationChannel | null;
   /** 상위가 채널을 읽는 중. */
   busy: boolean;
-  /** 페이지를 넘긴다 — 다른 사람들이라 이 페이지의 등록 표시는 함께 떠난다. */
-  reload: (watcherPage: number) => Promise<void>;
+  /** Read a page; registration marks survive paging. */
+  reload: (watcherPage: number) => Promise<CollaborationChannel | null>;
 }): ReactElement {
   const toast = usePlToast();
   /** username → 등록 진행. 창이 살아 있는 동안 남는다 — 페이지를 넘겨도 제 행에 표시된다. */
@@ -188,7 +188,12 @@ export function WatcherPanel({
       </div>
 
       {!channel ? (
-        <p className={styles.note}>추가할 사용자를 응답에서 읽지 못했어요.</p>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className={styles.note}>추가할 사용자를 응답에서 읽지 못했어요.</p>
+          <PlButton variant="secondary" size="sm" onClick={() => void reload(0)} disabled={anyBusy}>
+            다시 조회
+          </PlButton>
+        </div>
       ) : watchers.length === 0 ? (
         <p className={styles.note}>등록에 실패한 사용자가 없습니다.</p>
       ) : (

@@ -10,7 +10,7 @@
  * 티켓 버킷의 동작은 생성 재요청 하나다 — 이슈 키를 손으로 연결하는 길은 이 콘솔에 없다
  * (오너 "attach 는 없애줘"; 서비스 운영 화면의 연결이 그 길이다).
  */
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import type { JiraAlertKind } from '@/lib/types/task-queue';
@@ -129,24 +129,30 @@ export function JiraChannelModal({
 }): ReactElement {
   const [channel, setChannel] = useState<CollaborationChannel | null>(row.channel);
   const [busy, setBusy] = useState(false);
+  const readVersion = useRef(0);
   const id = row.targetSourceId;
   const ticketKind = kind === 'jira-ticket-failed';
 
-  /** 채널을 다시 읽는다 — 못 읽으면 null(조회 실패), 지어내지 않는다. */
-  const reload = async (watcherPage?: number): Promise<void> => {
-    if (id == null) return;
+  useEffect(() => () => { readVersion.current += 1; }, []);
+
+  /** Only the latest read may replace the channel or release the loading state. */
+  const reload = async (watcherPage?: number): Promise<CollaborationChannel | null> => {
+    if (id == null) return null;
+    const version = ++readVersion.current;
     setBusy(true);
     try {
-      setChannel(
-        await getCollaborationChannel(id, {
-          watcherSize: WATCHER_PAGE_SIZE,
-          ...(watcherPage != null ? { watcherPage } : {}),
-        }),
-      );
+      const next = await getCollaborationChannel(id, {
+        watcherSize: WATCHER_PAGE_SIZE,
+        ...(watcherPage != null ? { watcherPage } : {}),
+      });
+      if (version !== readVersion.current) return null;
+      setChannel(next);
+      return next;
     } catch {
-      setChannel(null);
+      if (version === readVersion.current) setChannel(null);
+      return null;
     } finally {
-      setBusy(false);
+      if (version === readVersion.current) setBusy(false);
     }
   };
 

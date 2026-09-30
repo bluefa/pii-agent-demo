@@ -13,6 +13,7 @@ import type { JiraWorklistRow } from '@/app/admin/pipelines/ops/jira/_components
 
 const push = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+const refreshCounts = vi.hoisted(() => vi.fn());
 const retryCollaborationChannel = vi.hoisted(() => vi.fn());
 const getCollaborationChannel = vi.hoisted(() => vi.fn());
 const addJiraTicketWatcher = vi.hoisted(() => vi.fn());
@@ -20,6 +21,9 @@ const toastShow = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }), usePathname: () => '/x' }));
 vi.mock('@/app/admin/pipelines/_components/usePlToast', () => ({
   usePlToast: () => ({ message: null, show: toastShow, dismiss: vi.fn() }),
+}));
+vi.mock('@/app/admin/pipelines/_components/NavCountsRefresh', () => ({
+  useNavCountsRefresh: () => refreshCounts,
 }));
 vi.mock('@/app/lib/api/ops', () => ({
   retryCollaborationChannel,
@@ -470,5 +474,133 @@ describe('JiraChannelModal — 접수 뒤 폴링', () => {
     unmount();
     await tick(30000);
     expect(getCollaborationChannel).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('JiraChannelModal — retry and pagination regressions', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps retry disabled when POST is accepted but immediate channel GET fails', async () => {
+    retryCollaborationChannel.mockResolvedValue(undefined);
+    getCollaborationChannel.mockRejectedValue(new Error('temporary GET failure'));
+    ticketModal();
+    await clickRetry();
+    expect(retryCollaborationChannel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
+    expect(screen.getByText('재시도를 접수했어요')).toBeDefined();
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    expect(screen.getByRole('button', { name: '다시 조회' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
+    expect(retryCollaborationChannel).toHaveBeenCalledTimes(1);
+    getCollaborationChannel.mockResolvedValueOnce(created('BDCDIP-9999'));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '다시 조회' })); });
+    expect(screen.getByRole('link', { name: /BDCDIP-9999/ })).toBeDefined();
+  });
+
+  it('refreshes the list after a timed-out retry resolves on manual refetch', async () => {
+    const pending = channel({ status: 'RETRYING', manualRetryPending: true });
+    getCollaborationChannel.mockResolvedValue(pending);
+    ticketModal({ ...ROW, channel: pending });
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+    refresh.mockClear();
+    refreshCounts.mockClear();
+    getCollaborationChannel.mockResolvedValueOnce(created('BDCDIP-9999'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
+    });
+    expect(screen.getByRole('link', { name: /BDCDIP-9999/ })).toBeDefined();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refreshCounts).toHaveBeenCalledTimes(1);
+    expect(toastShow).toHaveBeenCalledWith('티켓이 생성됐어요 · BDCDIP-9999');
+  });
+
+  it('lets an operator retry a failed watcher page read without closing the modal', async () => {
+    getCollaborationChannel.mockRejectedValue(new Error('temporary GET failure'));
+    render(<JiraChannelModal kind="jira-watcher-failed" row={{ ...ROW,
+      channel: created('BDCDIP-1', {
+        failedWatchers: [watcher('first.user')], failedWatchersTotal: 12, watcherSize: 5,
+      }),
+    }} onClose={vi.fn()} />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }));
+    });
+    expect(screen.getByRole('button', { name: '다시 조회' })).toBeDefined();
+    getCollaborationChannel.mockResolvedValueOnce(created('BDCDIP-1', {
+      failedWatchers: [watcher('recovered.user')], failedWatchersTotal: 12, watcherSize: 5,
+    }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '다시 조회' })); });
+    expect(screen.getByRole('button', { name: 'recovered.user 등록' })).toBeDefined();
+    expect(screen.getByRole('navigation', { name: '페이지' })).toBeDefined();
+  });
+
+  it('keeps the last selected watcher page when responses arrive in reverse order', async () => {
+    let resolveSecond: (v: CollaborationChannel) => void = () => {};
+    let resolveThird: (v: CollaborationChannel) => void = () => {};
+    getCollaborationChannel.mockImplementation((_id: number, opts: { watcherPage?: number }) =>
+      new Promise<CollaborationChannel>((resolve) => {
+        if (opts.watcherPage === 1) resolveSecond = resolve;
+        else resolveThird = resolve;
+      }),
+    );
+    render(<JiraChannelModal kind="jira-watcher-failed" row={{ ...ROW,
+      channel: created('BDCDIP-1', {
+        failedWatchers: [watcher('first.user')], failedWatchersTotal: 12, watcherSize: 5,
+      }),
+    }} onClose={vi.fn()} />);
+    const pager = screen.getByRole('navigation', { name: '페이지' });
+    await act(async () => { fireEvent.click(within(pager).getByRole('button', { name: '2' })); });
+    await act(async () => { fireEvent.click(within(pager).getByRole('button', { name: '3' })); });
+    await act(async () => { resolveThird(created('BDCDIP-1', {
+      failedWatchers: [watcher('third.user')], failedWatchersTotal: 12, watcherPage: 2, watcherSize: 5,
+    })); });
+    expect(screen.getByText('third.user')).toBeDefined();
+    await act(async () => { resolveSecond(created('BDCDIP-1', {
+      failedWatchers: [watcher('second.user')], failedWatchersTotal: 12, watcherPage: 1, watcherSize: 5,
+    })); });
+    expect(screen.getByText('third.user')).toBeDefined();
+  });
+});
+
+
+describe('JiraChannelModal — stale page failures', () => {
+  it('ignores an older failed read and stays busy until the latest read settles', async () => {
+    let rejectOlder: (err: Error) => void = () => {};
+    let resolveLatest: (value: CollaborationChannel) => void = () => {};
+    getCollaborationChannel.mockImplementation((_id: number, opts: { watcherPage?: number }) =>
+      new Promise<CollaborationChannel>((resolve, reject) => {
+        if (opts.watcherPage === 1) rejectOlder = reject;
+        else resolveLatest = resolve;
+      }),
+    );
+    render(<JiraChannelModal kind="jira-watcher-failed" row={{ ...ROW,
+      channel: created('BDCDIP-1', {
+        failedWatchers: [watcher('first.user')], failedWatchersTotal: 12, watcherSize: 5,
+      }),
+    }} onClose={vi.fn()} />);
+    const pager = screen.getByRole('navigation', { name: '페이지' });
+    await act(async () => { fireEvent.click(within(pager).getByRole('button', { name: '2' })); });
+    await act(async () => { fireEvent.click(within(pager).getByRole('button', { name: '3' })); });
+    await act(async () => { rejectOlder(new Error('older request failed')); });
+    expect(screen.getByText('first.user')).toBeDefined();
+    expect((screen.getByRole('button', { name: 'first.user 등록' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => { resolveLatest(created('BDCDIP-1', {
+      failedWatchers: [watcher('third.user')], failedWatchersTotal: 12, watcherPage: 2, watcherSize: 5,
+    })); });
+    expect((screen.getByRole('button', { name: 'third.user 등록' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('can recover an initially unreadable watcher channel', async () => {
+    getCollaborationChannel.mockResolvedValueOnce(created('BDCDIP-1', {
+      failedWatchers: [watcher('recovered.user')], failedWatchersTotal: 1, watcherSize: 5,
+    }));
+    render(<JiraChannelModal kind="jira-watcher-failed" row={{ ...ROW, channel: null }} onClose={vi.fn()} />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '다시 조회' })); });
+    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5, watcherPage: 0 });
+    expect(screen.getByRole('button', { name: 'recovered.user 등록' })).toBeDefined();
   });
 });
