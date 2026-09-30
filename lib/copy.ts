@@ -217,6 +217,7 @@ const ko = {
     ownersNamesMissing: (count: number) => `담당자 ${count}명이 있지만 이름이 오지 않았어요`,
     ownerCount: (n: number) => `${n}명`,
     ownersHidden: (n: number) => `여기 없는 담당자가 ${n}명 더 있어요`,
+    ownersLookupMissed: '담당자를 찾지 못했어요. 다시 시도해 주세요',
 
     userSearchPlaceholder: 'Knox ID · 이메일 검색',
     userSearchLabel: '사용자 검색',
@@ -571,6 +572,7 @@ const en: typeof ko = {
     ownerCount: (n: number) => `${n}`,
     ownersHidden: (n: number) =>
       `${n} more ${plural(n, 'owner is', 'owners are')} not listed here`,
+    ownersLookupMissed: 'Could not find the owners. Please try again',
 
     userSearchPlaceholder: 'Search Knox ID or email',
     userSearchLabel: 'Search users',

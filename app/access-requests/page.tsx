@@ -330,7 +330,9 @@ export default function MyAccessRequestsPage(): ReactElement {
     try {
       const found = await getServicesPage(row.serviceCode, 0, { size: OWNER_LOOKUP_SIZE });
       const hit = found.content.find((item) => item.serviceCode === row.serviceCode);
-      if (!hit || hit.ownerCount === 0) toast.show(t.noOwners);
+      // Not on the page is not the same as no owners — say which one it was.
+      if (!hit) toast.show(t.ownersLookupMissed);
+      else if (hit.ownerCount === 0) toast.show(t.noOwners);
       else setOwners(hit);
     } catch (err) {
       toast.show(errorMessage(err));
@@ -570,7 +572,7 @@ export default function MyAccessRequestsPage(): ReactElement {
         owners={owners?.owners ?? []}
         ownerCount={owners?.ownerCount ?? 0}
         onRequest={
-          owners && tab === 'services'
+          owners && tab === 'services' && REQUESTABLE.has(owners.accessStatus)
             ? () => {
                 setTarget(owners);
                 setOwners(null);

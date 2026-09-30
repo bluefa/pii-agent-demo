@@ -61,6 +61,42 @@ describe('usePagedSection fetch budget', () => {
     unmount();
   });
 
+  it('returning to a cached page while another page is in flight settles loading', async () => {
+    let releasePage1: () => void = () => {};
+    const fetcher = vi.fn((n: number) =>
+      n === 1
+        ? new Promise<AccessPage<string>>((resolve) => {
+            releasePage1 = () => resolve(page(1));
+          })
+        : Promise.resolve(page(n)),
+    );
+    const { result, unmount } = renderHook(() => usePagedSection(fetcher));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.setPage(1));
+    expect(result.current.loading).toBe(true);
+    act(() => result.current.setPage(0));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.paged?.number).toBe(0);
+    releasePage1();
+    unmount();
+  });
+
+  it('returning to a cached page after a failed page clears the error', async () => {
+    const fetcher = vi.fn((n: number) =>
+      n === 1 ? Promise.reject(new Error('boom')) : Promise.resolve(page(n)),
+    );
+    const { result, unmount } = renderHook(() => usePagedSection(fetcher));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.setPage(1));
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    act(() => result.current.setPage(0));
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.loading).toBe(false);
+    unmount();
+  });
+
   it('reload() fetches again with the same fetcher and page', async () => {
     const fetcher = fetcherMock();
     const { result, unmount } = renderHook(() => usePagedSection(fetcher));

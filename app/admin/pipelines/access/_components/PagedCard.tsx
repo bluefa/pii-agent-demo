@@ -61,7 +61,13 @@ export function usePagedSection<T>(
     (signal) => {
       if (!enabled) return;
       const at = loaded.current;
-      if (at && at.fetcher === fetcher && at.page === page && at.retry === retry) return;
+      if (at && at.fetcher === fetcher && at.page === page && at.retry === retry) {
+        // `paged` already holds this exact page. A fetch for another page may have been
+        // started (and aborted) or failed in between, so settle the flags here too.
+        setLoading(false);
+        setError(null);
+        return;
+      }
       setLoading(true);
       setError(null);
       return fetcher(page, { signal })
@@ -73,6 +79,8 @@ export function usePagedSection<T>(
           // `loading` 을 켠 채로 두고 다시 읽으므로 그 사이 잘못된 화면이 없다.
           const last = Math.max(result.totalPages - 1, 0);
           if (page > last) {
+            // The list shrank — whatever the last page held before is stale, so read it again.
+            loaded.current = null;
             setPage(last);
             return;
           }
