@@ -3,7 +3,7 @@
 - 날짜: 2026-09-29
 - 대상: `/pass/access-requests` 「담당자 확인」 모달 (`OwnersModal`, `app/admin/pipelines/access/_components/AccessModals.tsx`)
 - 아티팩트: https://claude.ai/artifact/TFTUhEv8mQex2jtHr9W4Gm
-- 구현 PR: `feat/owned-tab-owners` (접근 가능 탭 담당자 보기와 같은 PR)
+- 구현 PR: #921 (`feat/owned-tab-owners`)
 
 ## 문제 (근거 등급)
 
