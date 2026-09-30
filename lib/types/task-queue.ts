@@ -11,10 +11,13 @@
  * The wire schemas are ADR-019 loose codegen (every field optional/nullable), so
  * the reshapers coalesce absent values to `null` / `[]`.
  */
-import { parseInstallationLifecycle, type InstallationLifecycleStatus } from '@/lib/types';
+import {
+  isSduTarget,
+  parseInstallationLifecycle,
+  type InstallationLifecycleStatus,
+} from '@/lib/types';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import { isSduTarget } from '@/lib/types';
 
 export interface Paged<T> {
   content: T[];
