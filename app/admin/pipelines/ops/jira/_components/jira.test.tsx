@@ -25,7 +25,17 @@ const channel = (over: Partial<CollaborationChannel>): CollaborationChannel => (
   attemptCount: 3,
   maxAttempts: 6,
   nextAttemptAt: '2026-09-30T14:20:00.000000',
+  retryPhase: 'SHORT_TERM',
+  retryExpiresAt: '2026-10-14T00:00:00',
+  failedWatchers: [],
+  failedWatchersTotal: 0,
+  watcherPage: 0,
+  watcherSize: 10,
   ...over,
+});
+
+const watcher = (username: string, status: 'FAILED' | 'PENDING') => ({
+  username, status, attemptCount: 6, retryPhase: null, nextAttemptAt: null, retryExpiresAt: null,
 });
 
 const row = (over: Partial<JiraWorklistRow>): JiraWorklistRow => ({
@@ -39,7 +49,6 @@ const row = (over: Partial<JiraWorklistRow>): JiraWorklistRow => ({
   latestApprovalRequest: null,
   installationLifecycleStatus: null,
   isSduType: false,
-  failedWatchers: null,
   channel: channel({}),
   ...over,
 });
@@ -88,11 +97,11 @@ describe('기본 버킷과 타일', () => {
 });
 
 describe('상태 태그 문구', () => {
-  it('RETRYING 은 둘 다 있을 때만 (n/m) 을 붙인다', () => {
+  it('RETRYING 은 둘 다 있을 때만 (n/m) 을 붙인다 — LONG_TERM(max null) 은 접미 없음', () => {
     expect(channelTagCopy(channel({})).text).toBe('재시도 중 (3/6)');
     expect(channelTagCopy(channel({ attemptCount: 0 })).text).toBe('재시도 중');
     expect(channelTagCopy(channel({ attemptCount: null })).text).toBe('재시도 중');
-    expect(channelTagCopy(channel({ maxAttempts: null })).text).toBe('재시도 중');
+    expect(channelTagCopy(channel({ attemptCount: 6, maxAttempts: null, retryPhase: 'LONG_TERM' })).text).toBe('재시도 중');
   });
 
   it('나머지 상태와 조회 실패', () => {
@@ -110,7 +119,7 @@ describe('JiraWorklist', () => {
     expect(screen.getByText('4')).toBeDefined();
     expect(screen.getByText('관리자')).toBeDefined();
     expect(screen.getByText('재시도 중 (3/6)')).toBeDefined();
-    expect(screen.getByText('14:20')).toBeDefined();
+    expect(screen.getByText('09-30 14:20')).toBeDefined();
     expect(screen.getByText('다음 시도')).toBeDefined();
 
     fireEvent.click(screen.getByText('결제서비스').closest('tr') as HTMLElement);
@@ -120,7 +129,7 @@ describe('JiraWorklist', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('watcher 버킷: Watcher N명 실패 + 사용자 줄, 티켓 열은 채널의 키', () => {
+  it('watcher 버킷: Watcher N명 실패(사람 수) + 첫 페이지 이름, 티켓 열은 채널의 키', () => {
     render(
       worklist({
         kind: 'jira-watcher-failed',
@@ -129,18 +138,37 @@ describe('JiraWorklist', () => {
         rows: [
           row({
             targetSourceId: 1861,
-            channel: channel({ status: 'CREATED', issueKey: 'BDCDIP-2211' }),
-            failedWatchers: [
-              { username: 'hong.gildong', status: 'FAILED', attemptCount: 6 },
-              { username: 'kim.cs', status: 'RETRYING', attemptCount: 3 },
-            ],
+            channel: channel({
+              status: 'CREATED',
+              issueKey: 'BDCDIP-2211',
+              failedWatchers: [watcher('hong.gildong', 'FAILED'), watcher('kim.cs', 'PENDING')],
+              failedWatchersTotal: 2,
+            }),
           }),
+          row({
+            targetSourceId: 1799,
+            serviceCode: 'DLV',
+            serviceName: '배송서비스',
+            channel: channel({
+              status: 'CREATED',
+              issueKey: 'BDCDIP-1799',
+              failedWatchers: [watcher('ahn.sy', 'FAILED')],
+              failedWatchersTotal: 12,
+              watcherSize: 1,
+            }),
+          }),
+          row({ targetSourceId: 1700, serviceCode: 'X', serviceName: 'x', channel: null }),
         ],
       }),
     );
     expect(screen.getByText('Watcher 2명 실패')).toBeDefined();
     expect(screen.getByText('hong.gildong, kim.cs')).toBeDefined();
     expect(screen.getByText('BDCDIP-2211')).toBeDefined();
+    // 첫 페이지 밖의 사람은 세기만 한다
+    expect(screen.getByText('Watcher 12명 실패')).toBeDefined();
+    expect(screen.getByText('ahn.sy 외 11명')).toBeDefined();
+    // 채널을 못 읽은 행은 조회 실패
+    expect(screen.getByText('조회 실패')).toBeDefined();
     expect(screen.getByText('티켓')).toBeDefined();
   });
 

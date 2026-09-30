@@ -482,7 +482,10 @@ export interface BffClient {
      * 404. PUT links an existing issue key to every target source of the same
      * (service, cloud); the two 409s it can answer are listed in §4.
      */
-    getCollaborationChannel: (id: number) => Promise<CollaborationChannelWire>;
+    getCollaborationChannel: (
+      id: number,
+      query?: CollaborationChannelQuery,
+    ) => Promise<CollaborationChannelWire>;
     putCollaborationChannel: (
       id: number,
       body: { issue_key: string; url?: string },
@@ -583,6 +586,28 @@ export interface CollaborationChannelWire {
   attempt_count?: number | null;
   max_attempts?: number | null;
   next_attempt_at?: string | null;
+  retry_phase?: 'SHORT_TERM' | 'LONG_TERM' | null;
+  retry_expires_at?: string | null;
+  /** One page of failed watchers (username asc); `[]` when none or no ticket. */
+  failed_watchers?: FailedWatcherWire[] | null;
+  failed_watchers_total?: number | null;
+  watcher_page?: number | null;
+  watcher_size?: number | null;
+}
+
+export interface FailedWatcherWire {
+  username: string;
+  status: 'FAILED' | 'PENDING';
+  attempt_count: number;
+  retry_phase: 'SHORT_TERM' | 'LONG_TERM' | null;
+  next_attempt_at: string | null;
+  retry_expires_at: string | null;
+}
+
+/** `?watcher_page` (≥ 0, default 0) · `?watcher_size` (1..100, default 10); upstream 400s out of range. */
+export interface CollaborationChannelQuery {
+  watcherPage?: number;
+  watcherSize?: number;
 }
 
 /** Spring-Page subset the assumed status-history endpoint returns. */

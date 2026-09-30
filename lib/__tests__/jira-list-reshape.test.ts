@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { toDashboardSummary, toJiraListPage } from '@/lib/types/task-queue';
-import { nextAttemptClock, toCollaborationChannel } from '@/lib/types/collaboration-channel';
+import { localClock, toCollaborationChannel } from '@/lib/types/collaboration-channel';
 
 const wire = (row: Record<string, unknown>) => ({
   content: [row],
@@ -43,34 +43,16 @@ describe('toDashboardSummary — Jira counts', () => {
   });
 });
 
-describe('toJiraListPage — isSduType and failed_watchers', () => {
+describe('toJiraListPage — isSduType', () => {
   it('isSduType comes from metadata.is_sdu_type, strictly true', () => {
     expect(firstRow({ ...ROW, metadata: { is_sdu_type: true } }).isSduType).toBe(true);
     expect(firstRow({ ...ROW, metadata: { is_sdu_type: 'true' } }).isSduType).toBe(false);
     expect(firstRow(ROW).isSduType).toBe(false);
   });
 
-  it('absent failed_watchers is null, not an empty list', () => {
-    expect(firstRow(ROW).failedWatchers).toBeNull();
-    expect(firstRow({ ...ROW, failed_watchers: 'nope' }).failedWatchers).toBeNull();
-  });
-
-  it('parses entries and drops the malformed ones', () => {
-    const row = firstRow({
-      ...ROW,
-      failed_watchers: [
-        { username: 'hong.gildong', status: 'FAILED', attempt_count: 6 },
-        { username: 'kim.cs', status: null, attempt_count: '3' },
-        { status: 'FAILED' },
-        { username: '' },
-        null,
-      ],
-    });
-    expect(row.failedWatchers).toEqual([
-      { username: 'hong.gildong', status: 'FAILED', attemptCount: 6 },
-      { username: 'kim.cs', status: null, attemptCount: null },
-    ]);
-    // the contract fields ride along
+  it('failed_watchers on a list row is ignored — it lives on the channel now', () => {
+    const row = firstRow({ ...ROW, failed_watchers: [{ username: 'x', status: 'FAILED' }] });
+    expect('failedWatchers' in row).toBe(false);
     expect(row.targetSourceId).toBe(1861);
   });
 });
@@ -87,9 +69,49 @@ describe('toCollaborationChannel', () => {
     expect(toCollaborationChannel(null)).toBeNull();
   });
 
-  it('next_attempt_at is cut, never converted', () => {
-    expect(nextAttemptClock('2026-09-30T14:20:00.123456')).toBe('14:20');
-    expect(nextAttemptClock(null)).toBeNull();
-    expect(nextAttemptClock('garbage')).toBeNull();
+  it('retry phase and expiry ride along; unknown phase is null', () => {
+    const channel = toCollaborationChannel({
+      status: 'RETRYING', attempt_count: 6, max_attempts: null,
+      retry_phase: 'LONG_TERM', next_attempt_at: '2026-10-01T00:50:00', retry_expires_at: '2026-10-14T00:00:00',
+    });
+    expect(channel).toMatchObject({
+      attemptCount: 6, maxAttempts: null, retryPhase: 'LONG_TERM',
+      nextAttemptAt: '2026-10-01T00:50:00', retryExpiresAt: '2026-10-14T00:00:00',
+    });
+    expect(toCollaborationChannel({ status: 'RETRYING', retry_phase: 'WEEKLY' })?.retryPhase).toBeNull();
+  });
+
+  it('watcher page: [] and echoed page/size by default, entries parsed, malformed dropped', () => {
+    const bare = toCollaborationChannel({ status: 'NONE' });
+    expect(bare).toMatchObject({ failedWatchers: [], failedWatchersTotal: 0, watcherPage: 0, watcherSize: 10 });
+
+    const channel = toCollaborationChannel({
+      status: 'CREATED', issue_key: 'BDCDIP-2211',
+      failed_watchers: [
+        { username: 'hong.gildong', status: 'FAILED', attempt_count: 6, retry_phase: null, next_attempt_at: null, retry_expires_at: null },
+        { username: 'kim.cs', status: 'PENDING', attempt_count: 3, retry_phase: 'SHORT_TERM', next_attempt_at: '2026-09-30T14:40:00', retry_expires_at: '2026-10-14T00:00:00' },
+        { username: 'old.status', status: 'RETRYING', attempt_count: 1 },
+        { status: 'FAILED' },
+        { username: '' },
+        null,
+      ],
+      failed_watchers_total: 12,
+      watcher_page: 1,
+      watcher_size: 5,
+    });
+    expect(channel?.failedWatchers).toEqual([
+      { username: 'hong.gildong', status: 'FAILED', attemptCount: 6, retryPhase: null, nextAttemptAt: null, retryExpiresAt: null },
+      { username: 'kim.cs', status: 'PENDING', attemptCount: 3, retryPhase: 'SHORT_TERM', nextAttemptAt: '2026-09-30T14:40:00', retryExpiresAt: '2026-10-14T00:00:00' },
+    ]);
+    expect(channel).toMatchObject({ failedWatchersTotal: 12, watcherPage: 1, watcherSize: 5 });
+    // total absent → the page length
+    expect(toCollaborationChannel({ status: 'CREATED', failed_watchers: [{ username: 'a', status: 'FAILED' }] })?.failedWatchersTotal).toBe(1);
+  });
+
+  it('datetimes are cut to MM-DD HH:mm, never converted', () => {
+    expect(localClock('2026-09-30T14:20:00.123456')).toBe('09-30 14:20');
+    expect(localClock('2026-10-01T00:50:00')).toBe('10-01 00:50');
+    expect(localClock(null)).toBeNull();
+    expect(localClock('garbage')).toBeNull();
   });
 });

@@ -75,31 +75,44 @@ a stale "verified" state must not survive an ARN change.
 
 ## 4. Collaboration channel — REINSTATED by BE PR #8891 (ahead of the swagger drop)
 
-The withdrawal note of 2026-08-10 is superseded. After 인프라 등록 the BFF asks
-jira-manager to create a Jira ticket asynchronously (retries every 10 minutes, gives up
-after 6). The Jira Ticket console (`/admin/pipelines/ops/jira`) reads that state per
-target and lets an admin link an existing issue key when auto-creation could not.
-Tickets are one per (serviceCode, cloudProvider); SDU targets are their own unit.
+The withdrawal note of 2026-08-10 is superseded (revision of 2026-09-30 below). After
+인프라 등록 the BFF asks jira-manager to create a Jira ticket asynchronously and retries on
+its own schedule. The Jira Ticket console (`/admin/pipelines/ops/jira`) reads that state
+per target and lets an admin link an existing issue key when auto-creation could not.
+Tickets are one per (serviceCode, cloudProvider); SDU targets are their own unit. The
+same unit shares the ticket and its failed-watcher list.
 
 Not in `docs/swagger/install-v1.yaml` yet — every field below is read as optional and
-absence renders as "조회 실패" / "티켓 없음", never as a made-up state. `npm run
-contract-check` is expected to FAIL on these paths until the swagger drop lands.
+absence renders as "조회 실패" / "티켓 없음", never as a made-up state.
+`bash scripts/contract-check.sh` is expected to FAIL on these paths until the swagger
+drop lands.
 
 ```
-GET /install/v1/target-sources/{targetSourceId}/collaboration-channel
+GET /install/v1/target-sources/{targetSourceId}/collaboration-channel?watcher_page=0&watcher_size=10
+    watcher_page ≥ 0 (default 0) · watcher_size 1..100 (default 10) · out of range → 400
 → 200 always
 {
   "issue_key": "BDCDIP-1234",          // "" for PENDING/RETRYING/FAILED, null for NONE
   "url": "https://jira…/browse/…",     // null when there is no ticket
-  "status": "CREATED",                 // CREATED | PENDING | RETRYING | FAILED | NONE
-  "attempt_count": 3,                  // may be 0 on RETRYING (auth problems) → hide the count
-  "max_attempts": 6,
-  "next_attempt_at": "2026-09-30T14:20:00.123456"   // server-local, fractional seconds, NO offset
+  "status": "RETRYING",                // CREATED | PENDING | RETRYING | FAILED | NONE
+  "attempt_count": 6,                  // may be 0 on RETRYING (auth problems) → hide the count
+  "max_attempts": null,                // may be null while RETRYING (LONG_TERM)
+  "retry_phase": "LONG_TERM",          // SHORT_TERM (10-min interval) | LONG_TERM (24-h interval) | null
+  "next_attempt_at": "2026-10-01T00:50:00",   // server-local, NO offset
+  "retry_expires_at": "2026-10-14T00:00:00",  // 14 days after the first real attempt
+  "failed_watchers": [                 // one page, username asc; [] when none / past the end / no ticket
+    { "username": "hong.gildong",      // Jira username, not a PASS id
+      "status": "FAILED",              // FAILED | PENDING only (PENDING = still retrying, auth waits included)
+      "attempt_count": 6,
+      "retry_phase": null, "next_attempt_at": null, "retry_expires_at": null }
+  ],
+  "failed_watchers_total": 12,         // people on this ticket (≠ summary's jira_watcher_failed_count)
+  "watcher_page": 0, "watcher_size": 10   // echoed even when there is no ticket
 }
 
 PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
 { "issue_key": "BDCDIP-1234", "url": "https://…" }   // url optional; issue_key required
-→ 200 same shape, status CREATED
+→ 200 same shape, status CREATED — the LINK RESULT only; re-GET for watcher/retry state
 → 400 issue_key empty
 → 409 JIRA_TICKET_CREATION_IN_PROGRESS   // auto-creation is writing this ticket right now
 → 409 (any other code)                   // someone else linked first — re-read and show it
@@ -107,21 +120,26 @@ PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
 
 | status | Meaning | "has a ticket" |
 |---|---|---|
-| `CREATED` | A ticket is linked (auto or by hand). | yes (`!!issue_key`) |
+| `CREATED` | A ticket is linked (auto or by hand). Linking flips here at once and cancels the schedule. | yes (`!!issue_key`) |
 | `PENDING` | First creation attempt not made yet. | no |
-| `RETRYING` | A previous attempt failed; the next runs at `next_attempt_at`. | no |
-| `FAILED` | All `max_attempts` attempts failed; an admin links a ticket. | no |
+| `RETRYING` | A previous attempt failed; the next runs at `next_attempt_at` (`retry_phase` says how often). | no |
+| `FAILED` | The 14-day window expired, or an unrecoverable error (bad request, no assignee…). | no |
 | `NONE` | Nothing was ever requested for this target. | no |
 
-- `next_attempt_at` carries no offset. The screen prints `HH:mm` by cutting the string —
-  it MUST NOT be parsed as UTC (see `lib/types/collaboration-channel.ts`).
-- Linking applies to every target source of the same (service, cloud): the PUT on one
-  row clears the whole unit from the `jira-ticket-failed` list on the next read.
+- Six failures alone do NOT make FAILED — the schedule moves from SHORT_TERM to
+  LONG_TERM and keeps going until `retry_expires_at`; at expiry the ticket flips to
+  FAILED without a Jira call.
+- Ticket status and watcher status are independent: a CREATED ticket can still have
+  failed watchers. Watchers carry no error text. There is no "retry now" API.
+- Datetimes carry no offset. The screen prints `MM-DD HH:mm` by cutting the string —
+  they MUST NOT be parsed as UTC (see `lib/types/collaboration-channel.ts`).
 - The 운영 화면 header (`OpsHeader.tsx`) is unchanged and keeps reading the real
   `GET …/jira-ticket`; this pair is the console's, not the header's.
 - Route: `app/api/v1/target-sources/[targetSourceId]/collaboration-channel/route.ts`
-  (GET / PUT). BFF: `bff.ops.getCollaborationChannel` / `putCollaborationChannel`.
-  Mock: `lib/bff/mock/ops.ts` (`__opsCollaborationChannelStore`; the key `BDCDIP-409`
+  (GET forwards `watcher_page`/`watcher_size` as-is; PUT). BFF:
+  `bff.ops.getCollaborationChannel(id, { watcherPage, watcherSize })` /
+  `putCollaborationChannel`. Mock: `lib/bff/mock/ops.ts`
+  (`__opsCollaborationChannelStore`; watchers per ticket unit; the key `BDCDIP-409`
   answers the in-progress 409 on purpose).
 
 ## 5. Ops target-source list
@@ -553,25 +571,18 @@ GET /install/v1/dashboard/target-sources/jira-ticket-failed?page&size
 GET /install/v1/dashboard/target-sources/jira-watcher-failed?page&size
 ```
 
-The rows carry NO ticket status — the console GETs §4 once per row (≤10 per page;
-`// ponytail` in `JiraWorklistSection.tsx`, to be replaced by list fields if the BE adds
-them to the DTO).
+The rows carry NO ticket status and NO watcher list — one row per target source, and
+who failed comes only from the channel GET (§4, `failed_watchers`). The console GETs §4
+once per row for both kinds (≤10 per page; `// ponytail` in `JiraWorklistSection.tsx`, to
+be replaced by list fields if the BE adds them to the DTO). The earlier owner assumption
+of a `failed_watchers` field on the list row is withdrawn (2026-09-30): the BE declares it
+on the channel instead, paginated.
 
-**OWNER ASSUMPTION — unconfirmed.** Each `jira-watcher-failed` row also carries:
-
-```
-"failed_watchers": [ { "username": "hong.gildong", "status": "FAILED", "attempt_count": 6 } ]
-```
-
-It rides the schema's `.passthrough()`; the reader treats it as optional (absent → the
-modal says "추가할 사용자를 응답에서 읽지 못했어요.") and drops entries without a string
-`username`.
-
-`GET /install/v1/dashboard/summary` gains two counts, also read off the passthrough:
+`GET /install/v1/dashboard/summary` gains two counts, read off the passthrough:
 
 ```
 "jira_ticket_failed_count": 4,
-"jira_watcher_failed_count": 2
+"jira_watcher_failed_count": 2      // target sources, not people (§4 failed_watchers_total is people)
 ```
 
 They feed the `Jira Ticket` sidebar badge (their sum) and the console's tiles. They are

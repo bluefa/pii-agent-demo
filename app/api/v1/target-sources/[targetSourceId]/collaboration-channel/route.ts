@@ -8,11 +8,23 @@ import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 // swagger drop). Snake wire both ways, passed through verbatim: the reader in
 // lib/types/collaboration-channel.ts owns the casing boundary on both surfaces.
 
-// GET …/collaboration-channel → always 200 (NONE when no ticket was ever created).
-export const GET = withV1(async (_request, { requestId, params }) => {
+/** `?watcher_page` / `?watcher_size` forwarded as integers when they parse; anything
+ *  else is simply not sent, and an out-of-range value is the upstream's 400 to give. */
+const intParam = (value: string | null): number | undefined =>
+  value !== null && /^-?\d+$/.test(value) ? Number(value) : undefined;
+
+// GET …/collaboration-channel?watcher_page&watcher_size → always 200 (NONE when no
+// ticket was ever created), with one page of failed watchers.
+export const GET = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
-  return NextResponse.json(await bff.ops.getCollaborationChannel(parsed.value));
+  const search = new URL(request.url).searchParams;
+  return NextResponse.json(
+    await bff.ops.getCollaborationChannel(parsed.value, {
+      watcherPage: intParam(search.get('watcher_page')),
+      watcherSize: intParam(search.get('watcher_size')),
+    }),
+  );
 });
 
 // PUT …/collaboration-channel { issue_key, url? } → the linked channel (status CREATED).

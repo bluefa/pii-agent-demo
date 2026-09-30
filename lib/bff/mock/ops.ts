@@ -3,7 +3,9 @@ import * as mockData from '@/lib/mock-data';
 import { minutesAgo } from '@/lib/bff/mock/clock';
 import { ProcessStatus } from '@/lib/types';
 import type {
+  CollaborationChannelQuery,
   CollaborationChannelWire,
+  FailedWatcherWire,
   OpsProcessStatusWire,
   OpsStatusHistoryItemWire,
   OpsTargetSourceListItemWire,
@@ -281,20 +283,20 @@ export const mockOps = {
   },
 
   // Assumed §4 — the store and fixtures live below the Jira Tickets block.
-  getCollaborationChannel: async (targetSourceId: number) =>
-    mockCollaborationChannel.get(targetSourceId),
+  getCollaborationChannel: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
+    mockCollaborationChannel.get(targetSourceId, query),
   putCollaborationChannel: async (targetSourceId: number, body: { issue_key: string; url?: string }) =>
     mockCollaborationChannel.put(targetSourceId, body),
 };
 
-/* ── Collaboration channel — ASSUMED §4 (BE PR #8891, ahead of the swagger drop) ── */
+/* ── Collaboration channel — ASSUMED §4 (BE PR #8891, 2026-09-30 revision) ── */
 
 /**
  * One row of the Jira Ticket console fixtures — the TargetSourceInfo identity the two
- * failure lists serve (`lib/bff/mock/task-queue.ts`) and, for watcher rows, the
- * owner-assumed `failed_watchers` list. Hand-authored rather than derived from PROC:
- * the console needs two targets of ONE service on AWS (the ticket is shared per
- * service + cloud) and an SDU target, and the monitor fixture has neither.
+ * failure lists serve (`lib/bff/mock/task-queue.ts`). Hand-authored rather than derived
+ * from PROC: the console needs two targets of ONE service on AWS (the ticket is shared
+ * per service + cloud) and an SDU target, and the monitor fixture has neither. Who
+ * failed as a watcher is NOT on the row — it rides the channel GET, per ticket unit.
  */
 export interface JiraFailureFixtureRow {
   ts: number;
@@ -303,7 +305,6 @@ export interface JiraFailureFixtureRow {
   pv: string;
   isSdu: boolean;
   description: string;
-  failedWatchers?: { username: string; status: string; attempt_count: number }[];
 }
 
 export const JIRA_TICKET_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
@@ -314,80 +315,141 @@ export const JIRA_TICKET_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
 ];
 
 export const JIRA_WATCHER_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
-  {
-    ts: 1861, svc: '정산서비스', code: 'STL', pv: 'AWS', isSdu: false, description: '정산 마감 배치 RDS',
-    failedWatchers: [
-      { username: 'hong.gildong', status: 'FAILED', attempt_count: 6 },
-      { username: 'kim.cs', status: 'RETRYING', attempt_count: 3 },
-    ],
-  },
-  {
-    ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', isSdu: false, description: '배송 추적 Azure SQL',
-    failedWatchers: [{ username: 'lee.mj', status: 'FAILED', attempt_count: 6 }],
-  },
+  { ts: 1861, svc: '정산서비스', code: 'STL', pv: 'AWS', isSdu: false, description: '정산 마감 배치 RDS' },
+  { ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', isSdu: false, description: '배송 추적 Azure SQL' },
 ];
 
+const ALL_JIRA_FIXTURES = [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE];
+
+/** The ticket unit: (service, cloud), SDU on its own. */
+const unitKey = (row: JiraFailureFixtureRow): string => `${row.code}/${row.pv}/${row.isSdu ? 'sdu' : 'csp'}`;
+
+type ChannelSeed = Omit<
+  CollaborationChannelWire,
+  'failed_watchers' | 'failed_watchers_total' | 'watcher_page' | 'watcher_size'
+>;
+
 const channelGlobal = globalThis as typeof globalThis & {
-  __opsCollaborationChannelStore?: Map<number, CollaborationChannelWire>;
+  __opsCollaborationChannelStore?: {
+    channels: Map<number, ChannelSeed>;
+    /** unit key → failed watchers, username asc. */
+    watchers: Map<string, FailedWatcherWire[]>;
+  };
 };
 
 const JIRA_BROWSE_BASE = 'https://jira.sec.samsung.net/browse/';
 
-const createdChannel = (issueKey: string): CollaborationChannelWire => ({
+const createdChannel = (issueKey: string): ChannelSeed => ({
   issue_key: issueKey,
   url: `${JIRA_BROWSE_BASE}${issueKey}`,
   status: 'CREATED',
   attempt_count: null,
   max_attempts: null,
   next_attempt_at: null,
+  retry_phase: null,
+  retry_expires_at: null,
+});
+
+const NONE_CHANNEL: ChannelSeed = {
+  issue_key: null, url: null, status: 'NONE', attempt_count: null, max_attempts: null,
+  next_attempt_at: null, retry_phase: null, retry_expires_at: null,
+};
+
+/** Server-local datetimes, no offset — the screen cuts them, never converts them. */
+const watcher = (
+  username: string,
+  status: FailedWatcherWire['status'],
+  attempt_count: number,
+  next_attempt_at: string | null,
+): FailedWatcherWire => ({
+  username,
+  status,
+  attempt_count,
+  retry_phase: status === 'PENDING' ? (attempt_count >= 6 ? 'LONG_TERM' : 'SHORT_TERM') : null,
+  next_attempt_at,
+  retry_expires_at: status === 'PENDING' ? '2026-10-14T00:00:00' : null,
 });
 
 /** Seed: every ticket-failed row is not CREATED, every watcher-failed row already is. */
-const seedChannels = (): Map<number, CollaborationChannelWire> => {
-  const store = new Map<number, CollaborationChannelWire>();
-  // PAY/AWS — one ticket unit, two targets, third of six retries. Server-local time, no offset.
-  const payRetrying: CollaborationChannelWire = {
-    issue_key: '', url: null, status: 'RETRYING', attempt_count: 3, max_attempts: 6,
-    next_attempt_at: '2026-09-30T14:20:00.000000',
+const seedStore = (): NonNullable<typeof channelGlobal.__opsCollaborationChannelStore> => {
+  const channels = new Map<number, ChannelSeed>();
+  // PAY/AWS — one ticket unit, two targets, SHORT_TERM (10-minute interval).
+  const payRetrying: ChannelSeed = {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 2, max_attempts: 6,
+    next_attempt_at: '2026-09-30T14:20:00', retry_phase: 'SHORT_TERM', retry_expires_at: '2026-10-14T00:00:00',
   };
-  store.set(2113, { ...payRetrying });
-  store.set(2114, { ...payRetrying });
-  store.set(1099, {
-    issue_key: '', url: null, status: 'FAILED', attempt_count: 6, max_attempts: 6, next_attempt_at: null,
+  channels.set(2113, { ...payRetrying });
+  channels.set(2114, { ...payRetrying });
+  // SDU — expired: the 14-day window closed without a ticket.
+  channels.set(1099, {
+    issue_key: '', url: null, status: 'FAILED', attempt_count: 9, max_attempts: null,
+    next_attempt_at: null, retry_phase: null, retry_expires_at: '2026-09-28T00:00:00',
   });
-  // Auth problem: retrying with no attempt counted yet — the screen hides the count.
-  store.set(1980, {
-    issue_key: '', url: null, status: 'RETRYING', attempt_count: 0, max_attempts: 6,
-    next_attempt_at: '2026-09-30T14:30:00.000000',
+  // MBR/GCP — LONG_TERM (24-hour interval): six failures alone do not make FAILED.
+  channels.set(1980, {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 6, max_attempts: null,
+    next_attempt_at: '2026-10-01T00:50:00', retry_phase: 'LONG_TERM', retry_expires_at: '2026-10-14T00:00:00',
   });
-  store.set(1861, createdChannel('BDCDIP-2211'));
-  store.set(1799, createdChannel('BDCDIP-1799'));
-  return store;
+  channels.set(1861, createdChannel('BDCDIP-2211'));
+  channels.set(1799, createdChannel('BDCDIP-1799'));
+
+  const watchers = new Map<string, FailedWatcherWire[]>();
+  // STL/AWS — two people; DLV/AZURE — twelve, so the modal's pager shows once.
+  watchers.set('STL/AWS/csp', [
+    watcher('hong.gildong', 'FAILED', 6, null),
+    watcher('kim.cs', 'PENDING', 3, '2026-09-30T14:40:00'),
+  ]);
+  watchers.set(
+    'DLV/AZURE/csp',
+    [
+      'ahn.sy', 'bae.jh', 'choi.mr', 'do.hk', 'eom.js', 'go.ye', 'ha.jw', 'im.sh', 'jang.dy', 'ko.mj', 'lee.mj', 'moon.bk',
+    ].map((name, i) =>
+      i % 3 === 0
+        ? watcher(name, 'FAILED', 6, null)
+        : watcher(name, 'PENDING', i >= 6 ? 6 : 1, i >= 6 ? '2026-10-01T00:50:00' : '2026-09-30T14:40:00'),
+    ),
+  );
+  return { channels, watchers };
 };
 
-const channelStore = (): Map<number, CollaborationChannelWire> =>
-  (channelGlobal.__opsCollaborationChannelStore ??= seedChannels());
+const store = () => (channelGlobal.__opsCollaborationChannelStore ??= seedStore());
 
-const NONE_CHANNEL: CollaborationChannelWire = {
-  issue_key: null, url: null, status: 'NONE', attempt_count: null, max_attempts: null, next_attempt_at: null,
-};
+const fixtureRow = (targetSourceId: number): JiraFailureFixtureRow | undefined =>
+  ALL_JIRA_FIXTURES.find((r) => r.ts === targetSourceId);
 
 /** Cross-module hook for the failure lists: a ticket-failed row leaves once its channel is CREATED. */
-export const collaborationChannelOf = (targetSourceId: number): CollaborationChannelWire =>
-  channelStore().get(targetSourceId) ?? NONE_CHANNEL;
+export const collaborationChannelOf = (targetSourceId: number): ChannelSeed =>
+  store().channels.get(targetSourceId) ?? NONE_CHANNEL;
 
-/** Every fixture target of the same (service, cloud) — the ticket unit a PUT links at once. */
+/** Every fixture target of the same unit — what a PUT links at once. */
 const sameTicketUnit = (row: JiraFailureFixtureRow): number[] =>
-  [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE]
-    .filter((r) => r.code === row.code && r.pv === row.pv && r.isSdu === row.isSdu)
-    .map((r) => r.ts);
+  ALL_JIRA_FIXTURES.filter((r) => unitKey(r) === unitKey(row)).map((r) => r.ts);
+
+const DEFAULT_WATCHER_SIZE = 10;
+
+/** The channel plus one page of its watchers (username asc). Echoes page/size even with no ticket. */
+const channelResponse = (targetSourceId: number, query?: CollaborationChannelQuery): CollaborationChannelWire => {
+  const page = query?.watcherPage ?? 0;
+  const size = query?.watcherSize ?? DEFAULT_WATCHER_SIZE;
+  const row = fixtureRow(targetSourceId);
+  const all = (row ? store().watchers.get(unitKey(row)) : undefined) ?? [];
+  const sorted = [...all].sort((a, b) => a.username.localeCompare(b.username));
+  return {
+    ...collaborationChannelOf(targetSourceId),
+    failed_watchers: sorted.slice(page * size, page * size + size),
+    failed_watchers_total: sorted.length,
+    watcher_page: page,
+    watcher_size: size,
+  };
+};
 
 export const mockCollaborationChannel = {
-  // GET …/collaboration-channel → always 200 (NONE when nothing was ever created).
-  get: async (targetSourceId: number) =>
-    NextResponse.json(collaborationChannelOf(targetSourceId)),
+  // GET …/collaboration-channel?watcher_page&watcher_size → always 200 (NONE when nothing was ever created).
+  get: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
+    NextResponse.json(channelResponse(targetSourceId, query)),
 
   // PUT …/collaboration-channel { issue_key, url? } → CREATED for the whole (service, cloud) unit.
+  // The response is the link result only — the screen re-GETs for watcher/retry state.
   put: async (targetSourceId: number, body: { issue_key: string; url?: string }) => {
     const issueKey = body.issue_key.trim();
     if (!issueKey) {
@@ -411,15 +473,14 @@ export const mockCollaborationChannel = {
         { status: 409 },
       );
     }
-    const created: CollaborationChannelWire = body.url
+    const created: ChannelSeed = body.url
       ? { ...createdChannel(issueKey), url: body.url }
       : createdChannel(issueKey);
-    const row = [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE]
-      .find((r) => r.ts === targetSourceId);
+    const row = fixtureRow(targetSourceId);
     for (const ts of row ? sameTicketUnit(row) : [targetSourceId]) {
-      channelStore().set(ts, { ...created });
+      store().channels.set(ts, { ...created });
     }
-    return NextResponse.json(created);
+    return NextResponse.json(channelResponse(targetSourceId));
   },
 };
 

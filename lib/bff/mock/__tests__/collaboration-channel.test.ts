@@ -32,14 +32,47 @@ describe('collaboration channel mock', () => {
     expect(await summary()).toMatchObject({ jira_ticket_failed_count: 4, jira_watcher_failed_count: 2 });
 
     const res = await mockTaskQueue.getAlertTargetSources({ kind: 'jira-watcher-failed', page: 0, size: 10 });
-    const body = (await res.json()) as { content: { failed_watchers?: unknown[]; metadata: { is_sdu_type: boolean } }[] };
+    const body = (await res.json()) as { content: Record<string, unknown>[] };
     expect(body.content).toHaveLength(2);
-    expect(body.content[0].failed_watchers).toHaveLength(2);
+    // who failed is NOT on the row any more
+    expect('failed_watchers' in body.content[0]).toBe(false);
 
-    const sdu = (await (await mockCollaborationChannel.get(1099)).json()) as { status: string };
-    expect(sdu.status).toBe('FAILED');
-    const none = (await (await mockCollaborationChannel.get(4242)).json()) as { status: string; issue_key: unknown };
-    expect(none).toMatchObject({ status: 'NONE', issue_key: null });
+    const sdu = (await (await mockCollaborationChannel.get(1099)).json()) as { status: string; retry_expires_at: string };
+    expect(sdu).toMatchObject({ status: 'FAILED', retry_expires_at: '2026-09-28T00:00:00' });
+    const none = (await (await mockCollaborationChannel.get(4242)).json()) as Record<string, unknown>;
+    expect(none).toMatchObject({ status: 'NONE', issue_key: null, failed_watchers: [], failed_watchers_total: 0, watcher_page: 0, watcher_size: 10 });
+  });
+
+  it('retry phases: PAY/AWS SHORT_TERM (2/6), MBR/GCP LONG_TERM (6, max null)', async () => {
+    const pay = (await (await mockCollaborationChannel.get(2113)).json()) as Record<string, unknown>;
+    expect(pay).toMatchObject({ status: 'RETRYING', attempt_count: 2, max_attempts: 6, retry_phase: 'SHORT_TERM' });
+    const mbr = (await (await mockCollaborationChannel.get(1980)).json()) as Record<string, unknown>;
+    expect(mbr).toMatchObject({
+      status: 'RETRYING', attempt_count: 6, max_attempts: null, retry_phase: 'LONG_TERM',
+      next_attempt_at: '2026-10-01T00:50:00', retry_expires_at: '2026-10-14T00:00:00',
+    });
+  });
+
+  it('watchers ride the channel GET per ticket unit, paginated and username asc', async () => {
+    const stl = (await (await mockCollaborationChannel.get(1861)).json()) as {
+      failed_watchers: { username: string; status: string }[]; failed_watchers_total: number;
+    };
+    expect(stl.failed_watchers.map((w) => w.username)).toEqual(['hong.gildong', 'kim.cs']);
+    expect(stl.failed_watchers.map((w) => w.status)).toEqual(['FAILED', 'PENDING']);
+    expect(stl.failed_watchers_total).toBe(2);
+
+    const dlv0 = (await (await mockCollaborationChannel.get(1799)).json()) as {
+      failed_watchers: { username: string }[]; failed_watchers_total: number; watcher_page: number; watcher_size: number;
+    };
+    expect(dlv0.failed_watchers).toHaveLength(10);
+    expect(dlv0).toMatchObject({ failed_watchers_total: 12, watcher_page: 0, watcher_size: 10 });
+    const dlv1 = (await (await mockCollaborationChannel.get(1799, { watcherPage: 1, watcherSize: 10 })).json()) as {
+      failed_watchers: { username: string }[]; watcher_page: number;
+    };
+    expect(dlv1.failed_watchers).toHaveLength(2);
+    expect(dlv1.watcher_page).toBe(1);
+    const names = [...dlv0.failed_watchers, ...dlv1.failed_watchers].map((w) => w.username);
+    expect(names).toEqual([...names].sort());
   });
 
   it('PUT links the whole (service, cloud) unit and both rows leave the list', async () => {

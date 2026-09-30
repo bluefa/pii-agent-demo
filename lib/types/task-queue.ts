@@ -139,22 +139,12 @@ export interface AlertListRow extends RequestListRow {
 }
 
 /**
- * One watcher the BFF could not add to the ticket — OWNER-ASSUMED shape on the
- * `jira-watcher-failed` rows (`failed_watchers`, docs/api/ops-assumed-contracts.md §12).
- * Not in the swagger; malformed entries are dropped, an absent list is null.
+ * RequestListRow + what the Jira Ticket console needs (§12). Ticket state and the failed
+ * watchers are NOT on the row — they come from the collaboration-channel GET per target.
  */
-export interface FailedWatcher {
-  username: string;
-  status: string | null;
-  attemptCount: number | null;
-}
-
-/** RequestListRow + what the Jira Ticket console needs (§12). */
 export interface JiraListRow extends RequestListRow {
   /** `metadata.is_sdu_type` — SDU targets are their own ticket unit. */
   isSduType: boolean;
-  /** null = the response did not carry the list (also on `jira-ticket-failed` rows). */
-  failedWatchers: FailedWatcher[] | null;
 }
 
 export interface TestConnectionStatusRow {
@@ -400,35 +390,12 @@ export function toAlertListPage(
   return toPaged(wire, (row) => ({ ...toRequestListRow(row), ...readAlertDelayDelta(row) }));
 }
 
-/** Tolerant reader for the owner-assumed `failed_watchers` list (§12) — same
- *  `in`-narrowing as `readAlertDelayDelta`. An entry without a string username is
- *  dropped rather than rendered as an empty name. */
-function readFailedWatchers(row: unknown): FailedWatcher[] | null {
-  if (row === null || typeof row !== 'object' || !('failed_watchers' in row)) return null;
-  const list = row.failed_watchers;
-  if (!Array.isArray(list)) return null;
-  const watchers: FailedWatcher[] = [];
-  for (const entry of list) {
-    if (entry === null || typeof entry !== 'object' || !('username' in entry)) continue;
-    if (typeof entry.username !== 'string' || entry.username === '') continue;
-    const status = 'status' in entry ? entry.status : null;
-    const attempts = 'attempt_count' in entry ? entry.attempt_count : null;
-    watchers.push({
-      username: entry.username,
-      status: typeof status === 'string' ? status : null,
-      attemptCount: typeof attempts === 'number' ? attempts : null,
-    });
-  }
-  return watchers;
-}
-
 export function toJiraListPage(
   wire: z.infer<typeof schemas.PageTargetSourceInfo>,
 ): Paged<JiraListRow> {
   return toPaged(wire, (row) => ({
     ...toRequestListRow(row),
     isSduType: row.metadata?.is_sdu_type === true,
-    failedWatchers: readFailedWatchers(row),
   }));
 }
 

@@ -484,7 +484,13 @@ export const httpBff: BffClient = {
       }),
     // Assumed §4 (BE PR #8891) — snake both ways; the reader in
     // lib/types/collaboration-channel.ts owns the casing boundary.
-    getCollaborationChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
+    getCollaborationChannel: (id, query) =>
+      getSnakeRaw(
+        `/target-sources/${id}/collaboration-channel${buildQuery({
+          watcher_page: query?.watcherPage,
+          watcher_size: query?.watcherSize,
+        })}`,
+      ),
     putCollaborationChannel: (id, body) => put(`/target-sources/${id}/collaboration-channel`, body),
   },
 

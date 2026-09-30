@@ -13,7 +13,7 @@ CSR (@/app/lib/api/ops.ts) → app/api/v1/target-sources/[targetSourceId]/**/rou
 
 | Route | Upstream | BFF method | Wire → domain |
 |---|---|---|---|
-| `GET /target-sources/{id}/collaboration-channel` | `/target-sources/{id}/collaboration-channel` | `ops.getCollaborationChannel` | `toCollaborationChannel` (`lib/types/collaboration-channel.ts`) |
+| `GET /target-sources/{id}/collaboration-channel?watcher_page&watcher_size` | same, query forwarded as-is | `ops.getCollaborationChannel` | `toCollaborationChannel` (`lib/types/collaboration-channel.ts`) |
 | `PUT /target-sources/{id}/collaboration-channel` | same, `{ issue_key, url? }` | `ops.putCollaborationChannel` | `toCollaborationChannel` |
 
 Contract: ASSUMED — `docs/api/ops-assumed-contracts.md` §4 (BE PR #8891, ahead of the

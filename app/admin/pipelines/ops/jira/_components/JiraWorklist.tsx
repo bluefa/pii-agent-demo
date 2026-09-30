@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import type { JiraAlertKind, JiraListRow } from '@/lib/types/task-queue';
-import { nextAttemptClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
+import { localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import { DashRow, RowAction } from '@/app/admin/pipelines/_dashboard/cells';
 import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
@@ -39,6 +39,13 @@ interface WorklistMetaProps {
 
 /** 12px sub-line under a tag (issue key, usernames). */
 const subLine = 'mt-0.5 block truncate text-[12px] text-[var(--pl-text-weak)]';
+
+/** The first watcher page's names; the people beyond it are counted, not listed. */
+const watcherNames = (channel: CollaborationChannel): string => {
+  const names = channel.failedWatchers.map((w) => w.username).join(', ');
+  const rest = channel.failedWatchersTotal - channel.failedWatchers.length;
+  return rest > 0 ? `${names} 외 ${rest}명` : names;
+};
 
 function WorklistMeta({ label, owner, count, icon }: WorklistMetaProps): ReactElement {
   return (
@@ -134,7 +141,7 @@ export function JiraWorklist({
           ) : (
             rows.map((row, index) => {
               const id = row.targetSourceId;
-              const clock = nextAttemptClock(row.channel?.nextAttemptAt ?? null);
+              const clock = localClock(row.channel?.nextAttemptAt ?? null);
               const cells = (
                 <>
                   <td className={cn(d.cell, 'whitespace-nowrap')}>
@@ -164,18 +171,17 @@ export function JiraWorklist({
                           <span className={subLine}>{row.channel.issueKey}</span>
                         ) : null}
                       </>
-                    ) : row.failedWatchers ? (
+                    ) : row.channel ? (
                       <>
-                        <WatcherFailTag count={row.failedWatchers.length} />
-                        <span
-                          className={subLine}
-                          title={row.failedWatchers.map((w) => w.username).join(', ')}
-                        >
-                          {row.failedWatchers.map((w) => w.username).join(', ')}
-                        </span>
+                        <WatcherFailTag count={row.channel.failedWatchersTotal} />
+                        {row.channel.failedWatchers.length > 0 ? (
+                          <span className={subLine} title={watcherNames(row.channel)}>
+                            {watcherNames(row.channel)}
+                          </span>
+                        ) : null}
                       </>
                     ) : (
-                      <span className={d.elapsed}>—</span>
+                      <ChannelTag channel={null} />
                     )}
                   </td>
                   <td className={cn(d.cell, 'whitespace-nowrap')}>

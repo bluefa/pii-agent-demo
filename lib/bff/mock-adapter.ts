@@ -161,7 +161,8 @@ export const mockBff: BffClient = {
     updateServiceInstalled: async (serviceCode) =>
       voidWrite(await mockOps.updateServiceInstalled(serviceCode)),
     endOfService: async (serviceCode) => voidWrite(await mockOps.endOfService(serviceCode)),
-    getCollaborationChannel: async (id) => unwrap(await mockOps.getCollaborationChannel(id)),
+    getCollaborationChannel: async (id, query) =>
+      unwrap(await mockOps.getCollaborationChannel(id, query)),
     putCollaborationChannel: async (id, body) => unwrap(await mockOps.putCollaborationChannel(id, body)),
   },
 

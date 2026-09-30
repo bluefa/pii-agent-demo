@@ -671,7 +671,8 @@ const jiraFailureRows = (kind: JiraAlertKind): readonly JiraFailureFixtureRow[] 
     ? JIRA_TICKET_FAILED_FIXTURE.filter((r) => collaborationChannelOf(r.ts).status !== 'CREATED')
     : JIRA_WATCHER_FAILED_FIXTURE;
 
-/** TargetSourceInfo wire — no channel status on the row (the console GETs it per row). */
+/** TargetSourceInfo wire — neither the ticket status nor the failed watchers are on
+ *  the row; the console GETs the channel per row for both. */
 const jiraFailureToWire = (r: JiraFailureFixtureRow) => ({
   targetSourceId: r.ts,
   serviceName: r.svc,
@@ -680,8 +681,6 @@ const jiraFailureToWire = (r: JiraFailureFixtureRow) => ({
   cloudProvider: r.pv,
   confirmStatus: 'CONFIRMED',
   metadata: { is_sdu_type: r.isSdu },
-  // OWNER-ASSUMED (§12): only the watcher list carries it.
-  ...(r.failedWatchers ? { failed_watchers: r.failedWatchers } : {}),
 });
 
 /**

@@ -5,10 +5,11 @@
  *
  * 티켓 버킷: Jira 에서 만든 티켓의 이슈 키를 연결한다(관리자가 할 수 있는 유일한 동작 —
  * 만드는 API 는 없다). Watcher 버킷: 등록은 Jira 에서 직접 하므로 추가할 사용자 표와
- * 티켓 링크만 준다.
+ * 티켓 링크만 준다. 사용자 표는 채널 GET 이 페이지 단위로 준다(`watcher_page`).
  *
- * 연결 뒤에는 `router.refresh()` 가 목록을 다시 읽는다 — 같은 서비스 + 클라우드의 행은
- * 그때 서버가 뺀다. 클라이언트에서 목록을 고치지 않는다.
+ * PUT 응답은 연결 결과뿐이라, 성공 뒤 채널을 다시 읽어 상태 줄을 그린 다음
+ * `router.refresh()` 가 목록을 다시 읽는다 — 같은 서비스 + 클라우드의 행은 그때 서버가
+ * 뺀다. 클라이언트에서 목록을 고치지 않는다.
  */
 import { useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ import { AppError } from '@/lib/errors';
 import { safeBrowseUrl } from '@/lib/jira-ticket';
 import { displayProvider, providerLabel } from '@/lib/pipeline/format';
 import type { JiraAlertKind } from '@/lib/types/task-queue';
-import { nextAttemptClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
+import { localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { ModalShell } from '@/app/admin/pipelines/_components/ModalShell';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
@@ -25,6 +26,7 @@ import { ProvTag } from '@/app/admin/pipelines/_components/ProvTag';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { opsStyles } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/opsStyles';
+import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import { worklist } from '@/app/admin/pipelines/ops/alerts/_components/worklistStyles';
 import { ChannelTag } from '@/app/admin/pipelines/ops/jira/_components/ChannelTag';
@@ -40,9 +42,9 @@ const styles = {
   /** 머리띠 — 어느 대상인지 한 줄. */
   strip: 'flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-[var(--pl-text-medium)]',
   stripId: 'font-semibold tabular-nums text-[var(--pl-text-strong)] [font-family:var(--pl-font-mono)]',
-  /** 상태 줄 — 태그 + 12px 보조 줄. */
+  /** 상태 줄 — 태그 + 12px 보조 줄(한 줄 한 사실). */
   status: 'mt-4 flex flex-col items-start gap-1',
-  subLine: 'text-[12px] text-[var(--pl-text-weak)]',
+  subLine: 'text-[12px] tabular-nums text-[var(--pl-text-weak)]',
   link: 'inline-flex items-center gap-1 text-[12px] font-medium text-[var(--pl-info-text)] hover:underline',
   emphasis: 'font-semibold text-[var(--pl-text-strong)]',
   body: 'mt-4',
@@ -50,18 +52,15 @@ const styles = {
   banner: 'mt-3 flex items-start justify-between gap-3 rounded-lg border px-3.5 py-3 text-[14px] leading-[1.6]',
   bannerWarn: 'border-[var(--pl-warn-text)] bg-[var(--pl-warn-bg)] text-[var(--pl-warn-text)]',
   bannerInfo: 'border-[var(--pl-info-text)] bg-[var(--pl-info-bg)] text-[var(--pl-info-text)]',
-  /** Watcher 표 — 작은 4열. */
+  /** Watcher 표 — 작은 5열. */
   table: 'mt-3 w-full table-fixed text-[14px]',
   th: 'h-8 px-2 text-left text-[12px] font-semibold text-[var(--pl-text-medium)] border-b border-[var(--pl-border)]',
   td: 'h-9 px-2 text-[var(--pl-text-strong)] border-b border-[var(--pl-gray-100)]',
   copy: 'inline-flex h-7 items-center gap-1 rounded border border-[var(--pl-border-strong)] px-2 text-[12px] font-medium text-[var(--pl-text-medium)] hover:bg-[var(--pl-gray-50)]',
 } as const;
 
-const WATCHER_STATUS_COPY: Record<string, string> = {
-  FAILED: '등록 실패',
-  RETRYING: '재시도 중',
-  PENDING: '등록 대기',
-};
+/** Watcher 상태는 둘뿐이다 — PENDING 은 인증·권한 대기까지 포함해 "아직 재시도 중". */
+const WATCHER_STATUS_COPY = { FAILED: '등록 실패', PENDING: '재시도 중' } as const;
 
 type Banner = { tone: 'warn' | 'info'; text: string; refetch: boolean } | null;
 
@@ -78,17 +77,28 @@ function TicketLink({ channel }: { channel: CollaborationChannel }): ReactElemen
   );
 }
 
-/** 상태 줄의 보조 줄 — 상태마다 다른 사실 하나. */
-function StatusSubLine({ channel }: { channel: CollaborationChannel | null }): ReactElement | null {
+/**
+ * 상태 줄의 보조 줄들 — 한 줄에 사실 하나, 값이 있을 때만. RETRYING: 실패 횟수 · 다음
+ * 시도 · 자동 재시도 종료 예정(14일 창). FAILED: 종료 시각(만료로 닫혔을 때). CREATED: 키.
+ */
+function StatusSubLines({ channel }: { channel: CollaborationChannel | null }): ReactElement | null {
   if (!channel) return null;
   if (channel.status === 'RETRYING') {
-    const clock = nextAttemptClock(channel.nextAttemptAt);
-    return clock ? <span className={styles.subLine}>다음 시도 {clock}</span> : null;
+    const next = localClock(channel.nextAttemptAt);
+    const expires = localClock(channel.retryExpiresAt);
+    return (
+      <>
+        {channel.attemptCount != null && channel.attemptCount > 0 ? (
+          <span className={styles.subLine}>실패 {channel.attemptCount}회</span>
+        ) : null}
+        {next ? <span className={styles.subLine}>다음 시도 {next}</span> : null}
+        {expires ? <span className={styles.subLine}>자동 재시도 종료 예정 {expires}</span> : null}
+      </>
+    );
   }
   if (channel.status === 'FAILED') {
-    return channel.maxAttempts != null ? (
-      <span className={styles.subLine}>{channel.maxAttempts}회 모두 실패</span>
-    ) : null;
+    const expired = localClock(channel.retryExpiresAt);
+    return expired ? <span className={styles.subLine}>자동 재시도 종료 {expired}</span> : null;
   }
   if (channel.status === 'CREATED') return <TicketLink channel={channel} />;
   return null;
@@ -116,11 +126,12 @@ export function JiraChannelModal({
   const provider = providerLabel(displayProvider(row.cloudProvider, row.isSduType));
   const linked = channel?.status === 'CREATED' && !!channel.issueKey;
 
-  const refetch = async () => {
+  /** 채널을 다시 읽는다 — 못 읽으면 null(조회 실패), 지어내지 않는다. */
+  const reload = async (watcherPage?: number) => {
     if (id == null) return;
     setBusy(true);
     try {
-      setChannel(await getCollaborationChannel(id));
+      setChannel(await getCollaborationChannel(id, watcherPage != null ? { watcherPage } : undefined));
       setBanner(null);
     } catch {
       setChannel(null);
@@ -142,7 +153,9 @@ export function JiraChannelModal({
     try {
       await putCollaborationChannel(id, issueKey);
       toast.show(`${issueKey} 를 협업 채널로 연결했어요`);
-      onClose();
+      // PUT 응답은 연결 결과뿐 — 상태 줄은 다시 읽은 채널로 그린다. 창은 열어 둔다:
+      // 연결된 키가 링크로 서는 것을 보고 닫는 편이 "됐나" 를 목록에서 찾는 것보다 낫다.
+      await reload();
       router.refresh();
       refreshCounts();
     } catch (err) {
@@ -168,6 +181,8 @@ export function JiraChannelModal({
     toast.show(`${username} 을 복사했어요`);
   };
 
+  const watcherPages = channel ? Math.max(1, Math.ceil(channel.failedWatchersTotal / channel.watcherSize)) : 1;
+
   return (
     <ModalShell open onClose={onClose} labelledBy={TITLE_ID}>
       <h3 id={TITLE_ID} className={styles.title}>
@@ -185,7 +200,7 @@ export function JiraChannelModal({
 
       <div className={styles.status}>
         <ChannelTag channel={channel} />
-        <StatusSubLine channel={channel} />
+        <StatusSubLines channel={channel} />
       </div>
 
       {kind === 'jira-ticket-failed' ? (
@@ -223,7 +238,7 @@ export function JiraChannelModal({
             <div role="status" className={cn(styles.banner, banner.tone === 'warn' ? styles.bannerWarn : styles.bannerInfo)}>
               <span>{banner.text}</span>
               {banner.refetch ? (
-                <PlButton variant="secondary" size="sm" onClick={() => void refetch()} disabled={busy}>
+                <PlButton variant="secondary" size="sm" onClick={() => void reload()} disabled={busy}>
                   다시 조회
                 </PlButton>
               ) : null}
@@ -235,24 +250,32 @@ export function JiraChannelModal({
           <p className={pipelineStyles.modal.desc}>
             watcher 등록은 Jira 에서 직접 합니다. 티켓을 열어 아래 사용자를 watcher 로 추가해 주세요.
           </p>
-          {row.failedWatchers ? (
-            <table className={styles.table}>
+          {!channel ? (
+            <p className={styles.subLine}>추가할 사용자를 응답에서 읽지 못했어요.</p>
+          ) : channel.failedWatchers.length === 0 ? (
+            <p className={styles.subLine}>등록에 실패한 사용자가 없습니다.</p>
+          ) : (
+            <table className={styles.table} aria-busy={busy || undefined}>
               <thead>
                 <tr>
                   <th className={styles.th}>사용자</th>
-                  <th className={cn(styles.th, 'w-[96px]')}>상태</th>
-                  <th className={cn(styles.th, 'w-[64px]')}>시도</th>
-                  <th className={cn(styles.th, 'w-[80px]')} />
+                  <th className={cn(styles.th, 'w-[88px]')}>상태</th>
+                  <th className={cn(styles.th, 'w-[56px]')}>시도</th>
+                  <th className={cn(styles.th, 'w-[104px]')}>다음 시도</th>
+                  <th className={cn(styles.th, 'w-[72px]')} />
                 </tr>
               </thead>
               <tbody>
-                {row.failedWatchers.map((watcher) => (
+                {channel.failedWatchers.map((watcher) => (
                   <tr key={watcher.username}>
-                    <td className={cn(styles.td, worklist.codeText)}>{watcher.username}</td>
-                    <td className={styles.td}>
-                      {watcher.status ? (WATCHER_STATUS_COPY[watcher.status] ?? watcher.status) : '—'}
+                    <td className={cn(styles.td, worklist.codeText, 'truncate')} title={watcher.username}>
+                      {watcher.username}
                     </td>
+                    <td className={styles.td}>{WATCHER_STATUS_COPY[watcher.status]}</td>
                     <td className={cn(styles.td, 'tabular-nums')}>{watcher.attemptCount ?? '—'}</td>
+                    <td className={cn(styles.td, 'tabular-nums whitespace-nowrap')}>
+                      {localClock(watcher.nextAttemptAt) ?? '—'}
+                    </td>
                     <td className={cn(styles.td, 'text-right')}>
                       <button type="button" className={styles.copy} onClick={() => void copyUsername(watcher.username)}>
                         복사
@@ -262,11 +285,14 @@ export function JiraChannelModal({
                 ))}
               </tbody>
             </table>
-          ) : (
-            <p className={styles.subLine}>추가할 사용자를 응답에서 읽지 못했어요.</p>
           )}
-          {/* The ticket link already stands on the status line above (CREATED → key ↗); a
-              second copy under the table would be the same link twice in one 480px modal. */}
+          {channel && channel.failedWatchersTotal > channel.watcherSize ? (
+            <OpsPagination
+              page={channel.watcherPage}
+              totalPages={watcherPages}
+              onChange={(next) => void reload(next)}
+            />
+          ) : null}
         </div>
       )}
 

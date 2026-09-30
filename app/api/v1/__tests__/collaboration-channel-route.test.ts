@@ -29,7 +29,21 @@ describe('…/collaboration-channel (assumed §4)', () => {
     const res = await GET(new Request(url), ctx);
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ status: 'RETRYING', issue_key: '', attempt_count: 3, max_attempts: 6 });
-    expect(mockedGet).toHaveBeenCalledWith(2113);
+    expect(mockedGet).toHaveBeenCalledWith(2113, { watcherPage: undefined, watcherSize: undefined });
+  });
+
+  it('GET forwards watcher_page / watcher_size when they are integers, and drops the rest', async () => {
+    mockedGet.mockResolvedValue({ status: 'NONE' });
+    await GET(new Request(`${url}?watcher_page=2&watcher_size=25`), ctx);
+    expect(mockedGet).toHaveBeenLastCalledWith(2113, { watcherPage: 2, watcherSize: 25 });
+    await GET(new Request(`${url}?watcher_page=abc&watcher_size=`), ctx);
+    expect(mockedGet).toHaveBeenLastCalledWith(2113, { watcherPage: undefined, watcherSize: undefined });
+  });
+
+  it('an out-of-range size is the upstream 400, passed through', async () => {
+    mockedGet.mockRejectedValue(new BffError(400, 'INVALID_PARAMETER', 'watcher_size out of range'));
+    const res = await GET(new Request(`${url}?watcher_size=500`), ctx);
+    expect(res.status).toBe(400);
   });
 
   it('PUT with an empty issue_key is a 400 problem, nothing reaches the BFF', async () => {
