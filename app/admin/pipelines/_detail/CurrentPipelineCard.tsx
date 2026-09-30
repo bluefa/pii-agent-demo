@@ -318,7 +318,7 @@ export function CurrentPipelineCard({
                   name={def?.display_name ?? task.task_definition}
                   desc={task.description ?? def?.description}
                   action={task.terraform_action}
-                  side={taskInfraSide(task.task_definition)}
+                  side={taskInfraSide(task.task_definition, task.kind)}
                   status={task.status}
                   seq={i + 1}
                   retry={task.sequence === retrySeq ? retry : null}

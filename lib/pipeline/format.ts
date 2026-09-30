@@ -372,10 +372,15 @@ export const INFRA_SIDE_LABELS: Record<InfraSide, string> = {
  * AWS_BDC_SERVICE_LEVEL_* is BDC-side despite its SERVICE token. CX is the
  * IDC service-side zone — the recipes order it exactly like GCP's 서비스 →
  * BDC (apply CX → BDP, destroy BDP → CX). Unknown names (e.g. the
- * NETWORK_READY condition) return null: no tag over a wrong tag.
+ * NETWORK_READY condition) return null: no tag over a wrong tag. An HTTP_REQUEST
+ * task never wears a side (owner, 09-30): it calls the BFF, not either infra,
+ * and names like SERVICE_ACCOUNT_CREATE would mis-read as 서비스측.
  */
-export function taskInfraSide(definitionName: string | null | undefined): InfraSide | null {
-  if (!definitionName) return null;
+export function taskInfraSide(
+  definitionName: string | null | undefined,
+  kind?: TaskKind | null,
+): InfraSide | null {
+  if (!definitionName || kind === 'HTTP_REQUEST') return null;
   const tokens = definitionName.toUpperCase().split(/[^A-Z0-9]+/);
   if (tokens.includes('BDC') || tokens.includes('BDP')) return 'BDC';
   if (tokens.includes('SERVICE') || tokens.includes('CX')) return 'SERVICE';

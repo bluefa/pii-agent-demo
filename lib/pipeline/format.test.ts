@@ -407,6 +407,11 @@ describe('taskInfraSide — 서비스측/BDC측 derivation', () => {
     // Substring must not match across token boundaries (SERVICES ≠ SERVICE).
     expect(taskInfraSide('AWS_SERVICES_PLAN_V1')).toBeNull();
   });
+  it('never tags an HTTP_REQUEST task, whatever its name says', () => {
+    expect(taskInfraSide('SERVICE_ACCOUNT_CREATE_V1', 'HTTP_REQUEST')).toBeNull();
+    expect(taskInfraSide('AWS_SERVICE_ACCOUNT_CREATE_V1', 'HTTP_REQUEST')).toBeNull();
+    expect(taskInfraSide('AWS_SERVICE_PLAN_V1', 'TERRAFORM_JOB')).toBe('SERVICE');
+  });
 });
 
 describe('exec-band helpers (design-benchmark 시안 1·2·5)', () => {

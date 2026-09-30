@@ -473,7 +473,7 @@ export function PreviewModal({
               name: t.display_name,
               desc: t.description,
               action: t.terraform_action,
-              side: taskInfraSide(t.name),
+              side: taskInfraSide(t.name, t.kind),
             }))}
           />
           <ModalNote>이 구성은 저장되지 않으며 이번 실행에만 사용돼요.</ModalNote>
@@ -524,7 +524,7 @@ export function PreviewModal({
                   name: s.display_name,
                   desc: s.definition?.description,
                   action: s.terraform_action,
-                  side: taskInfraSide(s.task_definition),
+                  side: taskInfraSide(s.task_definition, s.kind),
                 }))}
               />
               {TYPE_NOTES[type] && <ModalNote>{TYPE_NOTES[type]}</ModalNote>}
