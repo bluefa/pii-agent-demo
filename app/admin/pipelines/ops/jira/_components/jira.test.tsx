@@ -30,7 +30,9 @@ const channel = (over: Partial<CollaborationChannel>): CollaborationChannel => (
   failedWatchers: [],
   failedWatchersTotal: 0,
   watcherPage: 0,
-  watcherSize: 10,
+  watcherSize: 5,
+  manualRetryPending: false,
+  manualRetryRequestedAt: null,
   ...over,
 });
 
@@ -125,7 +127,7 @@ describe('JiraWorklist', () => {
 
     fireEvent.click(screen.getByText('결제서비스').closest('tr') as HTMLElement);
     expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByRole('button', { name: '티켓 연결' })).toBeDefined();
+    expect(screen.getByRole('button', { name: '티켓 다시 생성' })).toBeDefined();
     // 행은 운영 화면으로 가지 않는다.
     expect(push).not.toHaveBeenCalled();
   });
@@ -171,6 +173,11 @@ describe('JiraWorklist', () => {
     // 채널을 못 읽은 행은 조회 실패
     expect(screen.getByText('조회 실패')).toBeDefined();
     expect(screen.getByText('티켓')).toBeDefined();
+  });
+
+  it('수동 재시도가 접수된 행은 접수 시각을 보조 줄로 단다', () => {
+    render(worklist({ rows: [row({ channel: channel({ manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' }) })] }));
+    expect(screen.getByText('재시도 접수 09-30 15:02')).toBeDefined();
   });
 
   it('SDU 대상은 Cloud 셀이 SDU 다', () => {

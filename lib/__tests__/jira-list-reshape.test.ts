@@ -108,6 +108,14 @@ describe('toCollaborationChannel', () => {
     expect(toCollaborationChannel({ status: 'CREATED', failed_watchers: [{ username: 'a', status: 'FAILED' }] })?.failedWatchersTotal).toBe(1);
   });
 
+  it('manual retry fields: false/null by default, parsed when sent', () => {
+    expect(toCollaborationChannel({ status: 'RETRYING' })).toMatchObject({ manualRetryPending: false, manualRetryRequestedAt: null });
+    expect(
+      toCollaborationChannel({ status: 'RETRYING', manual_retry_pending: true, manual_retry_requested_at: '2026-09-30T15:02:00' }),
+    ).toMatchObject({ manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' });
+    expect(toCollaborationChannel({ status: 'RETRYING', manual_retry_pending: 'yes' })?.manualRetryPending).toBe(false);
+  });
+
   it('datetimes are cut to MM-DD HH:mm, never converted', () => {
     expect(localClock('2026-09-30T14:20:00.123456')).toBe('09-30 14:20');
     expect(localClock('2026-10-01T00:50:00')).toBe('10-01 00:50');

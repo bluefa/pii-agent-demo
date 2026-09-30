@@ -170,6 +170,11 @@ export function JiraWorklist({
                         {row.channel?.issueKey ? (
                           <span className={subLine}>{row.channel.issueKey}</span>
                         ) : null}
+                        {row.channel?.manualRetryPending ? (
+                          <span className={subLine}>
+                            재시도 접수 {localClock(row.channel.manualRetryRequestedAt) ?? '—'}
+                          </span>
+                        ) : null}
                       </>
                     ) : row.channel ? (
                       <>

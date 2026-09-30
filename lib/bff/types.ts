@@ -479,17 +479,14 @@ export interface BffClient {
     /**
      * Collaboration channel (assumed §4, reinstated by BE PR #8891 ahead of the swagger
      * drop). GET always answers 200 — a target with no ticket is `status: NONE`, not a
-     * 404. PUT links an existing issue key to every target source of the same
-     * (service, cloud); the two 409s it can answer are listed in §4.
+     * 404. The retry POST asks jira-manager for ONE more creation attempt: 202 with no
+     * body = accepted, not created; the 4xx/5xx codes it can answer are listed in §4.
      */
     getCollaborationChannel: (
       id: number,
       query?: CollaborationChannelQuery,
     ) => Promise<CollaborationChannelWire>;
-    putCollaborationChannel: (
-      id: number,
-      body: { issue_key: string; url?: string },
-    ) => Promise<CollaborationChannelWire>;
+    postCollaborationChannelRetry: (id: number) => Promise<void>;
   };
 
   /**
@@ -593,6 +590,8 @@ export interface CollaborationChannelWire {
   failed_watchers_total?: number | null;
   watcher_page?: number | null;
   watcher_size?: number | null;
+  manual_retry_pending?: boolean | null;
+  manual_retry_requested_at?: string | null;
 }
 
 export interface FailedWatcherWire {

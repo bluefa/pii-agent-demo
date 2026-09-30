@@ -136,21 +136,16 @@ export const getCollaborationChannel = async (
 };
 
 /**
- * 이미 있는 이슈 키를 협업 채널로 연결한다 — 만드는 API 는 없다. 같은 서비스 + 클라우드의
- * Target Source 전체가 같은 티켓을 받는다. 409 `JIRA_TICKET_CREATION_IN_PROGRESS` 는
- * 자동 생성이 쓰는 중, 그 밖의 409 는 다른 경로가 먼저 연결한 것 — 둘 다 `AppError.rawCode`
- * 로 가른다.
+ * 티켓 생성을 한 번 더 요청한다 (assumed §4 `POST …/retry`). 202 = 접수이지 생성이 아니다 —
+ * 결과는 채널을 다시 읽어 `status` 로 본다. 14일 창(`retryExpiresAt`)은 늘지 않는다.
+ * 실패 넷은 `AppError.rawCode` 로 가른다: JIRA_MANUAL_RETRY_BUSY · JIRA_MANUAL_RETRY_UNAVAILABLE ·
+ * JIRA_TICKET_NOT_FOUND · JIRA_MANUAL_RETRY_DISABLED (403 은 status 로).
  */
-export const putCollaborationChannel = async (
-  targetSourceId: number,
-  issueKey: string,
-): Promise<CollaborationChannel | null> =>
-  toCollaborationChannel(
-    await fetchInfraJson<unknown>(`/target-sources/${targetSourceId}/collaboration-channel`, {
-      method: 'PUT',
-      body: { issue_key: issueKey },
-    }),
-  );
+export const retryCollaborationChannel = async (targetSourceId: number): Promise<void> => {
+  await fetchInfraJson<unknown>(`/target-sources/${targetSourceId}/collaboration-channel/retry`, {
+    method: 'POST',
+  });
+};
 
 /* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */
 

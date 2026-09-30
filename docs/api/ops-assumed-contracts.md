@@ -108,8 +108,21 @@ GET /install/v1/target-sources/{targetSourceId}/collaboration-channel?watcher_pa
       "retry_phase": null, "next_attempt_at": null, "retry_expires_at": null }
   ],
   "failed_watchers_total": 12,         // people on this ticket (≠ summary's jira_watcher_failed_count)
-  "watcher_page": 0, "watcher_size": 10   // echoed even when there is no ticket
+  "watcher_page": 0, "watcher_size": 10,  // echoed even when there is no ticket
+  "manual_retry_pending": false,       // a manual retry (below) is accepted and not resolved yet
+  "manual_retry_requested_at": null    // server-local datetime of that request
 }
+
+POST /install/v1/target-sources/{targetSourceId}/collaboration-channel/retry   // owner paste 2026-09-30
+    no body
+→ 202 Accepted, no body — ONE more creation attempt is queued (accepted, NOT created);
+   `retry_expires_at` is NOT reset. Target: a FAILED or RETRYING ticket with a stored request.
+   `manual_retry_pending` reads true until it resolves; then `status` tells the result.
+→ 403 BFF_ACCESS_DENIED
+→ 404 JIRA_TICKET_NOT_FOUND            // no stored creation request
+→ 409 JIRA_MANUAL_RETRY_BUSY           // accepted/processing, re-request within 60 s, or concurrent change
+→ 409 JIRA_MANUAL_RETRY_UNAVAILABLE    // already linked, no failure history, or no stored body
+→ 503 JIRA_MANUAL_RETRY_DISABLED       // server auto-processing is off
 
 PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
 { "issue_key": "BDCDIP-1234", "url": "https://…" }   // url optional; issue_key required
@@ -131,15 +144,21 @@ PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
   LONG_TERM and keeps going until `retry_expires_at`; at expiry the ticket flips to
   FAILED without a Jira call.
 - Ticket status and watcher status are independent: a CREATED ticket can still have
-  failed watchers. Watchers carry no error text. There is no "retry now" API.
+  failed watchers. Watchers carry no error text.
+- The FE does not call PUT from the Jira console (owner 2026-09-30: retry instead); the
+  service screen's attach remains the manual link path. The console's only ticket action
+  is the retry POST above (`티켓 다시 생성`).
 - Datetimes carry no offset. The screen prints `MM-DD HH:mm` by cutting the string —
   they MUST NOT be parsed as UTC (see `lib/types/collaboration-channel.ts`).
 - The 운영 화면 header (`OpsHeader.tsx`) is unchanged and keeps reading the real
   `GET …/jira-ticket`; this pair is the console's, not the header's.
 - Route: `app/api/v1/target-sources/[targetSourceId]/collaboration-channel/route.ts`
-  (GET forwards `watcher_page`/`watcher_size` as-is; PUT). BFF:
+  (GET forwards `watcher_page`/`watcher_size` as-is) and `…/collaboration-channel/retry/route.ts`
+  (POST → 202 with a JSON `null` body, since `fetchJson` parses every 2xx but 204). BFF:
   `bff.ops.getCollaborationChannel(id, { watcherPage, watcherSize })` /
-  `putCollaborationChannel`. Mock: `lib/bff/mock/ops.ts`
+  `postCollaborationChannelRetry`. Mock retry: pending for 15 s, then the unit flips to
+  CREATED with a generated key; 1099 answers DISABLED, a CREATED unit UNAVAILABLE, a
+  second request BUSY. Mock: `lib/bff/mock/ops.ts`
   (`__opsCollaborationChannelStore`; watchers per ticket unit; the key `BDCDIP-409`
   answers the in-progress 409 on purpose).
 

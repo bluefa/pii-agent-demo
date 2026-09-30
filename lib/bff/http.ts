@@ -491,7 +491,11 @@ export const httpBff: BffClient = {
           watcher_size: query?.watcherSize,
         })}`,
       ),
-    putCollaborationChannel: (id, body) => put(`/target-sources/${id}/collaboration-channel`, body),
+    // 202 Accepted with no body — `emptyBodyOk` so the empty 2xx is not a parse failure.
+    postCollaborationChannelRetry: (id) =>
+      send<void>('POST', `/target-sources/${id}/collaboration-channel/retry`, undefined, {
+        emptyBodyOk: true,
+      }),
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§6).

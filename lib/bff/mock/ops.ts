@@ -287,8 +287,8 @@ export const mockOps = {
   // Assumed §4 — the store and fixtures live below the Jira Tickets block.
   getCollaborationChannel: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
     mockCollaborationChannel.get(targetSourceId, query),
-  putCollaborationChannel: async (targetSourceId: number, body: { issue_key: string; url?: string }) =>
-    mockCollaborationChannel.put(targetSourceId, body),
+  postCollaborationChannelRetry: async (targetSourceId: number) =>
+    mockCollaborationChannel.retry(targetSourceId),
 };
 
 /* ── Collaboration channel — ASSUMED §4 (BE PR #8891, 2026-09-30 revision) ── */
@@ -356,11 +356,21 @@ const createdChannel = (issueKey: string): ChannelSeed => ({
   next_attempt_at: null,
   retry_phase: null,
   retry_expires_at: null,
+  manual_retry_pending: false,
+  manual_retry_requested_at: null,
 });
 
 const NONE_CHANNEL: ChannelSeed = {
   issue_key: null, url: null, status: 'NONE', attempt_count: null, max_attempts: null,
   next_attempt_at: null, retry_phase: null, retry_expires_at: null,
+  manual_retry_pending: false, manual_retry_requested_at: null,
+};
+
+/** Server-local `YYYY-MM-DDTHH:mm:ss`, no offset — what the real BFF authors. */
+const serverLocalNow = (): string => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
 /** Server-local datetimes, no offset — the screen cuts them, never converts them. */
@@ -475,46 +485,59 @@ const channelResponse = (targetSourceId: number, query?: CollaborationChannelQue
   };
 };
 
+/** How long the demo's manual retry takes to "create" the ticket. */
+export const MANUAL_RETRY_DEMO_MS = 15_000;
+let retryCounter = 0;
+
 export const mockCollaborationChannel = {
   // GET …/collaboration-channel?watcher_page&watcher_size → always 200 (NONE when nothing was ever created).
   get: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
     NextResponse.json(channelResponse(targetSourceId, query)),
 
-  // PUT …/collaboration-channel { issue_key, url? } → CREATED for the whole (service, cloud) unit.
-  // The response is the link result only — the screen re-GETs for watcher/retry state.
-  put: async (targetSourceId: number, body: { issue_key: string; url?: string }) => {
-    const issueKey = body.issue_key.trim();
-    if (!issueKey) {
-      return NextResponse.json(
-        { error: 'VALIDATION_FAILED', message: 'issue_key는 비어 있을 수 없습니다.' },
-        { status: 400 },
-      );
-    }
-    // Demo hook: the key `BDCDIP-409` stands in for "auto-creation is writing right now" —
-    // the real BFF answers this whenever its retry loop holds the same ticket unit.
-    if (issueKey === 'BDCDIP-409') {
-      return NextResponse.json(
-        { error: 'JIRA_TICKET_CREATION_IN_PROGRESS', message: '자동 생성이 진행 중입니다.' },
-        { status: 409 },
-      );
+  /**
+   * POST …/collaboration-channel/retry → 202, no body: ONE more creation attempt is
+   * queued; `retry_expires_at` is not reset. The unit reads `manual_retry_pending` until
+   * the attempt resolves — here a 15-second timer that flips the whole unit to CREATED
+   * with a generated key (demo only; the real jira-manager may also land on FAILED).
+   *
+   * Demo hooks so every banner is reachable: a CREATED unit → 409 UNAVAILABLE; a second
+   * request while pending → 409 BUSY; target 1099 (the expired SDU fixture) → 503
+   * DISABLED, standing in for "server auto-processing is off".
+   */
+  retry: async (targetSourceId: number) => {
+    const conflict = (error: string, message: string, status = 409) =>
+      NextResponse.json({ error, message }, { status });
+    if (targetSourceId === 1099) {
+      return conflict('JIRA_MANUAL_RETRY_DISABLED', '서버의 자동 생성 기능이 꺼져 있습니다.', 503);
     }
     const current = collaborationChannelOf(targetSourceId);
-    if (current.status === 'CREATED' && current.issue_key && current.issue_key !== issueKey) {
-      return NextResponse.json(
-        { error: 'CONFLICT', message: '이미 다른 티켓이 연결돼 있습니다.' },
-        { status: 409 },
-      );
+    if (current.status === 'NONE') {
+      return conflict('JIRA_TICKET_NOT_FOUND', '저장된 생성 요청이 없습니다.', 404);
     }
-    const created: ChannelSeed = body.url
-      ? { ...createdChannel(issueKey), url: body.url }
-      : createdChannel(issueKey);
+    if (current.status === 'CREATED') {
+      return conflict('JIRA_MANUAL_RETRY_UNAVAILABLE', '이미 연결된 티켓입니다.');
+    }
+    if (current.manual_retry_pending) {
+      return conflict('JIRA_MANUAL_RETRY_BUSY', '이미 접수돼 처리 중입니다.');
+    }
     const row = fixtureRow(targetSourceId);
-    for (const ts of row ? sameTicketUnit(row) : [targetSourceId]) {
-      store().channels.set(ts, { ...created });
-    }
-    // Same truth on the service × provider axis: the watcher POST and the 서비스 운영 tile read it.
-    if (row) serviceState(row.code).jira[jiraProviderOf(row)] = issueKey;
-    return NextResponse.json(channelResponse(targetSourceId));
+    const unit = row ? sameTicketUnit(row) : [targetSourceId];
+    const pending: ChannelSeed = {
+      ...current,
+      manual_retry_pending: true,
+      manual_retry_requested_at: serverLocalNow(),
+    };
+    for (const ts of unit) store().channels.set(ts, { ...pending });
+    const issueKey = `BDCDIP-${5000 + (retryCounter += 1)}`;
+    const timer = setTimeout(() => {
+      const created = createdChannel(issueKey);
+      for (const ts of unit) store().channels.set(ts, { ...created });
+      // Same truth on the service × provider axis: the watcher POST and the 서비스 운영 tile read it.
+      if (row) serviceState(row.code).jira[jiraProviderOf(row)] = issueKey;
+    }, MANUAL_RETRY_DEMO_MS);
+    // A pending demo timer must not keep a test process alive.
+    if (typeof timer === 'object' && 'unref' in timer) timer.unref();
+    return new NextResponse(null, { status: 202 });
   },
 };
 

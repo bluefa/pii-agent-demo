@@ -58,6 +58,10 @@ export interface CollaborationChannel {
   failedWatchersTotal: number;
   watcherPage: number;
   watcherSize: number;
+  /** A manual retry (`POST …/retry`) was accepted and is not resolved yet — the button waits. */
+  manualRetryPending: boolean;
+  /** Server-local datetime of that request; null when none is pending or ever made. */
+  manualRetryRequestedAt: string | null;
 }
 
 const isStatus = (value: unknown): value is CollaborationChannelStatus =>
@@ -122,6 +126,8 @@ export function toCollaborationChannel(raw: unknown): CollaborationChannel | nul
     failedWatchersTotal: typeof total === 'number' ? total : failedWatchers.length,
     watcherPage: typeof page === 'number' ? page : 0,
     watcherSize: typeof size === 'number' && size > 0 ? size : WATCHER_PAGE_SIZE,
+    manualRetryPending: field(raw, 'manual_retry_pending') === true,
+    manualRetryRequestedAt: stringOrNull(field(raw, 'manual_retry_requested_at')),
   };
 }
 
