@@ -3,13 +3,21 @@
  * PUT links, the ticket-failed list and the summary count read the same store, and the
  * two 409s are told apart by code.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { mockCollaborationChannel } from '@/lib/bff/mock/ops';
+import { mockCollaborationChannel, mockServiceJiraTickets } from '@/lib/bff/mock/ops';
 import { mockTaskQueue } from '@/lib/bff/mock/task-queue';
 
 const reset = () => {
-  delete (globalThis as { __opsCollaborationChannelStore?: unknown }).__opsCollaborationChannelStore;
+  const g = globalThis as { __opsCollaborationChannelStore?: unknown; __opsConsoleServiceStore?: unknown };
+  delete g.__opsCollaborationChannelStore;
+  // The service × provider mapping seeds itself from the channel store — reset both.
+  delete g.__opsConsoleServiceStore;
+};
+
+const ticketKeys = async (code: string): Promise<Record<string, string>> => {
+  const list = (await (await mockServiceJiraTickets.list(code)).json()) as { cloudProvider: string; issueKey: string }[];
+  return Object.fromEntries(list.map((t) => [t.cloudProvider, t.issueKey]));
 };
 
 const ticketFailedIds = async (): Promise<number[]> => {
@@ -100,5 +108,40 @@ describe('collaboration channel mock', () => {
 
     const empty = await mockCollaborationChannel.put(1980, { issue_key: '  ' });
     expect(empty.status).toBe(400);
+  });
+
+  it('the service × provider mapping is the same truth: seeded from CREATED units, written by PUT', async () => {
+    expect(await ticketKeys('STL')).toEqual({ AWS: 'BDCDIP-2211' });
+    expect(await ticketKeys('DLV')).toEqual({ AZURE: 'BDCDIP-1799' });
+    expect(await ticketKeys('PAY')).toEqual({});
+
+    await mockCollaborationChannel.put(2113, { issue_key: 'BDCDIP-1234' });
+    expect(await ticketKeys('PAY')).toEqual({ AWS: 'BDCDIP-1234' });
+
+    // SDU units map under provider SDU, not the CSP underneath
+    await mockCollaborationChannel.put(1099, { issue_key: 'BDCDIP-77' });
+    expect(await ticketKeys('SDU')).toMatchObject({ SDU: 'BDCDIP-77' });
+  });
+
+  it('attach/detach on the service axis mirror into the channel store', async () => {
+    await mockServiceJiraTickets.attach('PAY', 'AWS', 'BDCDIP-500');
+    expect(((await (await mockCollaborationChannel.get(2114)).json()) as { issue_key: string }).issue_key).toBe('BDCDIP-500');
+    expect(await ticketFailedIds()).toEqual([1099, 1980]);
+
+    await mockServiceJiraTickets.detach('DLV', 'AZURE');
+    expect(((await (await mockCollaborationChannel.get(1799)).json()) as { status: string }).status).toBe('NONE');
+  });
+
+  it('addWatcher succeeds for the DLV/AZURE fixture (the ticket the console shows is mapped)', async () => {
+    vi.useFakeTimers();
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.9); // skip the demo's 30% failure
+    try {
+      const pending = mockServiceJiraTickets.addWatcher('DLV', 'AZURE', 'bae.jh');
+      await vi.advanceTimersByTimeAsync(2000);
+      expect((await pending).status).toBe(204);
+    } finally {
+      random.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

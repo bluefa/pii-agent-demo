@@ -161,7 +161,9 @@ const serviceState = (code: string): OpsServiceState => {
   if (!state) {
     const index = serviceCodes().indexOf(code);
     state = {
-      jira: { ...(SEED_JIRA[index] ?? {}) },
+      // The collaboration-channel fixtures are the other half of the same truth: a unit
+      // the channel store marks CREATED is a mapped ticket here too (watcher POSTs read this).
+      jira: { ...(SEED_JIRA[index] ?? {}), ...channelLinkedTickets(code) },
       watchers: {},
       serviceInstalledUpdatedAt: null,
       endOfServiceAt: null,
@@ -324,6 +326,12 @@ const ALL_JIRA_FIXTURES = [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED
 /** The ticket unit: (service, cloud), SDU on its own. */
 const unitKey = (row: JiraFailureFixtureRow): string => `${row.code}/${row.pv}/${row.isSdu ? 'sdu' : 'csp'}`;
 
+/** The unit's `cloudProvider` on the service × provider axis (`/services/{code}/jira-tickets/{provider}`). */
+const jiraProviderOf = (row: JiraFailureFixtureRow): string => (row.isSdu ? 'SDU' : row.pv);
+
+/** Fixture services the console lists but the project catalog does not know (PAY·MBR·STL). */
+const jiraFixtureServiceCodes = (): string[] => ALL_JIRA_FIXTURES.map((r) => r.code);
+
 type ChannelSeed = Omit<
   CollaborationChannelWire,
   'failed_watchers' | 'failed_watchers_total' | 'watcher_page' | 'watcher_size'
@@ -421,6 +429,30 @@ const fixtureRow = (targetSourceId: number): JiraFailureFixtureRow | undefined =
 export const collaborationChannelOf = (targetSourceId: number): ChannelSeed =>
   store().channels.get(targetSourceId) ?? NONE_CHANNEL;
 
+/** provider → issueKey for every CREATED unit of a service — seeds the service × provider mapping. */
+const channelLinkedTickets = (code: string): Record<string, string> => {
+  const linked: Record<string, string> = {};
+  for (const row of ALL_JIRA_FIXTURES) {
+    if (row.code !== code) continue;
+    const channel = collaborationChannelOf(row.ts);
+    if (channel.status === 'CREATED' && channel.issue_key) linked[jiraProviderOf(row)] = channel.issue_key;
+  }
+  return linked;
+};
+
+/**
+ * Mirror of the service × provider mapping (attach/detach on the 서비스 운영 screen) into
+ * the channel store, so the ops service screen and the Jira console never disagree.
+ * Only fixture units exist here; a service the console does not list has no channel rows.
+ */
+const mirrorMappingIntoChannels = (code: string, provider: string, issueKey: string | null): void => {
+  for (const row of ALL_JIRA_FIXTURES) {
+    if (row.code !== code || jiraProviderOf(row) !== provider) continue;
+    // Detach removes the MAPPING only — the console then reads the unit as having no ticket.
+    store().channels.set(row.ts, issueKey ? createdChannel(issueKey) : { ...NONE_CHANNEL });
+  }
+};
+
 /** Every fixture target of the same unit — what a PUT links at once. */
 const sameTicketUnit = (row: JiraFailureFixtureRow): number[] =>
   ALL_JIRA_FIXTURES.filter((r) => unitKey(r) === unitKey(row)).map((r) => r.ts);
@@ -480,6 +512,8 @@ export const mockCollaborationChannel = {
     for (const ts of row ? sameTicketUnit(row) : [targetSourceId]) {
       store().channels.set(ts, { ...created });
     }
+    // Same truth on the service × provider axis: the watcher POST and the 서비스 운영 tile read it.
+    if (row) serviceState(row.code).jira[jiraProviderOf(row)] = issueKey;
     return NextResponse.json(channelResponse(targetSourceId));
   },
 };
@@ -506,10 +540,14 @@ const toJiraTicketResponse = (code: string, provider: string, issueKey: string) 
 /** validate=true 로 흉내내는 Jira 존재 검증 — 키 형태가 아니면 없는 티켓으로 친다. */
 const JIRA_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/i;
 
+/** A service the catalog knows, or one the Jira console's fixtures list (PAY·MBR·STL). */
+const knownJiraService = (code: string): boolean =>
+  serviceCodes().includes(code) || jiraFixtureServiceCodes().includes(code);
+
 export const mockServiceJiraTickets = {
   // GET /services/{code}/jira-tickets → JiraTicketResponse[].
   list: async (code: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const { jira } = serviceState(code);
     return NextResponse.json(
       Object.entries(jira)
@@ -521,30 +559,32 @@ export const mockServiceJiraTickets = {
   // POST /services/{code}/jira-tickets/{provider} { issueKey, validate } → 204.
   // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
   attach: async (code: string, provider: string, issueKey: string, validate?: boolean) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     // validate=true 면 실 BFF 가 Jira 에서 존재를 확인한다 — 목은 키 형태로 흉내낸다.
     if (validate === true && !JIRA_ISSUE_KEY_RE.test(issueKey)) {
       return notFound('Jira에서 티켓을 찾을 수 없습니다.');
     }
     serviceState(code).jira[provider] = issueKey;
+    mirrorMappingIntoChannels(code, provider, issueKey);
     return new NextResponse(null, { status: 204 });
   },
 
   // DELETE /services/{code}/jira-tickets/{provider} → { issueKey }.
   // 매핑만 끊는다 — Jira 의 티켓은 그대로 남는다.
   detach: async (code: string, provider: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const state = serviceState(code);
     const issueKey = state.jira[provider];
     if (!issueKey) return notFound('연결된 Jira 티켓이 없습니다.');
     delete state.jira[provider];
+    mirrorMappingIntoChannels(code, provider, null);
     return NextResponse.json({ issueKey });
   },
 
   // POST /services/{code}/jira-tickets/{provider}/watchers { userId } → 204.
   // 티켓이 연결돼 있어야 watcher 를 붙일 곳이 있다; 중복 등록은 409 로 거른다.
   addWatcher: async (code: string, provider: string, userId: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const state = serviceState(code);
     if (!state.jira[provider]) return notFound('연결된 Jira 티켓이 없습니다.');
     // 실 BFF 는 Jira 를 왕복하느라 느리다 — 데모도 ~2초 기다려 submitting 상태가 보이게 한다.
