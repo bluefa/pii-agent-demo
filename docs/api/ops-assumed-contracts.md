@@ -145,6 +145,9 @@ PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
   FAILED without a Jira call.
 - Ticket status and watcher status are independent: a CREATED ticket can still have
   failed watchers. Watchers carry no error text.
+- After a manual retry is accepted (202) the console polls the channel GET every 5 s
+  for up to 2 minutes (stops early when `manual_retry_pending` turns false, or after three
+  consecutive failed reads); past that it falls back to a manual 다시 조회.
 - The FE does not call PUT from the Jira console (owner 2026-09-30: retry instead); the
   service screen's attach remains the manual link path. The console's only ticket action
   is the retry POST above (`티켓 다시 생성`).

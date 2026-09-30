@@ -2,21 +2,27 @@
 
 /**
  * 티켓 버킷의 동작 띠 — 설명 왼쪽, 주 버튼 하나 오른쪽. `POST …/collaboration-channel/retry`
- * 로 생성을 한 번 더 요청한다. 202 는 접수이지 생성이 아니라, 접수 중(`manualRetryPending`)에는
- * 띠가 접수 상태로 바뀌고 결과는 [다시 조회] 로 채널을 읽어 `status` 로 본다. 배너는 띠 바로
- * 아래 제 블록으로 선다.
+ * 로 생성을 한 번 더 요청한다. 202 는 접수이지 생성이 아니라, 접수 뒤에는 띠가 **스스로**
+ * 채널을 5초마다 다시 읽어(최대 2분) 결과를 기다린다 — 오너: "왜 결과가 바로 안 보이나".
+ * 결과가 오면 띠가 답한다(생성됨 → 띠 사라짐 + toast, 또 실패 → 띠 복귀 + 경고 배너); 2분이
+ * 지나면 [다시 조회] 가 돌아온다. 배너는 띠 바로 아래 제 블록으로 선다.
  */
-import { useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/theme';
 import { AppError } from '@/lib/errors';
-import { localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
+import { WATCHER_PAGE_SIZE, localClock, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
 import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { useNavCountsRefresh } from '@/app/admin/pipelines/_components/NavCountsRefresh';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
-import { retryCollaborationChannel } from '@/app/lib/api/ops';
+import { getCollaborationChannel, retryCollaborationChannel } from '@/app/lib/api/ops';
+
+/** 접수 뒤 결과를 기다리는 리듬 — 5초마다, 최대 2분(24 tick). 연속 3 tick 실패면 멈춘다. */
+export const RETRY_POLL_MS = 5_000;
+export const RETRY_POLL_MAX_TICKS = 24;
+const RETRY_POLL_MAX_FAILURES = 3;
 
 const styles = {
   band: 'flex items-center justify-between gap-4 rounded-[10px] border border-[var(--pl-border)] bg-[var(--pl-bg-card)] px-5 py-4',
@@ -61,21 +67,77 @@ export function RetryPanel({
   channel,
   busy,
   reload,
+  onChannel,
 }: {
   id: number | null;
   channel: CollaborationChannel | null;
   /** 상위가 채널을 읽는 중 — 그동안 버튼이 잠긴다. */
   busy: boolean;
   reload: () => Promise<void>;
+  /** 폴링이 읽어 온 채널을 상위에 올린다 — 카드 태그와 사실 칸이 같이 바뀐다. */
+  onChannel: (channel: CollaborationChannel) => void;
 }): ReactElement {
   const router = useRouter();
   const toast = usePlToast();
   const refreshCounts = useNavCountsRefresh();
   const [banner, setBanner] = useState<Banner>(null);
   const [sending, setSending] = useState(false);
+  // 접수 상태로 열렸으면 바로 기다리기 시작한다.
+  // 폴링이 멈췄는데 여전히 접수 중이면 그것이 "손으로 조회할 차례" 다 — 따로 든 상태가 없다.
+  const [polling, setPolling] = useState(channel?.manualRetryPending === true);
 
   const pending = channel?.manualRetryPending === true;
+  const linked = channel?.status === 'CREATED' && !!channel.issueKey;
   const requestedAt = localClock(channel?.manualRetryRequestedAt ?? null);
+
+  // 폴링 tick 이 부르는 것들은 ref 로 — 효과가 tick 마다 다시 걸리지 않게.
+  const latest = useRef({ onChannel, toast, router, refreshCounts });
+  latest.current = { onChannel, toast, router, refreshCounts };
+
+  useEffect(() => {
+    if (!polling || id == null) return;
+    let ticks = 0;
+    let failures = 0;
+    let settled = false;
+    const stop = () => {
+      settled = true;
+      clearInterval(timer);
+      setPolling(false);
+    };
+    const timer = setInterval(async () => {
+      if (settled) return;
+      ticks += 1;
+      try {
+        const next = await getCollaborationChannel(id, { watcherSize: WATCHER_PAGE_SIZE });
+        if (settled) return;
+        failures = 0;
+        if (next) latest.current.onChannel(next);
+        if (next && !next.manualRetryPending) {
+          stop();
+          if (next.status === 'CREATED' && next.issueKey) {
+            latest.current.toast.show(`티켓이 생성됐어요 · ${next.issueKey}`);
+            latest.current.router.refresh();
+            latest.current.refreshCounts();
+          } else {
+            setBanner({ tone: 'warn', text: '이번 재시도도 실패했어요. 상태와 다음 시도 시각을 확인해 주세요.', refetch: false });
+          }
+          return;
+        }
+      } catch {
+        // 한 tick 의 조회 실패는 넘긴다 — 폴링 중에 「조회 실패」 를 띄우지 않는다.
+        failures += 1;
+        if (failures >= RETRY_POLL_MAX_FAILURES) {
+          stop();
+          return;
+        }
+      }
+      if (ticks >= RETRY_POLL_MAX_TICKS) stop();
+    }, RETRY_POLL_MS);
+    return () => {
+      settled = true;
+      clearInterval(timer);
+    };
+  }, [polling, id]);
 
   const retry = async (): Promise<void> => {
     if (id == null) return;
@@ -83,11 +145,11 @@ export function RetryPanel({
     setSending(true);
     try {
       await retryCollaborationChannel(id);
-      toast.show('티켓 생성을 다시 요청했어요');
-      router.refresh();
-      refreshCounts();
-      // 202 는 접수뿐 — 접수 시각과 pending 은 서버가 안다. 다시 읽어 그 사실을 그린다.
+      latest.current.router.refresh();
+      latest.current.refreshCounts();
+      // 202 는 접수뿐 — 접수 시각과 pending 은 서버가 안다. 다시 읽고, 결과를 기다리기 시작한다.
       await reload();
+      setPolling(true);
     } catch (err) {
       setBanner(bannerFor(err));
       // 다시 생성할 수 없는 상태 — 화면이 낡은 것이니 현재 값을 바로 다시 읽는다.
@@ -97,46 +159,51 @@ export function RetryPanel({
     }
   };
 
+  /** 손 조회 — 2분 상한 뒤의 한 번. 여전히 접수 중이면 그 상태에 머문다. */
   const refetch = async (): Promise<void> => {
     setBanner(null);
     await reload();
   };
 
-  // 연결된 티켓에는 요청할 것이 없다 — 띠는 없고, 마지막 배너만 남는다.
-  const linked = channel?.status === 'CREATED' && !!channel.issueKey;
-
   return (
     <div>
       {linked ? null : (
-      <div className={styles.band} data-testid="action-band">
-        {pending ? (
-          <>
+        <div className={styles.band} data-testid="action-band">
+          {pending && polling ? (
             <div className={styles.bandText}>
               <p className={styles.bandTitle}>
                 <Icon name="loader" size={14} className={styles.spinner} />
                 재시도를 접수했어요
               </p>
               <p className={styles.bandSub}>
-                {requestedAt ? `요청 ${requestedAt} · ` : ''}결과는 조회로 확인합니다
+                {requestedAt ? `요청 ${requestedAt} · ` : ''}결과를 확인하는 중입니다
               </p>
             </div>
-            <PlButton variant="secondary" onClick={() => void refetch()} disabled={busy}>
-              다시 조회
-            </PlButton>
-          </>
-        ) : (
-          <>
-            <div className={styles.bandText}>
-              <p className={styles.bandTitle}>지금 한 번 더 생성을 요청합니다</p>
-              <p className={styles.bandSub}>접수만 되고 결과는 잠시 뒤 조회로 확인합니다</p>
-            </div>
-            <PlButton variant="primary" onClick={() => void retry()} disabled={busy || sending}>
-              {sending ? <Icon name="loader" size={14} className="animate-spin motion-reduce:animate-none" /> : null}
-              티켓 다시 생성
-            </PlButton>
-          </>
-        )}
-      </div>
+          ) : pending ? (
+            <>
+              <div className={styles.bandText}>
+                <p className={styles.bandTitle}>아직 처리 중입니다</p>
+                <p className={styles.bandSub}>
+                  {requestedAt ? `요청 ${requestedAt} · ` : ''}잠시 뒤 다시 조회해 주세요
+                </p>
+              </div>
+              <PlButton variant="secondary" onClick={() => void refetch()} disabled={busy}>
+                다시 조회
+              </PlButton>
+            </>
+          ) : (
+            <>
+              <div className={styles.bandText}>
+                <p className={styles.bandTitle}>지금 한 번 더 생성을 요청합니다</p>
+                <p className={styles.bandSub}>접수만 되고 결과는 잠시 뒤 조회로 확인합니다</p>
+              </div>
+              <PlButton variant="primary" onClick={() => void retry()} disabled={busy || sending}>
+                {sending ? <Icon name="loader" size={14} className="animate-spin motion-reduce:animate-none" /> : null}
+                티켓 다시 생성
+              </PlButton>
+            </>
+          )}
+        </div>
       )}
 
       {banner ? (

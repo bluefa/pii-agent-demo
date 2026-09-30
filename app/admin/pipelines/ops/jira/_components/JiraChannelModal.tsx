@@ -190,7 +190,7 @@ export function JiraChannelModal({
 
       <div className={styles.body}>
         {ticketKind ? (
-          <RetryPanel id={id} channel={channel} busy={busy} reload={() => reload()} />
+          <RetryPanel id={id} channel={channel} busy={busy} reload={() => reload()} onChannel={setChannel} />
         ) : (
           <WatcherPanel row={row} channel={channel} busy={busy} reload={reload} />
         )}

@@ -5,7 +5,7 @@
  */
 import { act, render, screen, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '@/lib/errors';
 import type { CollaborationChannel, FailedWatcher } from '@/lib/types/collaboration-channel';
@@ -16,7 +16,11 @@ const refresh = vi.hoisted(() => vi.fn());
 const retryCollaborationChannel = vi.hoisted(() => vi.fn());
 const getCollaborationChannel = vi.hoisted(() => vi.fn());
 const addJiraTicketWatcher = vi.hoisted(() => vi.fn());
+const toastShow = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }), usePathname: () => '/x' }));
+vi.mock('@/app/admin/pipelines/_components/usePlToast', () => ({
+  usePlToast: () => ({ message: null, show: toastShow, dismiss: vi.fn() }),
+}));
 vi.mock('@/app/lib/api/ops', () => ({
   retryCollaborationChannel,
   getCollaborationChannel,
@@ -147,40 +151,20 @@ describe('JiraChannelModal — 티켓 다시 생성', () => {
     expect(within(band).getByRole('button', { name: '티켓 다시 생성' })).toBeDefined();
   });
 
-  it('접수: POST → toast·refresh → 재조회 → 접수 배너 + 잠긴 버튼; [다시 조회] 는 watcherSize 5 로 읽는다', async () => {
+  it('접수: POST → refresh → 재조회 → 띠가 기다리는 상태(다시 조회 없음)', async () => {
     retryCollaborationChannel.mockResolvedValue(undefined);
-    getCollaborationChannel
-      .mockResolvedValueOnce(channel({ status: 'RETRYING', manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' }))
-      .mockResolvedValueOnce(created('BDCDIP-5001'));
+    getCollaborationChannel.mockResolvedValue(
+      channel({ status: 'RETRYING', manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' }),
+    );
     ticketModal({ ...ROW, channel: channel({ status: 'RETRYING', attemptCount: 2, maxAttempts: 6 }) });
     await clickRetry();
     expect(retryCollaborationChannel).toHaveBeenCalledWith(2113);
     expect(refresh).toHaveBeenCalled();
     expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
-    // 띠가 접수 상태로 바뀐다 — 주 버튼은 사라지고 [다시 조회] 가 선다
     const band = screen.getByTestId('action-band');
     expect(within(band).getByText('재시도를 접수했어요')).toBeDefined();
-    expect(within(band).getByText('요청 09-30 15:02 · 결과는 조회로 확인합니다')).toBeDefined();
-    expect(within(band).queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
-    });
-    expect(getCollaborationChannel).toHaveBeenLastCalledWith(2113, { watcherSize: 5 });
-    expect(screen.getByRole('link', { name: /BDCDIP-5001/ })).toBeDefined();
-    // CREATED — 띠 자체가 없다
-    expect(screen.queryByTestId('action-band')).toBeNull();
-  });
-
-  it('pending 으로 열리면 띠는 접수 상태이고, 조회가 RETRYING·pending=false 로 오면 주 버튼이 돌아온다', async () => {
-    getCollaborationChannel.mockResolvedValue(channel({ status: 'RETRYING', manualRetryPending: false }));
-    ticketModal({ ...ROW, channel: channel({ status: 'RETRYING', manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' }) });
-    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
-    });
-    expect((retryButton() as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByRole('status')).toBeNull();
+    expect(within(band).getByText('요청 09-30 15:02 · 결과를 확인하는 중입니다')).toBeDefined();
+    expect(within(band).queryByRole('button')).toBeNull();
   });
 
   it('BUSY: 경고 배너 + [다시 조회]', async () => {
@@ -393,5 +377,98 @@ describe('JiraChannelModal — watcher 버킷', () => {
     expect(screen.getByText('추가할 사용자를 응답에서 읽지 못했어요.')).toBeDefined();
     expect(fact('티켓')).toBe('—');
     expect(within(screen.getByTestId('target-card')).getByText('조회 실패')).toBeDefined();
+  });
+});
+
+describe('JiraChannelModal — 접수 뒤 폴링', () => {
+  const pendingChannel = () =>
+    channel({ status: 'RETRYING', attemptCount: 2, maxAttempts: 6, manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' });
+  const openPending = () => ticketModal({ ...ROW, channel: pendingChannel() });
+  const tick = async (ms = 5000) => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('pending 으로 열리면 5초마다 읽고, CREATED 가 오면 띠가 사라지고 toast · refresh', async () => {
+    getCollaborationChannel.mockResolvedValueOnce(pendingChannel()).mockResolvedValueOnce(created('BDCDIP-5001'));
+    openPending();
+    expect(within(screen.getByTestId('action-band')).queryByRole('button')).toBeNull();
+    await tick();
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(1);
+    expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
+    // 아직 pending — 계속 기다린다
+    expect(screen.getByTestId('action-band')).toBeDefined();
+    await tick();
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('action-band')).toBeNull();
+    expect(within(screen.getByTestId('target-card')).getByText('생성됨')).toBeDefined();
+    expect(within(screen.getByTestId('facts')).getByRole('link', { name: /BDCDIP-5001/ })).toBeDefined();
+    expect(toastShow).toHaveBeenCalledWith('티켓이 생성됐어요 · BDCDIP-5001');
+    expect(refresh).toHaveBeenCalled();
+    // 멈췄다 — 더 읽지 않는다
+    await tick(20000);
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(2);
+  });
+
+  it('RETRYING 으로 돌아오면 띠는 기본 상태 + 경고 배너, 사실 칸은 새 값', async () => {
+    getCollaborationChannel.mockResolvedValue(
+      channel({ status: 'RETRYING', attemptCount: 7, maxAttempts: null, nextAttemptAt: '2026-10-02T00:50:00', manualRetryPending: false }),
+    );
+    openPending();
+    await tick();
+    const band = screen.getByTestId('action-band');
+    expect((within(band).getByRole('button', { name: '티켓 다시 생성' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole('status').textContent).toBe('이번 재시도도 실패했어요. 상태와 다음 시도 시각을 확인해 주세요.');
+    expect(fact('실패 횟수')).toBe('7회');
+    expect(fact('다음 시도')).toBe('10-02 00:50');
+    expect(toastShow).not.toHaveBeenCalled();
+  });
+
+  it('2분이 지나도 pending 이면 멈추고 [다시 조회] 가 돌아온다; 손 조회 뒤에도 pending 이면 그대로', async () => {
+    getCollaborationChannel.mockResolvedValue(pendingChannel());
+    openPending();
+    await tick(24 * 5000);
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(24);
+    const band = screen.getByTestId('action-band');
+    expect(within(band).getByText('아직 처리 중입니다')).toBeDefined();
+    expect(within(band).getByText('요청 09-30 15:02 · 잠시 뒤 다시 조회해 주세요')).toBeDefined();
+    await tick(20000);
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(24);
+    await act(async () => {
+      fireEvent.click(within(band).getByRole('button', { name: '다시 조회' }));
+    });
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(25);
+    expect(within(screen.getByTestId('action-band')).getByText('아직 처리 중입니다')).toBeDefined();
+  });
+
+  it('조회 실패 tick 은 넘기고, 세 번 연속이면 멈춰 [다시 조회] 상태', async () => {
+    getCollaborationChannel.mockRejectedValue(new Error('down'));
+    openPending();
+    await tick();
+    await tick();
+    expect(within(screen.getByTestId('action-band')).getByText('재시도를 접수했어요')).toBeDefined();
+    expect(screen.queryByText('조회 실패')).toBeNull();
+    await tick();
+    expect(within(screen.getByTestId('action-band')).getByRole('button', { name: '다시 조회' })).toBeDefined();
+    await tick(20000);
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(3);
+  });
+
+  it('unmount 하면 interval 이 지워진다', async () => {
+    getCollaborationChannel.mockResolvedValue(pendingChannel());
+    const { unmount } = openPending();
+    await tick();
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(1);
+    unmount();
+    await tick(30000);
+    expect(getCollaborationChannel).toHaveBeenCalledTimes(1);
   });
 });

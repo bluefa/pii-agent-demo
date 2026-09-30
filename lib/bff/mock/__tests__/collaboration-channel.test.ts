@@ -107,6 +107,20 @@ describe('collaboration channel mock', () => {
     }
   });
 
+  it('manual retry on 1980 (LONG_TERM) lands back on RETRYING — the failure outcome', async () => {
+    vi.useFakeTimers();
+    try {
+      expect((await mockCollaborationChannel.retry(1980)).status).toBe(202);
+      await vi.advanceTimersByTimeAsync(MANUAL_RETRY_DEMO_MS);
+      expect(await channelOf(1980)).toMatchObject({
+        status: 'RETRYING', attempt_count: 7, manual_retry_pending: false, next_attempt_at: '2026-10-02T00:50:00',
+      });
+      expect(await ticketFailedIds()).toContain(1980);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('retry hooks: CREATED → UNAVAILABLE, unknown target → NOT_FOUND, 1099 → DISABLED', async () => {
     const unavailable = await mockCollaborationChannel.retry(1861);
     expect(unavailable.status).toBe(409);

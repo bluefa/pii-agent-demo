@@ -498,7 +498,7 @@ export const mockCollaborationChannel = {
    * POST …/collaboration-channel/retry → 202, no body: ONE more creation attempt is
    * queued; `retry_expires_at` is not reset. The unit reads `manual_retry_pending` until
    * the attempt resolves — here a 15-second timer that flips the whole unit to CREATED
-   * with a generated key (demo only; the real jira-manager may also land on FAILED).
+   * with a generated key (demo only; 1980 lands back on RETRYING instead, see below).
    *
    * Demo hooks so every banner is reachable: a CREATED unit → 409 UNAVAILABLE; a second
    * request while pending → 409 BUSY; target 1099 (the expired SDU fixture) → 503
@@ -530,6 +530,20 @@ export const mockCollaborationChannel = {
     for (const ts of unit) store().channels.set(ts, { ...pending });
     const issueKey = `BDCDIP-${5000 + (retryCounter += 1)}`;
     const timer = setTimeout(() => {
+      // Demo hook: the LONG_TERM fixture (1980, MBR/GCP) fails its manual retry too and
+      // lands back on RETRYING (one more attempt counted, next attempt a day out), so the
+      // console's failure outcome is demoable; every other unit is CREATED.
+      if (unit.includes(1980)) {
+        const failed: ChannelSeed = {
+          ...current,
+          attempt_count: (current.attempt_count ?? 0) + 1,
+          next_attempt_at: '2026-10-02T00:50:00',
+          manual_retry_pending: false,
+          manual_retry_requested_at: pending.manual_retry_requested_at,
+        };
+        for (const ts of unit) store().channels.set(ts, { ...failed });
+        return;
+      }
       const created = createdChannel(issueKey);
       for (const ts of unit) store().channels.set(ts, { ...created });
       // Same truth on the service × provider axis: the watcher POST and the 서비스 운영 tile read it.
