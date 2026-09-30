@@ -161,6 +161,9 @@ export const mockBff: BffClient = {
     updateServiceInstalled: async (serviceCode) =>
       voidWrite(await mockOps.updateServiceInstalled(serviceCode)),
     endOfService: async (serviceCode) => voidWrite(await mockOps.endOfService(serviceCode)),
+    getCollaborationChannel: async (id, query) =>
+      unwrap(await mockOps.getCollaborationChannel(id, query)),
+    postCollaborationChannelRetry: async (id) => voidWrite(await mockOps.postCollaborationChannelRetry(id)),
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md).

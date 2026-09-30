@@ -100,6 +100,8 @@ export const passRoutes = {
     /** 운영 콘솔 (design/pipeline/ops-target-source-app-plan.md). */
     ops: {
       alerts: '/admin/pipelines/ops/alerts',
+      /** Jira Ticket — auto-created tickets and watchers that need an admin's hand. */
+      jira: '/admin/pipelines/ops/jira',
       services: '/admin/pipelines/ops/services',
       service: (serviceCode: string) =>
         `/admin/pipelines/ops/services/${encodeURIComponent(serviceCode)}`,

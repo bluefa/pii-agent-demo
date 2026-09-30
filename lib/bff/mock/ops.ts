@@ -3,6 +3,9 @@ import * as mockData from '@/lib/mock-data';
 import { minutesAgo } from '@/lib/bff/mock/clock';
 import { ProcessStatus } from '@/lib/types';
 import type {
+  CollaborationChannelQuery,
+  CollaborationChannelWire,
+  FailedWatcherWire,
   OpsProcessStatusWire,
   OpsStatusHistoryItemWire,
   OpsTargetSourceListItemWire,
@@ -158,7 +161,9 @@ const serviceState = (code: string): OpsServiceState => {
   if (!state) {
     const index = serviceCodes().indexOf(code);
     state = {
-      jira: { ...(SEED_JIRA[index] ?? {}) },
+      // The collaboration-channel fixtures are the other half of the same truth: a unit
+      // the channel store marks CREATED is a mapped ticket here too (watcher POSTs read this).
+      jira: { ...(SEED_JIRA[index] ?? {}), ...channelLinkedTickets(code) },
       watchers: {},
       serviceInstalledUpdatedAt: null,
       endOfServiceAt: null,
@@ -278,6 +283,276 @@ export const mockOps = {
     serviceState(serviceCode).endOfServiceAt = minutesAgo(0);
     return new NextResponse(null, { status: 204 });
   },
+
+  // Assumed §4 — the store and fixtures live below the Jira Tickets block.
+  getCollaborationChannel: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
+    mockCollaborationChannel.get(targetSourceId, query),
+  postCollaborationChannelRetry: async (targetSourceId: number) =>
+    mockCollaborationChannel.retry(targetSourceId),
+};
+
+/* ── Collaboration channel — ASSUMED §4 (BE PR #8891, 2026-09-30 revision) ── */
+
+/**
+ * One row of the Jira Ticket console fixtures — the TargetSourceInfo identity the two
+ * failure lists serve (`lib/bff/mock/task-queue.ts`). Hand-authored rather than derived
+ * from PROC: the console needs two targets of ONE service on AWS (the ticket is shared
+ * per service + cloud) and an SDU target, and the monitor fixture has neither. Who
+ * failed as a watcher is NOT on the row — it rides the channel GET, per ticket unit.
+ */
+export interface JiraFailureFixtureRow {
+  ts: number;
+  svc: string;
+  code: string;
+  pv: string;
+  isSdu: boolean;
+  description: string;
+}
+
+export const JIRA_TICKET_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
+  { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', isSdu: false, description: '결제 승인 원장 RDS' },
+  { ts: 2114, svc: '결제서비스', code: 'PAY', pv: 'AWS', isSdu: false, description: '정산 대사용 읽기 복제본' },
+  { ts: 1099, svc: 'SDU', code: 'SDU', pv: 'AWS', isSdu: true, description: 'SDU 업로드 버킷 (서울)' },
+  { ts: 1980, svc: '회원서비스', code: 'MBR', pv: 'GCP', isSdu: false, description: '회원 프로필 Cloud SQL' },
+];
+
+export const JIRA_WATCHER_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
+  { ts: 1861, svc: '정산서비스', code: 'STL', pv: 'AWS', isSdu: false, description: '정산 마감 배치 RDS' },
+  { ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', isSdu: false, description: '배송 추적 Azure SQL' },
+];
+
+const ALL_JIRA_FIXTURES = [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE];
+
+/** The ticket unit: (service, cloud), SDU on its own. */
+const unitKey = (row: JiraFailureFixtureRow): string => `${row.code}/${row.pv}/${row.isSdu ? 'sdu' : 'csp'}`;
+
+/** The unit's `cloudProvider` on the service × provider axis (`/services/{code}/jira-tickets/{provider}`). */
+const jiraProviderOf = (row: JiraFailureFixtureRow): string => (row.isSdu ? 'SDU' : row.pv);
+
+/** Fixture services the console lists but the project catalog does not know (PAY·MBR·STL). */
+const jiraFixtureServiceCodes = (): string[] => ALL_JIRA_FIXTURES.map((r) => r.code);
+
+type ChannelSeed = Omit<
+  CollaborationChannelWire,
+  'failed_watchers' | 'failed_watchers_total' | 'watcher_page' | 'watcher_size'
+>;
+
+const channelGlobal = globalThis as typeof globalThis & {
+  __opsCollaborationChannelStore?: {
+    channels: Map<number, ChannelSeed>;
+    /** unit key → failed watchers, username asc. */
+    watchers: Map<string, FailedWatcherWire[]>;
+  };
+};
+
+const JIRA_BROWSE_BASE = 'https://jira.sec.samsung.net/browse/';
+
+const createdChannel = (issueKey: string): ChannelSeed => ({
+  issue_key: issueKey,
+  url: `${JIRA_BROWSE_BASE}${issueKey}`,
+  status: 'CREATED',
+  attempt_count: null,
+  max_attempts: null,
+  next_attempt_at: null,
+  retry_phase: null,
+  retry_expires_at: null,
+  manual_retry_pending: false,
+  manual_retry_requested_at: null,
+});
+
+const NONE_CHANNEL: ChannelSeed = {
+  issue_key: null, url: null, status: 'NONE', attempt_count: null, max_attempts: null,
+  next_attempt_at: null, retry_phase: null, retry_expires_at: null,
+  manual_retry_pending: false, manual_retry_requested_at: null,
+};
+
+/** Server-local `YYYY-MM-DDTHH:mm:ss`, no offset — what the real BFF authors. */
+const serverLocalNow = (): string => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+/** Server-local datetimes, no offset — the screen cuts them, never converts them. */
+const watcher = (
+  username: string,
+  status: FailedWatcherWire['status'],
+  attempt_count: number,
+  next_attempt_at: string | null,
+): FailedWatcherWire => ({
+  username,
+  status,
+  attempt_count,
+  retry_phase: status === 'PENDING' ? (attempt_count >= 6 ? 'LONG_TERM' : 'SHORT_TERM') : null,
+  next_attempt_at,
+  retry_expires_at: status === 'PENDING' ? '2026-10-14T00:00:00' : null,
+});
+
+/** Seed: every ticket-failed row is not CREATED, every watcher-failed row already is. */
+const seedStore = (): NonNullable<typeof channelGlobal.__opsCollaborationChannelStore> => {
+  const channels = new Map<number, ChannelSeed>();
+  // PAY/AWS — one ticket unit, two targets, SHORT_TERM (10-minute interval).
+  const payRetrying: ChannelSeed = {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 2, max_attempts: 6,
+    next_attempt_at: '2026-09-30T14:20:00', retry_phase: 'SHORT_TERM', retry_expires_at: '2026-10-14T00:00:00',
+  };
+  channels.set(2113, { ...payRetrying });
+  channels.set(2114, { ...payRetrying });
+  // SDU — expired: the 14-day window closed without a ticket.
+  channels.set(1099, {
+    issue_key: '', url: null, status: 'FAILED', attempt_count: 9, max_attempts: null,
+    next_attempt_at: null, retry_phase: null, retry_expires_at: '2026-09-28T00:00:00',
+  });
+  // MBR/GCP — LONG_TERM (24-hour interval): six failures alone do not make FAILED.
+  channels.set(1980, {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 6, max_attempts: null,
+    next_attempt_at: '2026-10-01T00:50:00', retry_phase: 'LONG_TERM', retry_expires_at: '2026-10-14T00:00:00',
+  });
+  channels.set(1861, createdChannel('BDCDIP-2211'));
+  channels.set(1799, createdChannel('BDCDIP-1799'));
+
+  const watchers = new Map<string, FailedWatcherWire[]>();
+  // STL/AWS — two people; DLV/AZURE — twelve, so the modal's pager shows once.
+  watchers.set('STL/AWS/csp', [
+    watcher('hong.gildong', 'FAILED', 6, null),
+    watcher('kim.cs', 'PENDING', 3, '2026-09-30T14:40:00'),
+  ]);
+  watchers.set(
+    'DLV/AZURE/csp',
+    [
+      'ahn.sy', 'bae.jh', 'choi.mr', 'do.hk', 'eom.js', 'go.ye', 'ha.jw', 'im.sh', 'jang.dy', 'ko.mj', 'lee.mj', 'moon.bk',
+    ].map((name, i) =>
+      i % 3 === 0
+        ? watcher(name, 'FAILED', 6, null)
+        : watcher(name, 'PENDING', i >= 6 ? 6 : 1, i >= 6 ? '2026-10-01T00:50:00' : '2026-09-30T14:40:00'),
+    ),
+  );
+  return { channels, watchers };
+};
+
+const store = () => (channelGlobal.__opsCollaborationChannelStore ??= seedStore());
+
+const fixtureRow = (targetSourceId: number): JiraFailureFixtureRow | undefined =>
+  ALL_JIRA_FIXTURES.find((r) => r.ts === targetSourceId);
+
+/** Cross-module hook for the failure lists: a ticket-failed row leaves once its channel is CREATED. */
+export const collaborationChannelOf = (targetSourceId: number): ChannelSeed =>
+  store().channels.get(targetSourceId) ?? NONE_CHANNEL;
+
+/** provider → issueKey for every CREATED unit of a service — seeds the service × provider mapping. */
+const channelLinkedTickets = (code: string): Record<string, string> => {
+  const linked: Record<string, string> = {};
+  for (const row of ALL_JIRA_FIXTURES) {
+    if (row.code !== code) continue;
+    const channel = collaborationChannelOf(row.ts);
+    if (channel.status === 'CREATED' && channel.issue_key) linked[jiraProviderOf(row)] = channel.issue_key;
+  }
+  return linked;
+};
+
+/**
+ * Mirror of the service × provider mapping (attach/detach on the 서비스 운영 screen) into
+ * the channel store, so the ops service screen and the Jira console never disagree.
+ * Only fixture units exist here; a service the console does not list has no channel rows.
+ */
+const mirrorMappingIntoChannels = (code: string, provider: string, issueKey: string | null): void => {
+  for (const row of ALL_JIRA_FIXTURES) {
+    if (row.code !== code || jiraProviderOf(row) !== provider) continue;
+    // Detach removes the MAPPING only — the console then reads the unit as having no ticket.
+    store().channels.set(row.ts, issueKey ? createdChannel(issueKey) : { ...NONE_CHANNEL });
+  }
+};
+
+/** Every fixture target of the same unit — what a PUT links at once. */
+const sameTicketUnit = (row: JiraFailureFixtureRow): number[] =>
+  ALL_JIRA_FIXTURES.filter((r) => unitKey(r) === unitKey(row)).map((r) => r.ts);
+
+const DEFAULT_WATCHER_SIZE = 10;
+
+/** The channel plus one page of its watchers (username asc). Echoes page/size even with no ticket. */
+const channelResponse = (targetSourceId: number, query?: CollaborationChannelQuery): CollaborationChannelWire => {
+  const page = query?.watcherPage ?? 0;
+  const size = query?.watcherSize ?? DEFAULT_WATCHER_SIZE;
+  const row = fixtureRow(targetSourceId);
+  const all = (row ? store().watchers.get(unitKey(row)) : undefined) ?? [];
+  const sorted = [...all].sort((a, b) => a.username.localeCompare(b.username));
+  return {
+    ...collaborationChannelOf(targetSourceId),
+    failed_watchers: sorted.slice(page * size, page * size + size),
+    failed_watchers_total: sorted.length,
+    watcher_page: page,
+    watcher_size: size,
+  };
+};
+
+/** How long the demo's manual retry takes to "create" the ticket. */
+export const MANUAL_RETRY_DEMO_MS = 15_000;
+let retryCounter = 0;
+
+export const mockCollaborationChannel = {
+  // GET …/collaboration-channel?watcher_page&watcher_size → always 200 (NONE when nothing was ever created).
+  get: async (targetSourceId: number, query?: CollaborationChannelQuery) =>
+    NextResponse.json(channelResponse(targetSourceId, query)),
+
+  /**
+   * POST …/collaboration-channel/retry → 202, no body: ONE more creation attempt is
+   * queued; `retry_expires_at` is not reset. The unit reads `manual_retry_pending` until
+   * the attempt resolves — here a 15-second timer that flips the whole unit to CREATED
+   * with a generated key (demo only; 1980 lands back on RETRYING instead, see below).
+   *
+   * Demo hooks so every banner is reachable: a CREATED unit → 409 UNAVAILABLE; a second
+   * request while pending → 409 BUSY; target 1099 (the expired SDU fixture) → 503
+   * DISABLED, standing in for "server auto-processing is off".
+   */
+  retry: async (targetSourceId: number) => {
+    const conflict = (error: string, message: string, status = 409) =>
+      NextResponse.json({ error, message }, { status });
+    if (targetSourceId === 1099) {
+      return conflict('JIRA_MANUAL_RETRY_DISABLED', '서버의 자동 생성 기능이 꺼져 있습니다.', 503);
+    }
+    const current = collaborationChannelOf(targetSourceId);
+    if (current.status === 'NONE') {
+      return conflict('JIRA_TICKET_NOT_FOUND', '저장된 생성 요청이 없습니다.', 404);
+    }
+    if (current.status === 'CREATED') {
+      return conflict('JIRA_MANUAL_RETRY_UNAVAILABLE', '이미 연결된 티켓입니다.');
+    }
+    if (current.manual_retry_pending) {
+      return conflict('JIRA_MANUAL_RETRY_BUSY', '이미 접수돼 처리 중입니다.');
+    }
+    const row = fixtureRow(targetSourceId);
+    const unit = row ? sameTicketUnit(row) : [targetSourceId];
+    const pending: ChannelSeed = {
+      ...current,
+      manual_retry_pending: true,
+      manual_retry_requested_at: serverLocalNow(),
+    };
+    for (const ts of unit) store().channels.set(ts, { ...pending });
+    const issueKey = `BDCDIP-${5000 + (retryCounter += 1)}`;
+    const timer = setTimeout(() => {
+      // Demo hook: the LONG_TERM fixture (1980, MBR/GCP) fails its manual retry too and
+      // lands back on RETRYING (one more attempt counted, next attempt a day out), so the
+      // console's failure outcome is demoable; every other unit is CREATED.
+      if (unit.includes(1980)) {
+        const failed: ChannelSeed = {
+          ...current,
+          attempt_count: (current.attempt_count ?? 0) + 1,
+          next_attempt_at: '2026-10-02T00:50:00',
+          manual_retry_pending: false,
+          manual_retry_requested_at: pending.manual_retry_requested_at,
+        };
+        for (const ts of unit) store().channels.set(ts, { ...failed });
+        return;
+      }
+      const created = createdChannel(issueKey);
+      for (const ts of unit) store().channels.set(ts, { ...created });
+      // Same truth on the service × provider axis: the watcher POST and the 서비스 운영 tile read it.
+      if (row) serviceState(row.code).jira[jiraProviderOf(row)] = issueKey;
+    }, MANUAL_RETRY_DEMO_MS);
+    // A pending demo timer must not keep a test process alive.
+    if (typeof timer === 'object' && 'unref' in timer) timer.unref();
+    return new NextResponse(null, { status: 202 });
+  },
 };
 
 /* ── Jira Tickets tag — REAL contract (install-v1.yaml, docs/api/jira-tickets.md §1) ── */
@@ -302,10 +577,14 @@ const toJiraTicketResponse = (code: string, provider: string, issueKey: string) 
 /** validate=true 로 흉내내는 Jira 존재 검증 — 키 형태가 아니면 없는 티켓으로 친다. */
 const JIRA_ISSUE_KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/i;
 
+/** A service the catalog knows, or one the Jira console's fixtures list (PAY·MBR·STL). */
+const knownJiraService = (code: string): boolean =>
+  serviceCodes().includes(code) || jiraFixtureServiceCodes().includes(code);
+
 export const mockServiceJiraTickets = {
   // GET /services/{code}/jira-tickets → JiraTicketResponse[].
   list: async (code: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const { jira } = serviceState(code);
     return NextResponse.json(
       Object.entries(jira)
@@ -317,30 +596,32 @@ export const mockServiceJiraTickets = {
   // POST /services/{code}/jira-tickets/{provider} { issueKey, validate } → 204.
   // 티켓을 만들지 않는다 — 이미 있는 issueKey 를 이 서비스·provider 에 매핑할 뿐.
   attach: async (code: string, provider: string, issueKey: string, validate?: boolean) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     // validate=true 면 실 BFF 가 Jira 에서 존재를 확인한다 — 목은 키 형태로 흉내낸다.
     if (validate === true && !JIRA_ISSUE_KEY_RE.test(issueKey)) {
       return notFound('Jira에서 티켓을 찾을 수 없습니다.');
     }
     serviceState(code).jira[provider] = issueKey;
+    mirrorMappingIntoChannels(code, provider, issueKey);
     return new NextResponse(null, { status: 204 });
   },
 
   // DELETE /services/{code}/jira-tickets/{provider} → { issueKey }.
   // 매핑만 끊는다 — Jira 의 티켓은 그대로 남는다.
   detach: async (code: string, provider: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const state = serviceState(code);
     const issueKey = state.jira[provider];
     if (!issueKey) return notFound('연결된 Jira 티켓이 없습니다.');
     delete state.jira[provider];
+    mirrorMappingIntoChannels(code, provider, null);
     return NextResponse.json({ issueKey });
   },
 
   // POST /services/{code}/jira-tickets/{provider}/watchers { userId } → 204.
   // 티켓이 연결돼 있어야 watcher 를 붙일 곳이 있다; 중복 등록은 409 로 거른다.
   addWatcher: async (code: string, provider: string, userId: string) => {
-    if (!serviceCodes().includes(code)) return notFound('서비스를 찾을 수 없습니다.');
+    if (!knownJiraService(code)) return notFound('서비스를 찾을 수 없습니다.');
     const state = serviceState(code);
     if (!state.jira[provider]) return notFound('연결된 Jira 티켓이 없습니다.');
     // 실 BFF 는 Jira 를 왕복하느라 느리다 — 데모도 ~2초 기다려 submitting 상태가 보이게 한다.

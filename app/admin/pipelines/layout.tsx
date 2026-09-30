@@ -114,6 +114,17 @@ const SIDEBAR_GROUPS = [
         href: passRoutes.pipelines.ops.services,
         exact: false,
       },
+      {
+        label: 'Jira Ticket',
+        icon: (
+          <svg {...NAV_ICON_PROPS} aria-hidden="true">
+            <path d="M12 2.5 21.5 12 12 21.5 2.5 12z" />
+            <path d="M12 8.5 15.5 12 12 15.5 8.5 12z" />
+          </svg>
+        ),
+        href: passRoutes.pipelines.ops.jira,
+        exact: false,
+      },
       // Target Source 운영 is deliberately absent from the nav. The screen still exists and
       // is still routed to — 서비스 운영 sends you there from an infra row, and the pipeline
       // detail breadcrumb links to it — it is simply not a place you start from.
@@ -185,6 +196,8 @@ const SIDEBAR_GROUPS = [
 interface NavCounts {
   requestsToCheck: number;
   alertCount: number;
+  /** Jira Ticket — ticket-creation failures + watcher failures (both admin work). */
+  jiraFailed: number;
   pendingAccessRequests: number;
 }
 
@@ -201,6 +214,10 @@ const NAV_BADGES: Record<string, { label: string; count: (c: NavCounts) => numbe
   [passRoutes.pipelines.ops.alerts]: {
     label: '조치가 필요한 대상',
     count: (c) => c.alertCount,
+  },
+  [passRoutes.pipelines.ops.jira]: {
+    label: '조치가 필요한 Jira 티켓',
+    count: (c) => c.jiraFailed,
   },
   [passRoutes.pipelines.access.requests]: {
     label: '승인 대기 접근 권한 요청',
@@ -240,6 +257,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
   // Best-effort (errors ignored): the nav badge must never break the shell.
   const [requestsToCheck, setRequestsToCheck] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
+  const [jiraFailed, setJiraFailed] = useState(0);
   const [pendingAccessRequests, setPendingAccessRequests] = useState(0);
   const [nonce, setNonce] = useState(0);
   const refreshCounts = useCallback(() => setNonce((n) => n + 1), []);
@@ -261,6 +279,10 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
             (summary.needInstallCount ?? 0) +
             (summary.needTestConnectionCount ?? 0) +
             (summary.needPiiAgentConfirmCount ?? 0),
+        );
+        // Jira Ticket has its own badge — these two are NOT part of 운영 알림.
+        setJiraFailed(
+          (summary.jiraTicketFailedCount ?? 0) + (summary.jiraWatcherFailedCount ?? 0),
         );
       })
       .catch(() => undefined);
@@ -326,7 +348,7 @@ export default function PipelinesLayout({ children }: { children: ReactNode }) {
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
               const badge = NAV_BADGES[item.href];
               const count = badge
-                ? badge.count({ requestsToCheck, alertCount, pendingAccessRequests })
+                ? badge.count({ requestsToCheck, alertCount, jiraFailed, pendingAccessRequests })
                 : 0;
               return (
                 <Link

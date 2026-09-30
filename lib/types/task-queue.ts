@@ -43,6 +43,13 @@ export interface DashboardSummary {
   needPiiAgentConfirmCount: number;
   /** 최근 14일 이내 생성된 대상. 서버가 창을 소유한다 — 프론트는 날짜를 계산하지도 보내지도 않는다. */
   recentlyCreatedCount: number;
+  /**
+   * Jira Ticket console — BE PR #8891, ahead of the swagger drop
+   * (docs/api/ops-assumed-contracts.md §12). Undeclared on the generated schema, so
+   * they ride the passthrough; absent → 0 here, the page decides null-vs-0 before.
+   */
+  jiraTicketFailedCount: number;
+  jiraWatcherFailedCount: number;
   evaluatedAt: string | null;
 }
 
@@ -56,6 +63,9 @@ export const ALERT_TARGET_KINDS = [
   'need-test-connection',
   'need-pii-agent-confirm',
   'recent',
+  // Jira Ticket console lists (§12) — same path family, same Page<TargetSourceInfo>.
+  'jira-ticket-failed',
+  'jira-watcher-failed',
 ] as const;
 
 export type AlertTargetKind = (typeof ALERT_TARGET_KINDS)[number];
@@ -73,6 +83,14 @@ export interface TargetKindFlags {
   /** 중국 리전. Not hidden on an SDU row — where the data lives is the target's own fact. */
   isChinaRegion: boolean;
 }
+
+/** The two kinds the Jira Ticket console serves — a subset of the path family above. */
+export const JIRA_ALERT_KINDS = ['jira-ticket-failed', 'jira-watcher-failed'] as const;
+
+export type JiraAlertKind = (typeof JIRA_ALERT_KINDS)[number];
+
+export const isJiraAlertKind = (value: string): value is JiraAlertKind =>
+  (JIRA_ALERT_KINDS as readonly string[]).includes(value);
 
 export interface ProcessStatusRow extends TargetKindFlags {
   targetSourceId: number | null;
@@ -119,6 +137,14 @@ export interface AlertListRow extends RequestListRow {
   delaySeconds: number | null;
   statusChangedAt: string | null;
 }
+
+/**
+ * A Jira Ticket console row (§12) — the request row as it is; the SDU/중국 flags it
+ * already carries are what the Cloud cell and the ticket unit read. Ticket state and
+ * the failed watchers are NOT on the row — they come from the collaboration-channel GET
+ * per target.
+ */
+export type JiraListRow = RequestListRow;
 
 export interface TestConnectionStatusRow {
   targetSourceId: number | null;
@@ -242,6 +268,9 @@ export function toDashboardSummary(
     needTestConnectionCount: wire.need_test_connection_count ?? 0,
     needPiiAgentConfirmCount: wire.need_pii_agent_confirm_count ?? 0,
     recentlyCreatedCount: wire.recently_created_count ?? 0,
+    // Undeclared on `DashboardSummaryResponse` — survives the parse via `.passthrough()`.
+    jiraTicketFailedCount: numberOrZero(wire.jira_ticket_failed_count),
+    jiraWatcherFailedCount: numberOrZero(wire.jira_watcher_failed_count),
     evaluatedAt: wire.evaluated_at ?? null,
   };
 }
@@ -275,6 +304,8 @@ function readCamelKindFlags(source: unknown, cloudProvider: string | null | unde
     'isChinaRegion' in source ? source.isChinaRegion : false,
   );
 }
+
+const numberOrZero = (value: unknown): number => (typeof value === 'number' ? value : 0);
 
 function toProcessStatusRow(
   row: z.infer<typeof schemas.ProcessStatusCurrentResponse>,
@@ -356,6 +387,12 @@ export function toAlertListPage(
   wire: z.infer<typeof schemas.PageTargetSourceInfo>,
 ): Paged<AlertListRow> {
   return toPaged(wire, (row) => ({ ...toRequestListRow(row), ...readAlertDelayDelta(row) }));
+}
+
+export function toJiraListPage(
+  wire: z.infer<typeof schemas.PageTargetSourceInfo>,
+): Paged<JiraListRow> {
+  return toPaged(wire, toRequestListRow);
 }
 
 export function toTestConnectionStatusRow(

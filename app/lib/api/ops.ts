@@ -9,6 +9,7 @@ import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { BffProcessStatus } from '@/app/lib/api';
 import type { InstallationLifecycleStatus } from '@/lib/types';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
+import { toCollaborationChannel, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -108,6 +109,42 @@ export const getTargetJiraTicket = async (
     `/target-sources/${targetSourceId}/jira-ticket`,
   );
   return raw?.issueKey ? { issueKey: raw.issueKey, browseUrl: raw.browseUrl ?? null } : null;
+};
+
+/* ── 협업 채널 (assumed §4, BE PR #8891) — Jira Ticket 콘솔이 읽고 쓴다 ── */
+
+/**
+ * 이 대상의 협업 채널 — 자동 생성 중인 Jira 티켓의 상태와 등록 실패한 watcher 한 페이지.
+ * 항상 200 이고, 티켓이 없으면 `status: NONE` 이다. 본문을 못 읽으면 null(조회 실패) —
+ * 상태를 지어내지 않는다. `watcherPage`(0-based)·`watcherSize`(1..100) 는 생략하면 서버
+ * 기본값(0 · 10)이다.
+ */
+export const getCollaborationChannel = async (
+  targetSourceId: number,
+  opts?: { watcherPage?: number; watcherSize?: number; signal?: AbortSignal },
+): Promise<CollaborationChannel | null> => {
+  const search = new URLSearchParams();
+  if (opts?.watcherPage != null) search.set('watcher_page', String(opts.watcherPage));
+  if (opts?.watcherSize != null) search.set('watcher_size', String(opts.watcherSize));
+  const qs = search.toString();
+  return toCollaborationChannel(
+    await fetchInfraJson<unknown>(
+      `/target-sources/${targetSourceId}/collaboration-channel${qs ? `?${qs}` : ''}`,
+      opts?.signal ? { signal: opts.signal } : undefined,
+    ),
+  );
+};
+
+/**
+ * 티켓 생성을 한 번 더 요청한다 (assumed §4 `POST …/retry`). 202 = 접수이지 생성이 아니다 —
+ * 결과는 채널을 다시 읽어 `status` 로 본다. 14일 창(`retryExpiresAt`)은 늘지 않는다.
+ * 실패 넷은 `AppError.rawCode` 로 가른다: JIRA_MANUAL_RETRY_BUSY · JIRA_MANUAL_RETRY_UNAVAILABLE ·
+ * JIRA_TICKET_NOT_FOUND · JIRA_MANUAL_RETRY_DISABLED (403 은 status 로).
+ */
+export const retryCollaborationChannel = async (targetSourceId: number): Promise<void> => {
+  await fetchInfraJson<unknown>(`/target-sources/${targetSourceId}/collaboration-channel/retry`, {
+    method: 'POST',
+  });
 };
 
 /* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */

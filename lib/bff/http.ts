@@ -482,6 +482,20 @@ export const httpBff: BffClient = {
       send<void>('POST', `/service-infos/${enc(serviceCode)}/end-of-service`, undefined, {
         emptyBodyOk: true,
       }),
+    // Assumed §4 (BE PR #8891) — snake both ways; the reader in
+    // lib/types/collaboration-channel.ts owns the casing boundary.
+    getCollaborationChannel: (id, query) =>
+      getSnakeRaw(
+        `/target-sources/${id}/collaboration-channel${buildQuery({
+          watcher_page: query?.watcherPage,
+          watcher_size: query?.watcherSize,
+        })}`,
+      ),
+    // 202 Accepted with no body — `emptyBodyOk` so the empty 2xx is not a parse failure.
+    postCollaborationChannelRetry: (id) =>
+      send<void>('POST', `/target-sources/${id}/collaboration-channel/retry`, undefined, {
+        emptyBodyOk: true,
+      }),
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§6).

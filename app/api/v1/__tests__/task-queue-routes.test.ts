@@ -55,6 +55,9 @@ describe('Admin Task Queue routes', () => {
       needTestConnectionCount: 7,
       needPiiAgentConfirmCount: 0,
       recentlyCreatedCount: 0,
+      // undeclared Jira counts (assumed §12) → 0 when the upstream does not send them
+      jiraTicketFailedCount: 0,
+      jiraWatcherFailedCount: 0,
       evaluatedAt: '2026-07-20T00:00:00Z',
     });
   });

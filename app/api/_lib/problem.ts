@@ -16,6 +16,12 @@ export type KnownErrorCode =
   | 'CONFLICT_IN_PROGRESS'
   | 'CONFLICT_APPLYING_IN_PROGRESS'
   | 'CONFLICT_REQUEST_PENDING'
+  // Collaboration channel manual retry (docs/api/ops-assumed-contracts.md §4). Kept
+  // distinct from the status fallbacks so the modal can say which of the four it was.
+  | 'JIRA_TICKET_NOT_FOUND'
+  | 'JIRA_MANUAL_RETRY_BUSY'
+  | 'JIRA_MANUAL_RETRY_UNAVAILABLE'
+  | 'JIRA_MANUAL_RETRY_DISABLED'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   | 'GUIDE_NOT_FOUND'
@@ -53,6 +59,10 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   CONFLICT_IN_PROGRESS: { status: 409, title: 'Conflict', retriable: true },
   CONFLICT_APPLYING_IN_PROGRESS: { status: 409, title: 'Applying In Progress', retriable: true },
   CONFLICT_REQUEST_PENDING: { status: 409, title: 'Request Pending', retriable: false },
+  JIRA_TICKET_NOT_FOUND: { status: 404, title: 'Jira Ticket Not Found', retriable: false },
+  JIRA_MANUAL_RETRY_BUSY: { status: 409, title: 'Jira Manual Retry Busy', retriable: true },
+  JIRA_MANUAL_RETRY_UNAVAILABLE: { status: 409, title: 'Jira Manual Retry Unavailable', retriable: false },
+  JIRA_MANUAL_RETRY_DISABLED: { status: 503, title: 'Jira Manual Retry Disabled', retriable: false },
   RATE_LIMITED: { status: 429, title: 'Rate Limited', retriable: true },
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
   GUIDE_NOT_FOUND: { status: 404, title: 'Guide Not Found', retriable: false },
@@ -162,6 +172,11 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   CONFLICT_IN_PROGRESS: 'CONFLICT_IN_PROGRESS',
   CONFLICT_APPLYING_IN_PROGRESS: 'CONFLICT_APPLYING_IN_PROGRESS',
   CONFLICT_REQUEST_PENDING: 'CONFLICT_REQUEST_PENDING',
+  // Identity entries — without them the status fallbacks rewrite the code the server sent.
+  JIRA_TICKET_NOT_FOUND: 'JIRA_TICKET_NOT_FOUND',
+  JIRA_MANUAL_RETRY_BUSY: 'JIRA_MANUAL_RETRY_BUSY',
+  JIRA_MANUAL_RETRY_UNAVAILABLE: 'JIRA_MANUAL_RETRY_UNAVAILABLE',
+  JIRA_MANUAL_RETRY_DISABLED: 'JIRA_MANUAL_RETRY_DISABLED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   // FAQ & Notices — identity entries. Without them the status fallback below
   // rewrites POST_NOT_FOUND into TARGET_SOURCE_NOT_FOUND (both are 404).
