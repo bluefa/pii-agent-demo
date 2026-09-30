@@ -15,10 +15,17 @@ import {
 } from '@/lib/bff/mock/approval-queue-fixtures';
 import type { ApprovalHistoryFixture, RequestRow } from '@/lib/bff/mock/approval-queue-fixtures';
 import { mockInstallationLifecycle } from '@/lib/bff/mock/target-sources';
+import {
+  JIRA_TICKET_FAILED_FIXTURE,
+  JIRA_WATCHER_FAILED_FIXTURE,
+  collaborationChannelOf,
+  type JiraFailureFixtureRow,
+} from '@/lib/bff/mock/ops';
 import { cloudProviderToWireProvider, isSduProvider, normalizeCloudProvider, ProcessStatus } from '@/lib/types';
 import type { Project } from '@/lib/types';
 import type {
   AlertTargetKind,
+  JiraAlertKind,
   IntegrationTimelineCsvQuery,
   IntegrationTimelineQuery,
   IntegrationTimelineWire,
@@ -40,8 +47,8 @@ import type {
  * intentionally NOT mirrored here (that state is owned by the confirm domain).
  */
 
-/** 진행 상태로 정의되는 알림 버킷 — '최근 생성'은 창이라 여기 들지 않는다. */
-type ProcessAlertKind = Exclude<AlertTargetKind, 'recent'>;
+/** 진행 상태로 정의되는 알림 버킷 — '최근 생성'은 창이라, Jira 두 목록은 티켓 상태라 여기 들지 않는다. */
+type ProcessAlertKind = Exclude<AlertTargetKind, 'recent' | JiraAlertKind>;
 
 // ── Process Status monitor (P1) ─────────────────────────────────────────────
 interface ProcRow {
@@ -655,6 +662,29 @@ const alertRows = (kind: ProcessAlertKind): ProcRow[] =>
   PROC.filter((p) => p.st === ALERT_KIND_STATUS[kind]);
 
 /**
+ * Jira Ticket console lists (assumed §12). A ticket-failed row leaves the list the
+ * moment its channel is CREATED — linking one key clears the whole (service, cloud)
+ * unit, which is what the screen promises after 티켓 연결.
+ */
+const jiraFailureRows = (kind: JiraAlertKind): readonly JiraFailureFixtureRow[] =>
+  kind === 'jira-ticket-failed'
+    ? JIRA_TICKET_FAILED_FIXTURE.filter((r) => collaborationChannelOf(r.ts).status !== 'CREATED')
+    : JIRA_WATCHER_FAILED_FIXTURE;
+
+/** TargetSourceInfo wire — no channel status on the row (the console GETs it per row). */
+const jiraFailureToWire = (r: JiraFailureFixtureRow) => ({
+  targetSourceId: r.ts,
+  serviceName: r.svc,
+  description: r.description,
+  serviceCode: r.code,
+  cloudProvider: r.pv,
+  confirmStatus: 'CONFIRMED',
+  metadata: { is_sdu_type: r.isSdu },
+  // OWNER-ASSUMED (§12): only the watcher list carries it.
+  ...(r.failedWatchers ? { failed_watchers: r.failedWatchers } : {}),
+});
+
+/**
  * 단계 시연용 픽스처인가 — id 목록이 아니라 **모양**으로 가른다.
  *
  * 목에는 두 종류의 대상이 산다. 하나는 업무 서비스(RCM·RSV·MAI…)고, 다른 하나는 각
@@ -994,6 +1024,9 @@ export const mockTaskQueue = {
       need_test_connection_count: alertRows('need-test-connection').length,
       need_pii_agent_confirm_count: alertRows('need-pii-agent-confirm').length,
       recently_created_count: recentProjects().length,
+      // Assumed §12 — the Jira Ticket console's two counts, off the same fixtures it lists.
+      jira_ticket_failed_count: jiraFailureRows('jira-ticket-failed').length,
+      jira_watcher_failed_count: jiraFailureRows('jira-watcher-failed').length,
       evaluated_at: new Date().toISOString(),
     }),
 
@@ -1005,6 +1038,10 @@ export const mockTaskQueue = {
     // 말하지 않도록.
     if (query.kind === 'recent') {
       const rows = recentProjects().map(projectToTargetSourceInfoWire);
+      return NextResponse.json(wirePage(rows, query.page, query.size));
+    }
+    if (query.kind === 'jira-ticket-failed' || query.kind === 'jira-watcher-failed') {
+      const rows = jiraFailureRows(query.kind).map(jiraFailureToWire);
       return NextResponse.json(wirePage(rows, query.page, query.size));
     }
     const content = alertRows(query.kind).map((p) => ({

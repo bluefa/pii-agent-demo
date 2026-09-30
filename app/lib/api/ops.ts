@@ -9,6 +9,7 @@ import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { BffProcessStatus } from '@/app/lib/api';
 import type { InstallationLifecycleStatus } from '@/lib/types';
 import type { DagStatusResponse } from '@/lib/types/dag-status';
+import { toCollaborationChannel, type CollaborationChannel } from '@/lib/types/collaboration-channel';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 
@@ -109,6 +110,37 @@ export const getTargetJiraTicket = async (
   );
   return raw?.issueKey ? { issueKey: raw.issueKey, browseUrl: raw.browseUrl ?? null } : null;
 };
+
+/* ── 협업 채널 (assumed §4, BE PR #8891) — Jira Ticket 콘솔이 읽고 쓴다 ── */
+
+/**
+ * 이 대상의 협업 채널 — 자동 생성 중인 Jira 티켓의 상태. 항상 200 이고, 티켓이 없으면
+ * `status: NONE` 이다. 본문을 못 읽으면 null(조회 실패) — 상태를 지어내지 않는다.
+ */
+export const getCollaborationChannel = async (
+  targetSourceId: number,
+  init?: { signal?: AbortSignal },
+): Promise<CollaborationChannel | null> =>
+  toCollaborationChannel(
+    await fetchInfraJson<unknown>(`/target-sources/${targetSourceId}/collaboration-channel`, init),
+  );
+
+/**
+ * 이미 있는 이슈 키를 협업 채널로 연결한다 — 만드는 API 는 없다. 같은 서비스 + 클라우드의
+ * Target Source 전체가 같은 티켓을 받는다. 409 `JIRA_TICKET_CREATION_IN_PROGRESS` 는
+ * 자동 생성이 쓰는 중, 그 밖의 409 는 다른 경로가 먼저 연결한 것 — 둘 다 `AppError.rawCode`
+ * 로 가른다.
+ */
+export const putCollaborationChannel = async (
+  targetSourceId: number,
+  issueKey: string,
+): Promise<CollaborationChannel | null> =>
+  toCollaborationChannel(
+    await fetchInfraJson<unknown>(`/target-sources/${targetSourceId}/collaboration-channel`, {
+      method: 'PUT',
+      body: { issue_key: issueKey },
+    }),
+  );
 
 /* ── 운영 콘솔 목록 (assumed §5) / 서비스 상세 (실계약 조합) ── */
 

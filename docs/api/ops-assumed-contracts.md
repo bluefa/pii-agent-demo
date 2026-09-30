@@ -73,30 +73,56 @@ values are also readable from `TargetSourceMetadata.aws_scan_role_arn` /
 Saving a role resets its verification verdict (next verify GET starts from IN_PROGRESS);
 a stale "verified" state must not survive an ARN change.
 
-## 4. Collaboration channel — WITHDRAWN, the real contract already covered it
+## 4. Collaboration channel — REINSTATED by BE PR #8891 (ahead of the swagger drop)
 
-This section invented `GET/PUT …/collaboration-channel` for the 협업 채널 block in the ops
-header. It never existed upstream, and it did not need to: install-v1 already carries both
-halves of what it was doing, split by role.
+The withdrawal note of 2026-08-10 is superseded. After 인프라 등록 the BFF asks
+jira-manager to create a Jira ticket asynchronously (retries every 10 minutes, gives up
+after 6). The Jira Ticket console (`/admin/pipelines/ops/jira`) reads that state per
+target and lets an admin link an existing issue key when auto-creation could not.
+Tickets are one per (serviceCode, cloudProvider); SDU targets are their own unit.
+
+Not in `docs/swagger/install-v1.yaml` yet — every field below is read as optional and
+absence renders as "조회 실패" / "티켓 없음", never as a made-up state. `npm run
+contract-check` is expected to FAIL on these paths until the swagger drop lands.
 
 ```
-GET  /install/v1/target-sources/{targetSourceId}/jira-ticket          // read — "이 대상의 티켓"
-→ 200 JiraTicketResponse { id, targetSourceId, serviceCode, issueKey, cloudProvider, browseUrl }
-→ 404 no ticket mapped to this target (an answer, not an outage)
+GET /install/v1/target-sources/{targetSourceId}/collaboration-channel
+→ 200 always
+{
+  "issue_key": "BDCDIP-1234",          // "" for PENDING/RETRYING/FAILED, null for NONE
+  "url": "https://jira…/browse/…",     // null when there is no ticket
+  "status": "CREATED",                 // CREATED | PENDING | RETRYING | FAILED | NONE
+  "attempt_count": 3,                  // may be 0 on RETRYING (auth problems) → hide the count
+  "max_attempts": 6,
+  "next_attempt_at": "2026-09-30T14:20:00.123456"   // server-local, fractional seconds, NO offset
+}
 
-POST/DELETE /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}   // write — 연결·해제
-POST        /install/v1/services/{serviceCode}/jira-tickets/{cloudProvider}/watchers
+PUT /install/v1/target-sources/{targetSourceId}/collaboration-channel
+{ "issue_key": "BDCDIP-1234", "url": "https://…" }   // url optional; issue_key required
+→ 200 same shape, status CREATED
+→ 400 issue_key empty
+→ 409 JIRA_TICKET_CREATION_IN_PROGRESS   // auto-creation is writing this ticket right now
+→ 409 (any other code)                   // someone else linked first — re-read and show it
 ```
 
-The assumed shape had a PUT because it assumed the ops header owned the mapping. It does
-not — the writes live on the service × provider axis and the 서비스 운영 화면 owns that
-surface. So the header reads the target axis and links to the service screen for the
-writes; nothing is left for an assumed endpoint to do.
+| status | Meaning | "has a ticket" |
+|---|---|---|
+| `CREATED` | A ticket is linked (auto or by hand). | yes (`!!issue_key`) |
+| `PENDING` | First creation attempt not made yet. | no |
+| `RETRYING` | A previous attempt failed; the next runs at `next_attempt_at`. | no |
+| `FAILED` | All `max_attempts` attempts failed; an admin links a ticket. | no |
+| `NONE` | Nothing was ever requested for this target. | no |
 
-Keeping the assumed pair had a visible cost: the same target read `INFRA-2211` in the ops
-header and `BDCDIP-1010` on the 서비스측 screen, which had been using the real target-axis
-endpoint all along. Withdrawn 2026-08-10 — `ChannelModal`, the Next route, the BFF methods
-and the mock store field are all deleted.
+- `next_attempt_at` carries no offset. The screen prints `HH:mm` by cutting the string —
+  it MUST NOT be parsed as UTC (see `lib/types/collaboration-channel.ts`).
+- Linking applies to every target source of the same (service, cloud): the PUT on one
+  row clears the whole unit from the `jira-ticket-failed` list on the next read.
+- The 운영 화면 header (`OpsHeader.tsx`) is unchanged and keeps reading the real
+  `GET …/jira-ticket`; this pair is the console's, not the header's.
+- Route: `app/api/v1/target-sources/[targetSourceId]/collaboration-channel/route.ts`
+  (GET / PUT). BFF: `bff.ops.getCollaborationChannel` / `putCollaborationChannel`.
+  Mock: `lib/bff/mock/ops.ts` (`__opsCollaborationChannelStore`; the key `BDCDIP-409`
+  answers the in-progress 409 on purpose).
 
 ## 5. Ops target-source list
 
@@ -516,6 +542,45 @@ Open questions for BE (asked 2026-08-20):
   branch, which mounts 다시 시도 — the CTA this section says an absent address must not get.
   If BE answers 404, the modal needs a 404 arm that folds into the empty landing.
 - does this path share dag-status' auth, or the standard `/install/v1` one?
+
+## 12. Jira failure lists and summary counts (BE PR #8891, ahead of the swagger drop)
+
+Two more kinds on the 운영 알림 drill-down path family, admin only (403 otherwise), same
+`Page<TargetSourceInfo>` envelope as the four shipped kinds:
+
+```
+GET /install/v1/dashboard/target-sources/jira-ticket-failed?page&size
+GET /install/v1/dashboard/target-sources/jira-watcher-failed?page&size
+```
+
+The rows carry NO ticket status — the console GETs §4 once per row (≤10 per page;
+`// ponytail` in `JiraWorklistSection.tsx`, to be replaced by list fields if the BE adds
+them to the DTO).
+
+**OWNER ASSUMPTION — unconfirmed.** Each `jira-watcher-failed` row also carries:
+
+```
+"failed_watchers": [ { "username": "hong.gildong", "status": "FAILED", "attempt_count": 6 } ]
+```
+
+It rides the schema's `.passthrough()`; the reader treats it as optional (absent → the
+modal says "추가할 사용자를 응답에서 읽지 못했어요.") and drops entries without a string
+`username`.
+
+`GET /install/v1/dashboard/summary` gains two counts, also read off the passthrough:
+
+```
+"jira_ticket_failed_count": 4,
+"jira_watcher_failed_count": 2
+```
+
+They feed the `Jira Ticket` sidebar badge (their sum) and the console's tiles. They are
+NOT added to the 운영 알림 badge or page. An absent count is null (unknown) on the console
+and 0 in `toDashboardSummary`.
+
+Consumers: `lib/types/task-queue.ts` (`JIRA_ALERT_KINDS`, `toJiraListPage`,
+`toDashboardSummary`), mock `lib/bff/mock/task-queue.ts` (fixtures in
+`lib/bff/mock/ops.ts`).
 
 ## Mock implementation
 

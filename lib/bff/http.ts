@@ -482,6 +482,10 @@ export const httpBff: BffClient = {
       send<void>('POST', `/service-infos/${enc(serviceCode)}/end-of-service`, undefined, {
         emptyBodyOk: true,
       }),
+    // Assumed §4 (BE PR #8891) — snake both ways; the reader in
+    // lib/types/collaboration-channel.ts owns the casing boundary.
+    getCollaborationChannel: (id) => getSnakeRaw(`/target-sources/${id}/collaboration-channel`),
+    putCollaborationChannel: (id, body) => put(`/target-sources/${id}/collaboration-channel`, body),
   },
 
   // SDU 담당자 흐름 — ASSUMED contracts (docs/api/sdu-assumed-contracts.md §1–§6).

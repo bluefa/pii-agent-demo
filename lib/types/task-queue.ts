@@ -43,6 +43,13 @@ export interface DashboardSummary {
   needPiiAgentConfirmCount: number;
   /** 최근 14일 이내 생성된 대상. 서버가 창을 소유한다 — 프론트는 날짜를 계산하지도 보내지도 않는다. */
   recentlyCreatedCount: number;
+  /**
+   * Jira Ticket console — BE PR #8891, ahead of the swagger drop
+   * (docs/api/ops-assumed-contracts.md §12). Undeclared on the generated schema, so
+   * they ride the passthrough; absent → 0 here, the page decides null-vs-0 before.
+   */
+  jiraTicketFailedCount: number;
+  jiraWatcherFailedCount: number;
   evaluatedAt: string | null;
 }
 
@@ -56,6 +63,9 @@ export const ALERT_TARGET_KINDS = [
   'need-test-connection',
   'need-pii-agent-confirm',
   'recent',
+  // Jira Ticket console lists (§12) — same path family, same Page<TargetSourceInfo>.
+  'jira-ticket-failed',
+  'jira-watcher-failed',
 ] as const;
 
 export type AlertTargetKind = (typeof ALERT_TARGET_KINDS)[number];
@@ -73,6 +83,14 @@ export interface TargetKindFlags {
   /** 중국 리전. Not hidden on an SDU row — where the data lives is the target's own fact. */
   isChinaRegion: boolean;
 }
+
+/** The two kinds the Jira Ticket console serves — a subset of the path family above. */
+export const JIRA_ALERT_KINDS = ['jira-ticket-failed', 'jira-watcher-failed'] as const;
+
+export type JiraAlertKind = (typeof JIRA_ALERT_KINDS)[number];
+
+export const isJiraAlertKind = (value: string): value is JiraAlertKind =>
+  (JIRA_ALERT_KINDS as readonly string[]).includes(value);
 
 export interface ProcessStatusRow extends TargetKindFlags {
   targetSourceId: number | null;
@@ -118,6 +136,25 @@ export interface RequestListRow extends TargetKindFlags {
 export interface AlertListRow extends RequestListRow {
   delaySeconds: number | null;
   statusChangedAt: string | null;
+}
+
+/**
+ * One watcher the BFF could not add to the ticket — OWNER-ASSUMED shape on the
+ * `jira-watcher-failed` rows (`failed_watchers`, docs/api/ops-assumed-contracts.md §12).
+ * Not in the swagger; malformed entries are dropped, an absent list is null.
+ */
+export interface FailedWatcher {
+  username: string;
+  status: string | null;
+  attemptCount: number | null;
+}
+
+/** RequestListRow + what the Jira Ticket console needs (§12). */
+export interface JiraListRow extends RequestListRow {
+  /** `metadata.is_sdu_type` — SDU targets are their own ticket unit. */
+  isSduType: boolean;
+  /** null = the response did not carry the list (also on `jira-ticket-failed` rows). */
+  failedWatchers: FailedWatcher[] | null;
 }
 
 export interface TestConnectionStatusRow {
@@ -242,6 +279,9 @@ export function toDashboardSummary(
     needTestConnectionCount: wire.need_test_connection_count ?? 0,
     needPiiAgentConfirmCount: wire.need_pii_agent_confirm_count ?? 0,
     recentlyCreatedCount: wire.recently_created_count ?? 0,
+    // Undeclared on `DashboardSummaryResponse` — survives the parse via `.passthrough()`.
+    jiraTicketFailedCount: numberOrZero(wire.jira_ticket_failed_count),
+    jiraWatcherFailedCount: numberOrZero(wire.jira_watcher_failed_count),
     evaluatedAt: wire.evaluated_at ?? null,
   };
 }
@@ -275,6 +315,8 @@ function readCamelKindFlags(source: unknown, cloudProvider: string | null | unde
     'isChinaRegion' in source ? source.isChinaRegion : false,
   );
 }
+
+const numberOrZero = (value: unknown): number => (typeof value === 'number' ? value : 0);
 
 function toProcessStatusRow(
   row: z.infer<typeof schemas.ProcessStatusCurrentResponse>,
@@ -356,6 +398,38 @@ export function toAlertListPage(
   wire: z.infer<typeof schemas.PageTargetSourceInfo>,
 ): Paged<AlertListRow> {
   return toPaged(wire, (row) => ({ ...toRequestListRow(row), ...readAlertDelayDelta(row) }));
+}
+
+/** Tolerant reader for the owner-assumed `failed_watchers` list (§12) — same
+ *  `in`-narrowing as `readAlertDelayDelta`. An entry without a string username is
+ *  dropped rather than rendered as an empty name. */
+function readFailedWatchers(row: unknown): FailedWatcher[] | null {
+  if (row === null || typeof row !== 'object' || !('failed_watchers' in row)) return null;
+  const list = row.failed_watchers;
+  if (!Array.isArray(list)) return null;
+  const watchers: FailedWatcher[] = [];
+  for (const entry of list) {
+    if (entry === null || typeof entry !== 'object' || !('username' in entry)) continue;
+    if (typeof entry.username !== 'string' || entry.username === '') continue;
+    const status = 'status' in entry ? entry.status : null;
+    const attempts = 'attempt_count' in entry ? entry.attempt_count : null;
+    watchers.push({
+      username: entry.username,
+      status: typeof status === 'string' ? status : null,
+      attemptCount: typeof attempts === 'number' ? attempts : null,
+    });
+  }
+  return watchers;
+}
+
+export function toJiraListPage(
+  wire: z.infer<typeof schemas.PageTargetSourceInfo>,
+): Paged<JiraListRow> {
+  return toPaged(wire, (row) => ({
+    ...toRequestListRow(row),
+    isSduType: row.metadata?.is_sdu_type === true,
+    failedWatchers: readFailedWatchers(row),
+  }));
 }
 
 export function toTestConnectionStatusRow(

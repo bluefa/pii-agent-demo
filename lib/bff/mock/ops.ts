@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import { minutesAgo } from '@/lib/bff/mock/clock';
 import { ProcessStatus } from '@/lib/types';
 import type {
+  CollaborationChannelWire,
   OpsProcessStatusWire,
   OpsStatusHistoryItemWire,
   OpsTargetSourceListItemWire,
@@ -277,6 +278,148 @@ export const mockOps = {
     if (!serviceCodes().includes(serviceCode)) return notFound('서비스를 찾을 수 없습니다.');
     serviceState(serviceCode).endOfServiceAt = minutesAgo(0);
     return new NextResponse(null, { status: 204 });
+  },
+
+  // Assumed §4 — the store and fixtures live below the Jira Tickets block.
+  getCollaborationChannel: async (targetSourceId: number) =>
+    mockCollaborationChannel.get(targetSourceId),
+  putCollaborationChannel: async (targetSourceId: number, body: { issue_key: string; url?: string }) =>
+    mockCollaborationChannel.put(targetSourceId, body),
+};
+
+/* ── Collaboration channel — ASSUMED §4 (BE PR #8891, ahead of the swagger drop) ── */
+
+/**
+ * One row of the Jira Ticket console fixtures — the TargetSourceInfo identity the two
+ * failure lists serve (`lib/bff/mock/task-queue.ts`) and, for watcher rows, the
+ * owner-assumed `failed_watchers` list. Hand-authored rather than derived from PROC:
+ * the console needs two targets of ONE service on AWS (the ticket is shared per
+ * service + cloud) and an SDU target, and the monitor fixture has neither.
+ */
+export interface JiraFailureFixtureRow {
+  ts: number;
+  svc: string;
+  code: string;
+  pv: string;
+  isSdu: boolean;
+  description: string;
+  failedWatchers?: { username: string; status: string; attempt_count: number }[];
+}
+
+export const JIRA_TICKET_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
+  { ts: 2113, svc: '결제서비스', code: 'PAY', pv: 'AWS', isSdu: false, description: '결제 승인 원장 RDS' },
+  { ts: 2114, svc: '결제서비스', code: 'PAY', pv: 'AWS', isSdu: false, description: '정산 대사용 읽기 복제본' },
+  { ts: 1099, svc: 'SDU', code: 'SDU', pv: 'AWS', isSdu: true, description: 'SDU 업로드 버킷 (서울)' },
+  { ts: 1980, svc: '회원서비스', code: 'MBR', pv: 'GCP', isSdu: false, description: '회원 프로필 Cloud SQL' },
+];
+
+export const JIRA_WATCHER_FAILED_FIXTURE: readonly JiraFailureFixtureRow[] = [
+  {
+    ts: 1861, svc: '정산서비스', code: 'STL', pv: 'AWS', isSdu: false, description: '정산 마감 배치 RDS',
+    failedWatchers: [
+      { username: 'hong.gildong', status: 'FAILED', attempt_count: 6 },
+      { username: 'kim.cs', status: 'RETRYING', attempt_count: 3 },
+    ],
+  },
+  {
+    ts: 1799, svc: '배송서비스', code: 'DLV', pv: 'AZURE', isSdu: false, description: '배송 추적 Azure SQL',
+    failedWatchers: [{ username: 'lee.mj', status: 'FAILED', attempt_count: 6 }],
+  },
+];
+
+const channelGlobal = globalThis as typeof globalThis & {
+  __opsCollaborationChannelStore?: Map<number, CollaborationChannelWire>;
+};
+
+const JIRA_BROWSE_BASE = 'https://jira.sec.samsung.net/browse/';
+
+const createdChannel = (issueKey: string): CollaborationChannelWire => ({
+  issue_key: issueKey,
+  url: `${JIRA_BROWSE_BASE}${issueKey}`,
+  status: 'CREATED',
+  attempt_count: null,
+  max_attempts: null,
+  next_attempt_at: null,
+});
+
+/** Seed: every ticket-failed row is not CREATED, every watcher-failed row already is. */
+const seedChannels = (): Map<number, CollaborationChannelWire> => {
+  const store = new Map<number, CollaborationChannelWire>();
+  // PAY/AWS — one ticket unit, two targets, third of six retries. Server-local time, no offset.
+  const payRetrying: CollaborationChannelWire = {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 3, max_attempts: 6,
+    next_attempt_at: '2026-09-30T14:20:00.000000',
+  };
+  store.set(2113, { ...payRetrying });
+  store.set(2114, { ...payRetrying });
+  store.set(1099, {
+    issue_key: '', url: null, status: 'FAILED', attempt_count: 6, max_attempts: 6, next_attempt_at: null,
+  });
+  // Auth problem: retrying with no attempt counted yet — the screen hides the count.
+  store.set(1980, {
+    issue_key: '', url: null, status: 'RETRYING', attempt_count: 0, max_attempts: 6,
+    next_attempt_at: '2026-09-30T14:30:00.000000',
+  });
+  store.set(1861, createdChannel('BDCDIP-2211'));
+  store.set(1799, createdChannel('BDCDIP-1799'));
+  return store;
+};
+
+const channelStore = (): Map<number, CollaborationChannelWire> =>
+  (channelGlobal.__opsCollaborationChannelStore ??= seedChannels());
+
+const NONE_CHANNEL: CollaborationChannelWire = {
+  issue_key: null, url: null, status: 'NONE', attempt_count: null, max_attempts: null, next_attempt_at: null,
+};
+
+/** Cross-module hook for the failure lists: a ticket-failed row leaves once its channel is CREATED. */
+export const collaborationChannelOf = (targetSourceId: number): CollaborationChannelWire =>
+  channelStore().get(targetSourceId) ?? NONE_CHANNEL;
+
+/** Every fixture target of the same (service, cloud) — the ticket unit a PUT links at once. */
+const sameTicketUnit = (row: JiraFailureFixtureRow): number[] =>
+  [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE]
+    .filter((r) => r.code === row.code && r.pv === row.pv && r.isSdu === row.isSdu)
+    .map((r) => r.ts);
+
+export const mockCollaborationChannel = {
+  // GET …/collaboration-channel → always 200 (NONE when nothing was ever created).
+  get: async (targetSourceId: number) =>
+    NextResponse.json(collaborationChannelOf(targetSourceId)),
+
+  // PUT …/collaboration-channel { issue_key, url? } → CREATED for the whole (service, cloud) unit.
+  put: async (targetSourceId: number, body: { issue_key: string; url?: string }) => {
+    const issueKey = body.issue_key.trim();
+    if (!issueKey) {
+      return NextResponse.json(
+        { error: 'VALIDATION_FAILED', message: 'issue_key는 비어 있을 수 없습니다.' },
+        { status: 400 },
+      );
+    }
+    // Demo hook: the key `BDCDIP-409` stands in for "auto-creation is writing right now" —
+    // the real BFF answers this whenever its retry loop holds the same ticket unit.
+    if (issueKey === 'BDCDIP-409') {
+      return NextResponse.json(
+        { error: 'JIRA_TICKET_CREATION_IN_PROGRESS', message: '자동 생성이 진행 중입니다.' },
+        { status: 409 },
+      );
+    }
+    const current = collaborationChannelOf(targetSourceId);
+    if (current.status === 'CREATED' && current.issue_key && current.issue_key !== issueKey) {
+      return NextResponse.json(
+        { error: 'CONFLICT', message: '이미 다른 티켓이 연결돼 있습니다.' },
+        { status: 409 },
+      );
+    }
+    const created: CollaborationChannelWire = body.url
+      ? { ...createdChannel(issueKey), url: body.url }
+      : createdChannel(issueKey);
+    const row = [...JIRA_TICKET_FAILED_FIXTURE, ...JIRA_WATCHER_FAILED_FIXTURE]
+      .find((r) => r.ts === targetSourceId);
+    for (const ts of row ? sameTicketUnit(row) : [targetSourceId]) {
+      channelStore().set(ts, { ...created });
+    }
+    return NextResponse.json(created);
   },
 };
 

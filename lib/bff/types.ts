@@ -476,6 +476,17 @@ export interface BffClient {
      */
     updateServiceInstalled: (serviceCode: string) => Promise<void>;
     endOfService: (serviceCode: string) => Promise<void>;
+    /**
+     * Collaboration channel (assumed §4, reinstated by BE PR #8891 ahead of the swagger
+     * drop). GET always answers 200 — a target with no ticket is `status: NONE`, not a
+     * 404. PUT links an existing issue key to every target source of the same
+     * (service, cloud); the two 409s it can answer are listed in §4.
+     */
+    getCollaborationChannel: (id: number) => Promise<CollaborationChannelWire>;
+    putCollaborationChannel: (
+      id: number,
+      body: { issue_key: string; url?: string },
+    ) => Promise<CollaborationChannelWire>;
   };
 
   /**
@@ -559,6 +570,19 @@ export interface OpsStatusHistoryItemWire {
   from_status: OpsProcessStatusWire | null;
   to_status: OpsProcessStatusWire;
   actor: string;
+}
+
+/**
+ * Collaboration channel wire (assumed §4) — everything optional/nullable until the
+ * swagger declares it; `lib/types/collaboration-channel.ts` is the reader.
+ */
+export interface CollaborationChannelWire {
+  issue_key?: string | null;
+  url?: string | null;
+  status?: 'CREATED' | 'PENDING' | 'RETRYING' | 'FAILED' | 'NONE' | null;
+  attempt_count?: number | null;
+  max_attempts?: number | null;
+  next_attempt_at?: string | null;
 }
 
 /** Spring-Page subset the assumed status-history endpoint returns. */
