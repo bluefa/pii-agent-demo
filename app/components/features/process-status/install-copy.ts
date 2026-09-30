@@ -249,12 +249,18 @@ const ko = {
     bdcDesc: 'BDC측에서 PII Agent 구성을 위한 Terraform 작업을 수행합니다.',
     /** PSC proxy-subnet guide (step 4 panel). */
     pscLead:
-      'Regional Managed Proxy Subnet이 Region마다 하나 있어야 그 Region의 Cloud SQL에 PSC를 만들 수 있습니다. 아래 명령을 호스트 프로젝트에서 Region마다 한 번 실행해주세요. CIDR만 프로젝트 대역에 맞게 채우면 됩니다.',
-    pscCidrNote: 'CIDR은 서비스 측 네트워크 대역이라 화면이 정하지 않습니다. 프로젝트에서 비어 있는 /24 대역을 넣어주세요.',
+      '아래 명령으로 PSC용 Subnet을 생성해 주세요.',
+    pscLocationLabel: '실행 위치',
+    pscLocation: '호스트 프로젝트',
+    pscUnitLabel: '생성 단위',
+    pscUnit: '호스트 VPC·Region 조합당 1개',
+    pscCidrTitle: 'CIDR 입력 필요',
+    pscCidrNote: '명령의 {CIDR /24}를 프로젝트에서 사용하지 않는 /24 대역으로 바꿔 주세요.',
     /** The same guide read by the operator (admin 인프라 작업) — who asks, not who runs. */
     pscLeadAdmin:
-      '서비스 측 담당자에게 아래 명령으로 PSC용 Regional Managed Proxy Subnet을 Region마다 하나 만들어 달라고 요청해주세요. 호스트 프로젝트에서 실행하는 명령이며, Subnet이 있어야 그 Region의 Cloud SQL에 PSC를 만들 수 있습니다.',
-    pscCidrNoteAdmin: 'CIDR은 서비스 측이 프로젝트에서 비어 있는 /24 대역으로 정합니다. 화면은 값을 넣지 않습니다.',
+      '서비스 측 담당자에게 PSC용 Subnet 생성을 요청해 주세요.',
+    pscCidrNoteAdmin: '명령의 {CIDR /24}는 서비스 측에서 정한 미사용 /24 대역으로 바꿔야 합니다.',
+    pscCopyText: '명령 복사',
     /** First line of the command, a shell comment — what it makes, where (오너 2026-09-14). */
     pscCommandComment: (hostProject: string, hostNetwork: string, region: string) =>
       `# 호스트 프로젝트 ${hostProject} 의 VPC ${hostNetwork} 에 ${region} PSC용 proxy subnet 을 만듭니다`,
@@ -495,11 +501,17 @@ const en: typeof ko = {
     bdcTitle: 'Apply BDC-side Terraform',
     bdcDesc: 'BDC runs the Terraform work that configures the PII Agent.',
     pscLead:
-      'Each Region needs one Regional Managed Proxy Subnet before a PSC can be created for its Cloud SQL. Run the command below in the host project, once per Region. Only the CIDR needs filling in.',
-    pscCidrNote: 'The CIDR is your network range, so the screen does not pick it. Use a free /24 block in the project.',
+      'Create the PSC subnet using the command below.',
+    pscLocationLabel: 'Run in',
+    pscLocation: 'Host project',
+    pscUnitLabel: 'Create',
+    pscUnit: 'One per host VPC and Region combination',
+    pscCidrTitle: 'CIDR required',
+    pscCidrNote: 'Replace {CIDR /24} in the command with an unused /24 block in your project.',
     pscLeadAdmin:
-      'Ask the service owner to create one Regional Managed Proxy Subnet per Region with the command below. It runs in the host project, and a PSC for that Region\'s Cloud SQL cannot be created until the subnet exists.',
-    pscCidrNoteAdmin: 'The service side picks the CIDR, a free /24 block in their project. The screen fills in nothing.',
+      'Ask the service owner to create the PSC subnet.',
+    pscCidrNoteAdmin: 'Replace {CIDR /24} in the command with an unused /24 block chosen by the service owner.',
+    pscCopyText: 'Copy command',
     pscCommandComment: (hostProject: string, hostNetwork: string, region: string) =>
       `# Creates the ${region} PSC proxy subnet in VPC ${hostNetwork} of host project ${hostProject}`,
     pscCovers: (n: number) => `${n} Cloud SQL`,

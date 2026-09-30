@@ -93,7 +93,8 @@ export interface InstallTableStep {
   title: string;
   /** 주체 태그 — '서비스측 …' / 'BDC측 …' (BDC 접두사가 태그 색상을 정한다). */
   side: string | null;
-  desc: string;
+  /** Plain description or a provider-specific inline guide. */
+  desc: ReactNode;
   /**
    * 서비스 측 담당자가 **직접 수행**해야 하는 단계에만 넣는 조치 문구.
    * 주체가 서비스측이어도 BDC가 자동 배포하는 단계에는 넣지 않는다 —

@@ -172,12 +172,10 @@ const CHAINS: Record<string, ChainStep[]> = {
       side: '서비스',
       sentence: '서비스 담당자가 PSC용 Subnet을 만들어야 합니다',
       listResources: false,
-      // Owner 2026-09-15: the same two lines as Azure — what waits on it, what to do.
+      // Keep the prerequisite here; execution instructions belong to the subnet guide.
       note: {
         lines: [
-          'BDC측이 Cloud SQL에 Private Service Connect를 만들려면 Region마다 PSC용 Proxy Subnet이 먼저 있어야 합니다.',
-          // No "아래 명령으로": the note also rides the 연결 테스트 tab, which has no command block.
-          '서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.',
+          'Cloud SQL의 PSC 연결에 앞서 호스트 프로젝트에 PSC용 Proxy Subnet이 필요합니다.',
         ],
       },
     },

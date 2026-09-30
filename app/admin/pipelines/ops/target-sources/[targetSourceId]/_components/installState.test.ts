@@ -166,9 +166,8 @@ describe('installStateView — GCP (4)', () => {
       ['서비스측 Terraform 적용', '관리자', 'wait'],
       ['BDC측 Terraform 적용', '관리자', 'wait'],
     ]);
-    expect(v?.note?.lines).toHaveLength(2);
     // No "아래 명령으로": the same note rides the 연결 테스트 tab, which has no command block.
-    expect(v?.note?.lines[1]).toBe('서비스 담당자가 호스트 프로젝트에서 PSC용 Proxy Subnet을 만들어야 합니다.');
+    expect(v?.note?.lines).toEqual(['Cloud SQL의 PSC 연결에 앞서 호스트 프로젝트에 PSC용 Proxy Subnet이 필요합니다.']);
     // No console link (owner 2026-09-15): the command block under the row is the move.
     expect(v?.note?.link).toBeUndefined();
   });

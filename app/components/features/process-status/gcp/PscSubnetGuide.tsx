@@ -47,18 +47,30 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
   const t = INSTALL_COPY[admin ? 'ko' : locale].gcp;
 
   return (
-    <div className={cn('flex flex-col', stackGap.group)}>
-      <p className={cn(textStyles.body, textColors.secondary)}>{admin ? t.pscLeadAdmin : t.pscLead}</p>
+    <div className={cn('flex flex-col', stackGap.group, textColors.primary)}>
+      <div className={cn('flex flex-col', stackGap.related)}>
+        <p className={textStyles.bodyStrong}>{admin ? t.pscLeadAdmin : t.pscLead}</p>
+        <dl className={cn('grid grid-cols-[auto_1fr] gap-x-4 gap-y-1', textStyles.body)}>
+          <dt className={textColors.secondary}>{t.pscLocationLabel}</dt>
+          <dd>{t.pscLocation}</dd>
+          <dt className={textColors.secondary}>{t.pscUnitLabel}</dt>
+          <dd>{t.pscUnit}</dd>
+        </dl>
+      </div>
+      <div className={cn('flex flex-col', stackGap.tight)}>
+        <p className={textStyles.bodyStrong}>{t.pscCidrTitle}</p>
+        <p className={cn(textStyles.body, textColors.secondary)}>{admin ? t.pscCidrNoteAdmin : t.pscCidrNote}</p>
+      </div>
       <div className={cn('flex flex-col', stackGap.related)}>
         {targets.map((target, index) => {
-          // The comment rides the command: it is copied with it, and prints one tint down.
+          // Include the project/VPC comment in the copied command.
           const comment = t.pscCommandComment(target.hostProject, target.hostNetwork, target.region);
           const command = `${comment}\n${target.command}`;
           return (
           <details
             key={`${target.hostNetwork}|${target.region}`}
             open={!admin && index === 0}
-            className={cn('group/psc overflow-hidden rounded-xl border bg-white', borderColors.default)}
+            className={cn('group/psc overflow-hidden rounded-xl border', bgColors.surface, textColors.primary, borderColors.default)}
           >
             <summary
               className={cn(
@@ -71,10 +83,10 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
                 aria-hidden="true"
               />
               <span className={cn(textStyles.bodyStrong, textColors.primary)}>{target.region}</span>
-              <span className={cn('font-mono', textStyles.caption, textColors.secondary)}>
+              <span className={cn('font-mono text-[13px]', textColors.secondary)}>
                 {target.subnetName}
               </span>
-              <span className={cn(textStyles.caption, textColors.tertiary)}>
+              <span className={cn('text-[13px]', textColors.secondary)}>
                 {t.pscCovers(target.resourceCount)}
               </span>
               {/* Inside <summary>, a click would also toggle the fold — stop it here. */}
@@ -82,19 +94,20 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
                 <CopyButton
                   value={command}
                   label={t.pscCopy(target.region)}
-                  className={cn('border bg-white', borderColors.default)}
+                  text={t.pscCopyText}
+                  className={cn('border whitespace-nowrap', bgColors.surface, borderColors.default)}
                 />
               </span>
             </summary>
             <div className={cn('border-t', borderColors.light)}>
               <pre
                 className={cn(
-                  'overflow-x-auto px-4 pt-2 pb-4 font-mono text-[12px] leading-[1.8]',
+                  'overflow-x-auto px-4 pt-2 pb-4 font-mono text-[13px] leading-[1.8]',
                   bgColors.panel,
                   textColors.secondary,
                 )}
               >
-                <span className={textColors.tertiary}>{comment}</span>
+                <span>{comment}</span>
                 {'\n'}
                 {target.command.split(CIDR_PLACEHOLDER).map((part, i, parts) => (
                   <span key={i}>
@@ -118,7 +131,6 @@ export const PscSubnetGuide = ({ targets, admin = false }: PscSubnetGuideProps) 
           );
         })}
       </div>
-      <p className={cn(textStyles.caption, textColors.tertiary)}>{admin ? t.pscCidrNoteAdmin : t.pscCidrNote}</p>
     </div>
   );
 };
