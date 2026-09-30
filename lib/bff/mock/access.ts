@@ -715,8 +715,8 @@ export const mockAccess = {
           service_abbr_name: null,
           access_status: accessStatusFor(caller.id, service.code),
           is_eos_service: service.isEosService ?? null,
-          // "담당자 표시명" — 계약에 사람 이름이 없으므로 Knox ID 가 그 이름이다.
-          owners: owners.map((userId) => userWire(userId).knox_id),
+          // Live BFF sends `{ knox_id }` objects (confirmed 2026-09-30).
+          owners: owners.map((userId) => ({ knox_id: userWire(userId).knox_id })),
           owner_count: owners.length,
         };
       });

@@ -245,7 +245,7 @@ describe('요청자 측', () => {
     const gcp = all.content.find((row) => row.service_code === 'gcp');
 
     // 행의 둘째 단이 이 값이다. 계약에 사람 이름이 없어 Knox ID 가 표시명이다.
-    expect(gcp?.owners).toContain('haneul.kang');
+    expect(gcp?.owners).toContainEqual({ knox_id: 'haneul.kang' });
     expect(gcp?.owner_count).toBe(gcp?.owners.length);
     // 담당자가 없는 서비스도 키는 있어야 한다 — 화면이 "담당자 없음"을 그 수로 판단한다.
     expect(all.content.every((row) => Array.isArray(row.owners))).toBe(true);
