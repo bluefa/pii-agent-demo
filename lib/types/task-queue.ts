@@ -139,13 +139,12 @@ export interface AlertListRow extends RequestListRow {
 }
 
 /**
- * RequestListRow + what the Jira Ticket console needs (§12). Ticket state and the failed
- * watchers are NOT on the row — they come from the collaboration-channel GET per target.
+ * A Jira Ticket console row (§12) — the request row as it is; the SDU/중국 flags it
+ * already carries are what the Cloud cell and the ticket unit read. Ticket state and
+ * the failed watchers are NOT on the row — they come from the collaboration-channel GET
+ * per target.
  */
-export interface JiraListRow extends RequestListRow {
-  /** `metadata.is_sdu_type` — SDU targets are their own ticket unit. */
-  isSduType: boolean;
-}
+export type JiraListRow = RequestListRow;
 
 export interface TestConnectionStatusRow {
   targetSourceId: number | null;
@@ -393,10 +392,7 @@ export function toAlertListPage(
 export function toJiraListPage(
   wire: z.infer<typeof schemas.PageTargetSourceInfo>,
 ): Paged<JiraListRow> {
-  return toPaged(wire, (row) => ({
-    ...toRequestListRow(row),
-    isSduType: row.metadata?.is_sdu_type === true,
-  }));
+  return toPaged(wire, toRequestListRow);
 }
 
 export function toTestConnectionStatusRow(

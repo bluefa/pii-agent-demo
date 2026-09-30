@@ -57,6 +57,7 @@ const ROW: JiraWorklistRow = {
   latestApprovalRequest: null,
   installationLifecycleStatus: null,
   isSduType: false,
+  isChinaRegion: false,
   channel: channel({}),
 };
 

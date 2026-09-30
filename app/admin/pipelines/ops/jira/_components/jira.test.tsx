@@ -49,6 +49,7 @@ const row = (over: Partial<JiraWorklistRow>): JiraWorklistRow => ({
   latestApprovalRequest: null,
   installationLifecycleStatus: null,
   isSduType: false,
+  isChinaRegion: false,
   channel: channel({}),
   ...over,
 });

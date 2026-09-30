@@ -269,7 +269,7 @@ export function JiraChannelModal({
       </h3>
 
       <div className={styles.strip}>
-        <ProvTag provider={row.cloudProvider ?? ''} isSdu={row.isSduType} />
+        <ProvTag provider={row.cloudProvider ?? ''} isSdu={row.isSduType} isChina={row.isChinaRegion} />
         <span className={styles.stripId}>Target {id ?? '—'}</span>
         <span>
           {row.serviceCode ?? '—'} · {row.serviceName ?? '—'}
