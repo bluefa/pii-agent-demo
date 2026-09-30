@@ -38,9 +38,21 @@ const credentialBehavior: CandidateResourceBehavior = {
   buildMetadataFields: () => ({}),
 };
 
+/**
+ * An endpoint needs an address — typed, or the chosen NIC's — which is what the endpoint
+ * editor requires before it saves. A row hydrated from the scan can carry an engine and a
+ * port with no address: that is a prefill for the editor, not a config.
+ *
+ * The service id is NOT checked here. The editor asks for one on Oracle only, so requiring
+ * it for every `requiresServiceId` engine would leave a Tibero row nothing can complete.
+ * Add the check when VmDatabaseConfigPanel reads the engine catalog.
+ */
+const isCompleteEndpoint = (endpoint: EndpointConfigDraft | undefined): boolean =>
+  endpoint !== undefined && Boolean(endpoint.host || endpoint.selectedNicId);
+
 const endpointBehavior: CandidateResourceBehavior = {
   configKind: 'endpoint',
-  isConfigured: (resource, draft) => resolveEndpoint(resource, draft) !== undefined,
+  isConfigured: (resource, draft) => isCompleteEndpoint(resolveEndpoint(resource, draft)),
   buildMetadataFields: (resource, draft) => {
     const endpoint = resolveEndpoint(resource, draft);
     return endpoint ? endpointMetadataFields(endpoint) : {};

@@ -1,5 +1,6 @@
 import {
   needsCredential,
+  normalizeResourceType,
   type BffConfirmedIntegration,
   type ConfirmResourceMetadata,
   type DatabaseType,
@@ -7,8 +8,8 @@ import {
   type RecommendFailReason,
   type ResourceScanStatus,
   type VmDatabaseConfig,
-  type VmDatabaseType,
 } from '@/lib/types';
+import { vmDatabaseTypeByValue } from '@/lib/constants/vm-database';
 import { isRdsCluster, type RdsInstanceCandidate } from '@/lib/rds-instances';
 import type {
   CandidateBehaviorKey,
@@ -44,26 +45,23 @@ export interface CatalogItem {
   metadata: ConfirmResourceMetadata;
 }
 
-const VM_DATABASE_TYPES: readonly VmDatabaseType[] = [
-  'MYSQL',
-  'POSTGRESQL',
-  'MSSQL',
-  'MONGODB',
-  'ORACLE',
-];
-
 const VM_RESOURCE_TYPES: ReadonlySet<string> = new Set(['AZURE_VM', 'EC2']);
 
-const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
-  VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
+// The contract spells a VM `AWS_EC2_INSTANCE` / `AZURE_VIRTUAL_MACHINE`; the set above holds
+// the internal names those normalize to.
+const isVmResourceType = (resourceType: string): boolean =>
+  VM_RESOURCE_TYPES.has(normalizeResourceType(resourceType) ?? '');
 
 const toVmDatabaseConfigFromCatalog = (
   item: CatalogItem,
 ): VmDatabaseConfig | undefined => {
-  if (!VM_RESOURCE_TYPES.has(item.resourceType)) return undefined;
-  if (!isVmDatabaseType(item.databaseType) || item.port === null) return undefined;
+  if (!isVmResourceType(item.resourceType)) return undefined;
+  // The wire sends the engine lowercase; the endpoint form's catalog keys off UPPERCASE.
+  // Reading the same catalog the form offers means an engine it can submit is one it restores.
+  const databaseType = vmDatabaseTypeByValue(item.databaseType.toUpperCase())?.value;
+  if (!databaseType || item.port === null) return undefined;
   return {
-    databaseType: item.databaseType,
+    databaseType,
     port: item.port,
     ...(item.host !== null ? { host: item.host } : {}),
     ...(item.oracleServiceId ? { oracleServiceId: item.oracleServiceId } : {}),
@@ -78,7 +76,7 @@ const toEndpointConfigDraft = (item: CatalogItem): EndpointConfigDraft | undefin
   toVmDatabaseConfigFromCatalog(item);
 
 const pickBehaviorKey = (item: CatalogItem): CandidateBehaviorKey => {
-  if (VM_RESOURCE_TYPES.has(item.resourceType)) return 'endpoint';
+  if (isVmResourceType(item.resourceType)) return 'endpoint';
   // A cluster the backend sent no instance list for stays a flat row — there is nothing
   // to choose between, so it must not grow a radio group (old data keeps working).
   if (isRdsCluster(item.resourceType) && item.rdsInstanceCandidates.length > 0) return 'rdsInstance';
