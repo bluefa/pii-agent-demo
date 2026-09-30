@@ -242,7 +242,7 @@ describe('JiraChannelModal — watcher 버킷', () => {
     expect(screen.getByText(/결과는 Jira 에서 확인됩니다/)).toBeDefined();
     const heading = screen.getByText(/페이지$/);
     expect(heading.textContent).toBe('사용자 12명 · 1 / 3 페이지');
-    expect(heading.parentElement?.querySelector('button')?.textContent).toBe('이 페이지 모두 등록');
+    expect(heading.closest('div')?.parentElement?.querySelector('button')?.textContent).toBe('전체 등록');
     expect(within(screen.getByTestId('facts')).getByRole('link', { name: /BDCDIP-1799/ })).toBeDefined();
     expect(fact('등록 실패')).toBe('12명');
     expect(fact('가장 빠른 다음 시도')).toBe('09-30 14:40');
@@ -303,70 +303,70 @@ describe('JiraChannelModal — watcher 버킷', () => {
     expect(addJiraTicketWatcher).not.toHaveBeenCalled();
   });
 
-  it('이 페이지 모두 등록: 아직 안 된 사람만 차례로, 실패해도 다음으로 간다', async () => {
+  it('전체 등록: 100명씩 끝까지 모아(120명 → 2쪽) 중복·이미 등록된 사람은 빼고 차례로, 실패해도 계속, 결과 toast + 보던 쪽 재조회', async () => {
+    const chunk = (names: string[], page: number) =>
+      created('BDCDIP-1799', { failedWatchers: names.map((n) => watcher(n)), failedWatchersTotal: 120, watcherPage: page, watcherSize: 100 });
+    getCollaborationChannel.mockImplementation(async (_id: number, opts: { watcherPage?: number; watcherSize?: number }) => {
+      if (opts.watcherSize === 100) return opts.watcherPage === 0 ? chunk(['ahn.sy', 'bae.jh', 'choi.mr'], 0) : chunk(['choi.mr', 'do.hk'], 1);
+      // 보던 쪽(5명씩) 재조회
+      return created('BDCDIP-1799', { failedWatchers: [watcher('ahn.sy'), watcher('bae.jh')], failedWatchersTotal: 120, watcherPage: 0, watcherSize: 5 });
+    });
     const order: string[] = [];
     addJiraTicketWatcher.mockImplementation(async (_code: string, _pv: string, userId: string) => {
       order.push(userId);
       if (userId === 'bae.jh') throw new AppError({ status: 500, code: 'INTERNAL_ERROR', message: 'jira down', retriable: false });
     });
-    watcherModal(watcherRow({
-      failedWatchers: [watcher('ahn.sy'), watcher('bae.jh'), watcher('choi.mr')],
-      failedWatchersTotal: 3,
-    }));
-    // 한 명은 먼저 손으로 등록해 둔다 — 모두 등록은 이 사람을 건너뛴다.
+    watcherModal(watcherRow({ failedWatchers: [watcher('ahn.sy'), watcher('bae.jh')], failedWatchersTotal: 120, watcherSize: 5 }));
+    // 한 명은 먼저 손으로 등록해 둔다 — 전체 등록은 이 사람을 건너뛴다.
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'ahn.sy 등록' }));
     });
     expect(order).toEqual(['ahn.sy']);
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '이 페이지 모두 등록' }));
+      fireEvent.click(screen.getByRole('button', { name: '전체 등록' }));
     });
-    expect(order).toEqual(['ahn.sy', 'bae.jh', 'choi.mr']);
-    expect(screen.getAllByText('등록됨')).toHaveLength(2);
+    const gathers = getCollaborationChannel.mock.calls.filter((c) => c[1]?.watcherSize === 100);
+    expect(gathers.map((c) => c[1].watcherPage)).toEqual([0, 1]);
+    // 전원 한 번씩, 이미 된 ahn.sy 는 빼고, 실패한 bae.jh 뒤로도 계속
+    expect(order).toEqual(['ahn.sy', 'bae.jh', 'choi.mr', 'do.hk']);
+    expect(toastShow).toHaveBeenCalledWith('watcher 2명 등록, 1명 실패');
+    expect(getCollaborationChannel).toHaveBeenLastCalledWith(1799, { watcherSize: 5, watcherPage: 0 });
+    // 보이는 행은 결과를 입는다
+    expect(screen.getByText('등록됨')).toBeDefined();
     expect(screen.getByRole('alert').textContent).toBe('jira down');
     expect(screen.getByRole('button', { name: 'bae.jh 등록' })).toBeDefined();
   });
 
-  it('표 영역은 10행 높이로 고정이고, 100명이면 페이저가 10쪽이다', async () => {
-    const names = Array.from({ length: 10 }, (_, i) => watcher(`user.${String(i).padStart(2, '0')}`));
-    const lastPage = created('BDCDIP-1799', {
-      failedWatchers: [watcher('zed.a'), watcher('zed.b')], failedWatchersTotal: 100, watcherPage: 9, watcherSize: 10,
-    });
-    getCollaborationChannel.mockResolvedValue(lastPage);
-    watcherModal(watcherRow({ failedWatchers: names, failedWatchersTotal: 100, watcherSize: 10 }));
-    const box = screen.getByTestId('watcher-table-box');
-    expect(box.className).toContain('h-[212px]');
-    expect(screen.getAllByRole('button', { name: /^user\.\d\d 등록$/ })).toHaveLength(10);
-    expect(screen.getByRole('navigation', { name: '페이지' })).toBeDefined();
-    // 창은 5쪽씩 — 첫 창은 1..5, 마지막 쪽(10)은 넘겨서 확인한다
-    expect(screen.getByRole('button', { name: '5' })).toBeDefined();
-    expect(screen.queryByRole('button', { name: '10' })).toBeNull();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '5' }));
-    });
-    expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherSize: 5, watcherPage: 4 });
-    // 서버가 9쪽(마지막)을 돌려주면 10 이 현재 쪽이고, 2행짜리 상자 높이는 그대로다
-    expect(screen.getByRole('button', { name: '10' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getAllByRole('button', { name: /^zed\.[ab] 등록$/ })).toHaveLength(2);
-    expect(screen.getByTestId('watcher-table-box').className).toContain('h-[212px]');
-  });
-
-  it('페이지를 넘기면 watcher_page 로 다시 읽고 등록 표시는 비운다', async () => {
+  it('등록 표시는 창이 살아 있는 동안 남는다 — 페이지를 넘겼다 돌아와도 제 행에 선다', async () => {
     addJiraTicketWatcher.mockResolvedValue(undefined);
-    getCollaborationChannel.mockResolvedValue(
-      created('BDCDIP-1799', { failedWatchers: [watcher('lee.mj')], failedWatchersTotal: 12, watcherPage: 1, watcherSize: 10 }),
-    );
-    watcherModal(watcherRow({ failedWatchers: [watcher('ahn.sy')], failedWatchersTotal: 12, watcherSize: 10 }));
+    getCollaborationChannel
+      .mockResolvedValueOnce(created('BDCDIP-1799', { failedWatchers: [watcher('lee.mj')], failedWatchersTotal: 12, watcherPage: 1, watcherSize: 5 }))
+      .mockResolvedValueOnce(created('BDCDIP-1799', { failedWatchers: [watcher('ahn.sy')], failedWatchersTotal: 12, watcherPage: 0, watcherSize: 5 }));
+    watcherModal(watcherRow({ failedWatchers: [watcher('ahn.sy')], failedWatchersTotal: 12, watcherSize: 5 }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'ahn.sy 등록' }));
     });
-    expect(screen.getByText('등록됨')).toBeDefined();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다음 페이지' }));
     });
     expect(getCollaborationChannel).toHaveBeenCalledWith(1799, { watcherSize: 5, watcherPage: 1 });
     expect(screen.getByText('lee.mj')).toBeDefined();
     expect(screen.queryByText('등록됨')).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '이전 페이지' }));
+    });
+    expect(screen.getByText('등록됨')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'ahn.sy 등록' })).toBeNull();
+  });
+
+  it('500명이 넘으면 전체 등록이 막히고 이유가 title 에 선다', () => {
+    watcherModal(watcherRow({ failedWatchers: [watcher('ahn.sy')], failedWatchersTotal: 501, watcherSize: 5 }));
+    const button = screen.getByRole('button', { name: '전체 등록' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('title')).toBe('500명까지 한 번에 등록할 수 있어요');
+    fireEvent.click(button);
+    expect(getCollaborationChannel).not.toHaveBeenCalled();
   });
 
   it('빈 목록과 조회 실패는 다른 문장을 받는다', () => {

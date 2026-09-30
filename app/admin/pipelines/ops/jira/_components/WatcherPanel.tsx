@@ -1,9 +1,11 @@
 'use client';
 
 /**
- * Watcher 버킷의 동작 블록 — 머리 줄(사람 수 · 페이지 · [이 페이지 모두 등록]) 과 5행 고정
- * 표, 페이저. 실계약 `POST /services/{code}/jira-tickets/{provider}/watchers` 로 한 명씩(또는
- * 이 페이지 전부 차례로) 다시 등록한다. 표는 채널 GET 의 한 페이지(`WATCHER_PAGE_SIZE`)다.
+ * Watcher 버킷의 동작 블록 — 머리 줄(사람 수 · 페이지 · [전체 등록]) 과 5행 고정 표, 페이저.
+ * 실계약 `POST /services/{code}/jira-tickets/{provider}/watchers` 로 한 명씩, 또는 [전체 등록]
+ * 으로 이 티켓의 실패한 사용자 **전부**를 차례로 다시 등록한다(오너: 한 페이지만 등록하는
+ * 버튼은 없느니만 못하다). 표는 채널 GET 의 한 페이지(`WATCHER_PAGE_SIZE`)고, 사람별 결과는
+ * 창이 살아 있는 동안 남아 페이지를 넘겨도 제 행에 표시된다.
  */
 import { useState, type ReactElement } from 'react';
 import { cn } from '@/lib/theme';
@@ -14,12 +16,25 @@ import { PlButton } from '@/app/admin/pipelines/_components/PlButton';
 import { OpsPagination } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/OpsPagination';
 import { userErrorText } from '@/app/admin/pipelines/ops/services/_components/errorText';
 import type { JiraWorklistRow } from '@/app/admin/pipelines/ops/jira/_components/JiraWorklist';
-import { JIRA_CLOUD_PROVIDERS, addJiraTicketWatcher, type JiraCloudProvider } from '@/app/lib/api/ops';
+import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
+import {
+  JIRA_CLOUD_PROVIDERS,
+  addJiraTicketWatcher,
+  getCollaborationChannel,
+  type JiraCloudProvider,
+} from '@/app/lib/api/ops';
+
+/** 전체 등록이 사용자 목록을 모을 때의 페이지 크기 — 서버 상한(`watcher_size` 1..100). */
+const GATHER_PAGE_SIZE = 100;
+/** 한 번에 등록하는 사람 수 상한. ponytail: raise when a ticket actually carries more. */
+export const BULK_REGISTER_CAP = 500;
 
 const styles = {
   headingRow: 'flex items-center justify-between gap-4',
   heading: 'text-[14px] font-semibold leading-[1.4] text-[var(--pl-text-medium)] tabular-nums',
   headingStrong: 'text-[var(--pl-text-strong)]',
+  /** 전체 등록 진행 — 머리 줄 아래 12px 한 줄. */
+  progress: 'mt-0.5 text-[12px] leading-[1.4] text-[var(--pl-text-weak)] tabular-nums',
   note: 'mt-3 text-[12px] text-[var(--pl-text-weak)]',
   /**
    * 표 상자 — 높이가 **5행으로 고정**이다(머리 32 + 36×5, `WATCHER_PAGE_SIZE`). 마지막 페이지가
@@ -61,9 +76,12 @@ export function WatcherPanel({
   /** 페이지를 넘긴다 — 다른 사람들이라 이 페이지의 등록 표시는 함께 떠난다. */
   reload: (watcherPage: number) => Promise<void>;
 }): ReactElement {
+  const toast = usePlToast();
+  /** username → 등록 진행. 창이 살아 있는 동안 남는다 — 페이지를 넘겨도 제 행에 표시된다. */
   const [registrations, setRegistrations] = useState<Record<string, Registration>>({});
-  /** 「이 페이지 모두 등록」 진행 — 라벨의 n/N. */
-  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  /** 「전체 등록」 진행 — n/N(N = 실패한 사람 전체) 과 그중 실패 f. */
+  const [bulk, setBulk] = useState<{ done: number; failed: number; total: number } | null>(null);
+  const id = row.targetSourceId;
 
   /** watcher API 의 경로 값 — 실계약 enum 밖(빈 값 등)이면 등록할 수 없다. */
   const watcherProvider = displayProvider(row.cloudProvider, row.isSduType).toUpperCase();
@@ -77,60 +95,94 @@ export function WatcherPanel({
    * ponytail: no re-GET after registration; drop this once the BE clears the watcher
    * from the failed list synchronously (then reload() here is the upgrade).
    */
-  const register = async (username: string): Promise<void> => {
-    if (row.serviceCode == null || !isJiraCloudProvider(watcherProvider)) return;
+  const register = async (username: string): Promise<boolean> => {
+    if (row.serviceCode == null || !isJiraCloudProvider(watcherProvider)) return false;
     setRegistrations((prev) => ({ ...prev, [username]: { state: 'busy' } }));
     try {
       await addJiraTicketWatcher(row.serviceCode, watcherProvider, username);
       setRegistrations((prev) => ({ ...prev, [username]: { state: 'done' } }));
+      return true;
     } catch (err) {
       setRegistrations((prev) => ({
         ...prev,
         [username]: { state: 'error', message: userErrorText(err, '등록에 실패했어요. 잠시 후 다시 시도해 주세요.') },
       }));
+      return false;
     }
   };
 
-  /** 이 페이지의 아직 안 된 사람들을 차례로 — 한 번에 하나, 실패해도 다음으로 간다. */
-  const registerPage = async (): Promise<void> => {
-    const pending = watchers.map((w) => w.username).filter((name) => registrations[name]?.state !== 'done');
-    if (pending.length === 0) return;
-    setBulk({ done: 0, total: pending.length });
-    for (const [index, name] of pending.entries()) {
-      await register(name);
-      setBulk({ done: index + 1, total: pending.length });
+  /**
+   * 이 티켓의 실패한 사용자 전부 — 서버 상한(100)으로 끝까지 넘겨 모으고, 이름으로 중복을
+   * 걷고, 이 창에서 이미 등록된 사람은 건너뛴 뒤 한 번에 하나씩 POST 한다. 실패해도 다음으로
+   * 간다. 끝나면 결과를 toast 로 세고 보던 페이지를 다시 읽는다.
+   */
+  const registerAll = async (): Promise<void> => {
+    if (id == null || !channel) return;
+    const total = channel.failedWatchersTotal;
+    setBulk({ done: 0, failed: 0, total });
+    const names: string[] = [];
+    const seen = new Set<string>();
+    try {
+      for (let page = 0; page * GATHER_PAGE_SIZE < total; page += 1) {
+        const chunk = await getCollaborationChannel(id, { watcherPage: page, watcherSize: GATHER_PAGE_SIZE });
+        if (!chunk || chunk.failedWatchers.length === 0) break;
+        for (const w of chunk.failedWatchers) {
+          if (seen.has(w.username)) continue;
+          seen.add(w.username);
+          names.push(w.username);
+        }
+      }
+    } catch (err) {
+      setBulk(null);
+      toast.show(userErrorText(err, '사용자 목록을 읽지 못했어요. 잠시 후 다시 시도해 주세요.'));
+      return;
+    }
+    let done = 0;
+    let failed = 0;
+    for (const name of names) {
+      if (registrations[name]?.state === 'done') continue;
+      if (await register(name)) done += 1;
+      else failed += 1;
+      setBulk({ done: done + failed, failed, total });
     }
     setBulk(null);
-  };
-
-  const turnPage = async (page: number): Promise<void> => {
-    await reload(page);
-    setRegistrations({});
+    toast.show(`watcher ${done}명 등록, ${failed}명 실패`);
+    await reload(channel.watcherPage);
   };
 
   const anyBusy = busy || bulk !== null || Object.values(registrations).some((r) => r.state === 'busy');
-  const pageDone = watchers.every((w) => registrations[w.username]?.state === 'done');
-  const totalPages = channel ? Math.max(1, Math.ceil(channel.failedWatchersTotal / channel.watcherSize)) : 1;
+  const total = channel?.failedWatchersTotal ?? 0;
+  const overCap = total > BULK_REGISTER_CAP;
+  const totalPages = channel ? Math.max(1, Math.ceil(total / channel.watcherSize)) : 1;
 
   return (
     <section aria-label="등록 실패한 사용자">
       <div className={styles.headingRow}>
-        <p className={styles.heading}>
-          사용자 <b className={styles.headingStrong}>{channel?.failedWatchersTotal ?? '—'}</b>명 ·{' '}
-          {channel ? channel.watcherPage + 1 : '—'} / {totalPages} 페이지
-        </p>
-        {watchers.length > 0 ? (
+        <div>
+          <p className={styles.heading}>
+            사용자 <b className={styles.headingStrong}>{channel?.failedWatchersTotal ?? '—'}</b>명 ·{' '}
+            {channel ? channel.watcherPage + 1 : '—'} / {totalPages} 페이지
+          </p>
+          {bulk ? (
+            <p className={styles.progress} role="status">
+              등록 중 {bulk.done}/{bulk.total} · 실패 {bulk.failed}
+            </p>
+          ) : null}
+        </div>
+        {total > 0 ? (
           <PlButton
             variant="secondary"
             size="sm"
-            onClick={() => void registerPage()}
-            // blocked, not disabled, when the cloud is outside the watcher API's enum —
-            // the title has to stay reachable to say why.
-            blocked={!canRegister}
-            disabled={anyBusy || pageDone}
-            title={canRegister ? undefined : '등록할 수 없는 클라우드'}
+            onClick={() => void registerAll()}
+            // blocked, not disabled, when the reason has to stay reachable in the title
+            // (a cloud outside the watcher API's enum, or more people than one run takes).
+            blocked={!canRegister || overCap}
+            disabled={anyBusy}
+            title={
+              !canRegister ? '등록할 수 없는 클라우드' : overCap ? `${BULK_REGISTER_CAP}명까지 한 번에 등록할 수 있어요` : undefined
+            }
           >
-            {bulk ? `등록 중 ${bulk.done}/${bulk.total}` : '이 페이지 모두 등록'}
+            {bulk ? `등록 중 ${bulk.done}/${bulk.total}` : '전체 등록'}
           </PlButton>
         ) : null}
       </div>
@@ -201,7 +253,7 @@ export function WatcherPanel({
 
       {channel && channel.failedWatchersTotal > channel.watcherSize ? (
         <div className={styles.pager}>
-          <OpsPagination page={channel.watcherPage} totalPages={totalPages} onChange={(next) => void turnPage(next)} />
+          <OpsPagination page={channel.watcherPage} totalPages={totalPages} onChange={(next) => void reload(next)} />
         </div>
       ) : null}
     </section>

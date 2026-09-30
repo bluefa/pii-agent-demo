@@ -620,8 +620,10 @@ targets). **BE question (open):** the modal sends the channel's `failed_watchers
 (a Jira username per §4) as `userId`; the watcher API's `userId` was documented as a
 PASS/knox id, so this assumes the two identifiers coincide. The modal does not re-GET the
 channel after a registration — the failed list is jira-manager state and may lag — it
-keeps a local 등록됨 mark and re-reads only when the user pages (`// ponytail` in
-`JiraChannelModal.tsx`).
+keeps a local 등록됨 mark for the modal's lifetime (`// ponytail` in `WatcherPanel.tsx`).
+[전체 등록] is client-side: it pages the channel GET at `watcher_size=100` (the server max)
+to collect every failed username, then POSTs them one at a time (cap 500 per run); there
+is no bulk endpoint.
 
 Consumers: `lib/types/task-queue.ts` (`JIRA_ALERT_KINDS`, `toJiraListPage`,
 `toDashboardSummary`), mock `lib/bff/mock/task-queue.ts` (fixtures in
