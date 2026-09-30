@@ -3,7 +3,7 @@
  * 협업 채널 모달 — 상태 보조 줄(한 줄 한 사실) · 다시 생성(접수 · 배너 넷) · watcher 표와
  * 등록 · 페이저.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -70,6 +70,9 @@ const failure = (status: number, rawCode?: string) =>
   new AppError({ status, code: status === 409 ? 'CONFLICT' : 'INTERNAL_ERROR', message: 'server says', retriable: false, rawCode });
 
 const retryButton = () => screen.getByRole('button', { name: '티켓 다시 생성' });
+/** 사실 칸의 라벨 → 값. */
+const fact = (label: string): string =>
+  within(screen.getByTestId('facts')).getByText(label).nextElementSibling?.textContent ?? '';
 const clickRetry = async () => {
   await act(async () => {
     fireEvent.click(retryButton());
@@ -83,15 +86,33 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('JiraChannelModal — 상태 보조 줄', () => {
-  it('FAILED: 만료 시각 한 줄, 「N회 모두 실패」 는 없다', () => {
+describe('JiraChannelModal — 머리 · 대상 카드 · 사실 칸', () => {
+  it('제목 22 + 한 줄 설명 + X 닫기; 카드는 Cloud 태그 · 설명 · Target 줄 · 상태 태그', () => {
+    const onClose = vi.fn();
+    ticketModal(ROW, onClose);
+    expect(screen.getByRole('heading', { name: '티켓 다시 생성' })).toBeDefined();
+    expect(screen.getByText(/14일 기한은 그대로예요/)).toBeDefined();
+    // X (머리) 와 [닫기] (바닥) 둘 다 닫는다 — 앞의 것이 X 다
+    fireEvent.click(screen.getAllByRole('button', { name: '닫기' })[0]);
+    expect(onClose).toHaveBeenCalled();
+
+    const card = screen.getByTestId('target-card');
+    expect(within(card).getByText('AWS')).toBeDefined();
+    expect(within(card).getByText('결제 승인 원장 RDS')).toBeDefined();
+    expect(within(card).getByText(/Target/).textContent).toBe('Target 2113 · PAY 결제서비스');
+    expect(within(card).getByText('자동 생성 실패')).toBeDefined();
+  });
+
+  it('FAILED: 실패 횟수 · 다음 시도 — · 자동 재시도 종료; 상태 칸은 없다', () => {
     ticketModal();
-    expect(screen.getByText('자동 생성 실패')).toBeDefined();
-    expect(screen.getByText('자동 재시도 종료 09-28 00:00')).toBeDefined();
+    expect(fact('실패 횟수')).toBe('9회');
+    expect(fact('다음 시도')).toBe('—');
+    expect(fact('자동 재시도 종료')).toBe('09-28 00:00');
+    expect(within(screen.getByTestId('facts')).queryByText('상태')).toBeNull();
     expect(screen.queryByText(/모두 실패/)).toBeNull();
   });
 
-  it('RETRYING LONG_TERM(max null): 태그는 접미 없이, 실패 횟수 · 다음 시도 · 종료 예정 순', () => {
+  it('RETRYING LONG_TERM(max null): 태그는 접미 없이, 횟수 · 다음 시도 · 종료 예정', () => {
     ticketModal({
       ...ROW,
       channel: channel({
@@ -99,29 +120,31 @@ describe('JiraChannelModal — 상태 보조 줄', () => {
         nextAttemptAt: '2026-10-01T00:50:00', retryExpiresAt: '2026-10-14T00:00:00',
       }),
     });
-    expect(screen.getByText('재시도 중')).toBeDefined();
-    const status = screen.getByText('재시도 중').parentElement as HTMLElement;
-    const lines = Array.from(status.querySelectorAll('span.tabular-nums')).map((el) => el.textContent);
-    expect(lines).toEqual(['실패 6회', '다음 시도 10-01 00:50', '자동 재시도 종료 예정 10-14 00:00']);
+    expect(within(screen.getByTestId('target-card')).getByText('재시도 중')).toBeDefined();
+    expect(fact('실패 횟수')).toBe('6회');
+    expect(fact('다음 시도')).toBe('10-01 00:50');
+    expect(fact('자동 재시도 종료 예정')).toBe('10-14 00:00');
   });
 
-  it('RETRYING attempt 0: 실패 횟수 줄이 빠진다', () => {
+  it('RETRYING attempt 0: 실패 횟수 칸은 남고 값만 —', () => {
     ticketModal({
       ...ROW,
       channel: channel({ status: 'RETRYING', attemptCount: 0, maxAttempts: 6, nextAttemptAt: '2026-09-30T14:20:00', retryExpiresAt: null }),
     });
-    expect(screen.queryByText(/실패 \d+회/)).toBeNull();
-    expect(screen.getByText('다음 시도 09-30 14:20')).toBeDefined();
+    expect(fact('실패 횟수')).toBe('—');
+    expect(fact('다음 시도')).toBe('09-30 14:20');
+    expect(fact('자동 재시도 종료 예정')).toBe('—');
   });
 });
 
 describe('JiraChannelModal — 티켓 다시 생성', () => {
-  it('입력도 [티켓 연결] 도 없다 — 동작은 다시 생성 하나', () => {
+  it('입력도 [티켓 연결] 도 없다 — 동작 띠에 주 버튼 하나', () => {
     ticketModal();
-    expect(screen.getByRole('heading', { name: '티켓 다시 생성' })).toBeDefined();
     expect(screen.queryByLabelText('Jira 이슈 키')).toBeNull();
     expect(screen.queryByRole('button', { name: '티켓 연결' })).toBeNull();
-    expect(retryButton()).toBeDefined();
+    const band = screen.getByTestId('action-band');
+    expect(within(band).getByText('지금 한 번 더 생성을 요청합니다')).toBeDefined();
+    expect(within(band).getByRole('button', { name: '티켓 다시 생성' })).toBeDefined();
   });
 
   it('접수: POST → toast·refresh → 재조회 → 접수 배너 + 잠긴 버튼; [다시 조회] 는 watcherSize 5 로 읽는다', async () => {
@@ -134,22 +157,25 @@ describe('JiraChannelModal — 티켓 다시 생성', () => {
     expect(retryCollaborationChannel).toHaveBeenCalledWith(2113);
     expect(refresh).toHaveBeenCalled();
     expect(getCollaborationChannel).toHaveBeenCalledWith(2113, { watcherSize: 5 });
-    expect(screen.getByRole('status').textContent).toContain('재시도를 접수했어요');
-    expect(screen.getByText('요청 09-30 15:02')).toBeDefined();
-    expect((retryButton() as HTMLButtonElement).disabled).toBe(true);
+    // 띠가 접수 상태로 바뀐다 — 주 버튼은 사라지고 [다시 조회] 가 선다
+    const band = screen.getByTestId('action-band');
+    expect(within(band).getByText('재시도를 접수했어요')).toBeDefined();
+    expect(within(band).getByText('요청 09-30 15:02 · 결과는 조회로 확인합니다')).toBeDefined();
+    expect(within(band).queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
     });
     expect(getCollaborationChannel).toHaveBeenLastCalledWith(2113, { watcherSize: 5 });
     expect(screen.getByRole('link', { name: /BDCDIP-5001/ })).toBeDefined();
-    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
+    // CREATED — 띠 자체가 없다
+    expect(screen.queryByTestId('action-band')).toBeNull();
   });
 
-  it('pending 으로 열리면 버튼이 잠겨 있고, 조회가 RETRYING·pending=false 로 오면 다시 풀린다', async () => {
+  it('pending 으로 열리면 띠는 접수 상태이고, 조회가 RETRYING·pending=false 로 오면 주 버튼이 돌아온다', async () => {
     getCollaborationChannel.mockResolvedValue(channel({ status: 'RETRYING', manualRetryPending: false }));
     ticketModal({ ...ROW, channel: channel({ status: 'RETRYING', manualRetryPending: true, manualRetryRequestedAt: '2026-09-30T15:02:00' }) });
-    expect((retryButton() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '다시 조회' }));
     });
@@ -179,7 +205,7 @@ describe('JiraChannelModal — 티켓 다시 생성', () => {
   it('NOT_FOUND · DISABLED · 403 · 그 밖: 한 줄 오류 배너', async () => {
     const cases: [AppError, string][] = [
       [failure(404, 'JIRA_TICKET_NOT_FOUND'), '저장된 생성 요청이 없습니다.'],
-      [failure(503, 'JIRA_MANUAL_RETRY_DISABLED'), '서버의 자동 생성 기능이 꺼져 있습니다.'],
+      [failure(503, 'JIRA_MANUAL_RETRY_DISABLED'), '서버의 자동 생성 기능이 꺼져 있습니다. 서비스 운영 화면에서 티켓을 직접 연결해 주세요.'],
       [failure(403, 'FORBIDDEN'), '권한이 없습니다.'],
       [failure(500), 'server says'],
     ];
@@ -193,10 +219,14 @@ describe('JiraChannelModal — 티켓 다시 생성', () => {
     expect(getCollaborationChannel).not.toHaveBeenCalled();
   });
 
-  it('CREATED: 티켓 링크가 서고 버튼은 없다', () => {
+  it('CREATED: 티켓 링크 · 실패 횟수 — · 다음 시도 —, 띠는 없다', () => {
     ticketModal({ ...ROW, channel: created('BDCDIP-77') });
-    expect(screen.getByRole('link', { name: /BDCDIP-77/ })).toBeDefined();
-    expect(screen.queryByRole('button', { name: '티켓 다시 생성' })).toBeNull();
+    expect(within(screen.getByTestId('facts')).getByRole('link', { name: /BDCDIP-77/ }).getAttribute('href')).toBe(
+      'https://jira.example.com/browse/BDCDIP-77',
+    );
+    expect(fact('실패 횟수')).toBe('—');
+    expect(fact('다음 시도')).toBe('—');
+    expect(screen.queryByTestId('action-band')).toBeNull();
   });
 });
 
@@ -216,25 +246,30 @@ describe('JiraChannelModal — watcher 버킷', () => {
         watcher('bae.jh'),
         watcher('kim.cs', { status: 'PENDING', attemptCount: 3, retryPhase: 'SHORT_TERM', nextAttemptAt: '2026-09-30T14:40:00' }),
       ],
-      failedWatchersTotal: 2,
+      failedWatchersTotal: 12,
+      watcherSize: 5,
     });
   const watcherModal = (row: JiraWorklistRow) =>
     render(<JiraChannelModal kind="jira-watcher-failed" row={row} onClose={vi.fn()} />);
 
-  it('사용자 표(FAILED/PENDING 문구 · 다음 시도 · 등록 버튼)를 그리고 입력은 없다; 한 페이지면 페이저도 없다', () => {
+  it('머리 줄 「사용자 N명 · p / P 페이지」 + 모두 등록, 사실 칸(티켓 · 등록 실패 · 가장 빠른 다음 시도), 5행 상자, 페이저', () => {
     watcherModal(two());
+    expect(screen.getByRole('heading', { name: 'Watcher 등록 실패' })).toBeDefined();
+    expect(screen.getByText(/결과는 Jira 에서 확인됩니다/)).toBeDefined();
+    const heading = screen.getByText(/페이지$/);
+    expect(heading.textContent).toBe('사용자 12명 · 1 / 3 페이지');
+    expect(heading.parentElement?.querySelector('button')?.textContent).toBe('이 페이지 모두 등록');
+    expect(within(screen.getByTestId('facts')).getByRole('link', { name: /BDCDIP-1799/ })).toBeDefined();
+    expect(fact('등록 실패')).toBe('12명');
+    expect(fact('가장 빠른 다음 시도')).toBe('09-30 14:40');
+    expect(within(screen.getByTestId('target-card')).getByText('생성됨')).toBeDefined();
     expect(screen.getByText('bae.jh')).toBeDefined();
-    expect(screen.getByText('등록 실패')).toBeDefined();
+    expect(screen.getByText('등록 실패', { selector: 'td' })).toBeDefined();
     expect(screen.getByText('재시도 중')).toBeDefined();
-    expect(screen.getByText('09-30 14:40')).toBeDefined();
     expect(screen.getByRole('button', { name: 'bae.jh 등록' })).toBeDefined();
-    expect(screen.getByRole('button', { name: '이 페이지 모두 등록' })).toBeDefined();
-    expect(screen.queryByRole('button', { name: '복사' })).toBeNull();
+    expect(screen.getByTestId('watcher-table-box').className).toContain('h-[212px]');
     expect(screen.queryByLabelText('Jira 이슈 키')).toBeNull();
-    expect(screen.queryByRole('button', { name: '티켓 연결' })).toBeNull();
-    expect(screen.queryByRole('navigation', { name: '페이지' })).toBeNull();
-    expect(screen.getByRole('link', { name: /BDCDIP-1799/ })).toBeDefined();
-    expect(screen.getByText(/등록 결과는 Jira 에서 확인됩니다/)).toBeDefined();
+    expect(screen.getByRole('navigation', { name: '페이지' })).toBeDefined();
   });
 
   it('등록: 서비스 코드 · 대문자 provider · username 으로 POST 하고 행이 등록됨이 된다 (재조회 없음)', async () => {
@@ -259,7 +294,7 @@ describe('JiraChannelModal — watcher 버킷', () => {
       fireEvent.click(screen.getByRole('button', { name: 'bae.jh 등록' }));
     });
     expect(screen.getByRole('alert').textContent).toBe('이미 watcher로 등록된 사용자입니다.');
-    expect(screen.getByText('등록 실패')).toBeDefined();
+    expect(screen.getByText('등록 실패', { selector: 'td' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'bae.jh 등록' })).toBeDefined();
   });
 
@@ -356,5 +391,7 @@ describe('JiraChannelModal — watcher 버킷', () => {
     unmount();
     watcherModal({ ...ROW, channel: null });
     expect(screen.getByText('추가할 사용자를 응답에서 읽지 못했어요.')).toBeDefined();
+    expect(fact('티켓')).toBe('—');
+    expect(within(screen.getByTestId('target-card')).getByText('조회 실패')).toBeDefined();
   });
 });
