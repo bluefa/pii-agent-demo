@@ -5,15 +5,16 @@ import { CheckIcon, CopyIcon } from '@/app/components/ui/icons';
 import { TIMINGS } from '@/lib/constants/timings';
 import { useLocale } from '@/app/components/LocaleProvider';
 import { COPY } from '@/lib/copy';
-import { cn } from '@/lib/theme';
+import { bgColors, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
 
 interface CopyButtonProps {
   value: string;
   label?: string;
+  text?: string;
   className?: string;
 }
 
-export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
+export const CopyButton = ({ value, label, text, className }: CopyButtonProps) => {
   const { locale } = useLocale();
   const [copied, setCopied] = useState(false);
 
@@ -33,15 +34,17 @@ export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
       onClick={handleCopy}
       aria-label={label ?? COPY[locale].common.copyValue(value)}
       className={cn(
-        'inline-grid h-[22px] w-[22px] place-items-center rounded-[5px]',
+        'inline-flex items-center justify-center rounded-[5px]',
+        text ? 'h-8 gap-1.5 px-2.5 text-[13px] font-medium' : 'h-[22px] w-[22px]',
         'transition-opacity transition-colors',
         copied
-          ? 'text-[#2A7D52]'
-          : 'text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#111827]',
+          ? statusColors.success.text
+          : cn(textColors.tertiary, bgColors.mutedHover, primaryColors.textHover),
         className,
       )}
     >
       {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
+      {text}
     </button>
   );
 };

@@ -12,9 +12,9 @@ describe('CopyButton', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('abc-123'));
   });
 
-  it('uses provided label as aria-label', () => {
-    render(<CopyButton value="abc" label="리소스 ID 복사" />);
-    expect(screen.getByRole('button', { name: '리소스 ID 복사' })).toBeTruthy();
+  it('keeps the accessible label when showing shorter button text', () => {
+    render(<CopyButton value="abc" label="리소스 ID 복사" text="복사" />);
+    expect(screen.getByRole('button', { name: '리소스 ID 복사' }).textContent).toBe('복사');
   });
 
   it('defaults aria-label to "<value> 복사"', () => {

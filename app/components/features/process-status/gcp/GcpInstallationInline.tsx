@@ -5,9 +5,12 @@ import {
   borderColors,
   cardStyles,
   cn,
+  primaryColors,
   statusColors,
   textColors,
+  textStyles,
 } from '@/lib/theme';
+import { InfoCircleIcon } from '@/app/components/ui/icons/InfoCircleIcon';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
 import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
 import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
@@ -60,7 +63,12 @@ const gcpSteps = (t: GcpCopy, subnetGuide?: ReactNode): InstallTableStep[] => [
     title: t.gcp.subnetTitle,
     side: t.side.serviceResource,
     group: 'todo',
-    desc: t.gcp.subnetDesc,
+    desc: (
+      <span className={cn('inline-flex items-start gap-2 rounded-lg px-3 py-2', primaryColors.bgLight, textStyles.body, textColors.secondary)}>
+        <InfoCircleIcon className={cn('mt-0.5 h-4 w-4 flex-none', primaryColors.textOnLight)} />
+        <span>{t.gcp.subnetDesc}</span>
+      </span>
+    ),
     guide: subnetGuide,
   },
   {

@@ -735,7 +735,7 @@ export const InstallStatusDetail = ({
         )}
         {/* 폭 캡 없음 — 단계 설명은 전부 한 문장이라, 판이 허용하는 만큼 한 줄로
             선다(오너 요구: "리소스별 Private Endpoint …" 줄바꿈 금지). */}
-        <p className={cn(textStyles.caption, compact ? textColors.tertiary : textColors.secondary)}>
+        <p className={cn(textStyles.body, textColors.secondary)}>
           {active.desc}
         </p>
         {/* 역참조 한 줄 — 참고 항목이 이 단계를 가리키는 만큼, 이 단계도 참고 항목을
