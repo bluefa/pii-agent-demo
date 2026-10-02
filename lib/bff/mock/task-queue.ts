@@ -932,9 +932,9 @@ const toTimelineWire = (project: Project): IntegrationTimelineWire => {
     created_at: project.createdAt,
     pii_agent_first_installed_at: firstInstalledAt,
     lead_time_seconds: leadTimeSeconds(project.createdAt, firstInstalledAt),
-    // Requested pair (2026-09-28).
-    is_sdu_type: project.isSduType === true,
-    is_china_region: isChinaProject(project),
+    // camelCase on the snake row, as the live wire sends it (2026-10-02).
+    isSduType: project.isSduType === true,
+    isChinaRegion: isChinaProject(project),
   };
 };
 
@@ -994,8 +994,8 @@ const TIMELINE_CSV_COLUMNS = [
   'pii_agent_first_installed_at',
   'lead_time_seconds',
   // Appended, never inserted — a downstream sheet reads the columns above by position.
-  'is_sdu_type',
-  'is_china_region',
+  'isSduType',
+  'isChinaRegion',
 ] as const;
 
 const csvCell = (value: string | number | boolean | null | undefined): string => {

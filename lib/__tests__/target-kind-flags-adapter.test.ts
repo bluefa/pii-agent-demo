@@ -76,10 +76,10 @@ describe('SDU / 중국 flags survive every list adapter', () => {
     expect(flags(plain)).toEqual(NEITHER);
   });
 
-  it('integration-timeline — snake pair on the row', () => {
+  it('integration-timeline — camel pair on the snake row', () => {
     const [sdu, plain] = toIntegrationTimelinePage(
       page([
-        { cloud_provider: 'AWS', is_sdu_type: true, is_china_region: true },
+        { cloud_provider: 'AWS', isSduType: true, isChinaRegion: true },
         { cloud_provider: 'AWS' },
       ]),
     ).content;
