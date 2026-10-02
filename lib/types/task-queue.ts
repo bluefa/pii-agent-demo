@@ -517,9 +517,12 @@ export interface IntegrationTimelineWire {
   created_at?: string | null;
   pii_agent_first_installed_at?: string | null;
   lead_time_seconds?: number | null;
-  /** Requested from the BE 2026-09-28, not confirmed on the wire — absent reads as false. */
-  is_sdu_type?: boolean | null;
-  is_china_region?: boolean | null;
+  /**
+   * camelCase on an otherwise snake_case row — the live wire spells this pair so
+   * (owner, 2026-10-02). Absent reads as false.
+   */
+  isSduType?: boolean | null;
+  isChinaRegion?: boolean | null;
 }
 
 export type IntegrationTimelinePageWire = WirePageMeta & {
@@ -550,7 +553,7 @@ function toIntegrationTimelineRow(row: IntegrationTimelineWire): IntegrationTime
     serviceCode: row.service_code ?? null,
     serviceName: row.service_name ?? null,
     cloudProvider: row.cloud_provider ?? null,
-    ...toTargetKindFlags(row.cloud_provider, row.is_sdu_type, row.is_china_region),
+    ...toTargetKindFlags(row.cloud_provider, row.isSduType, row.isChinaRegion),
     confirmStatus: row.confirm_status ?? null,
     createdAt: row.created_at ?? null,
     piiAgentFirstInstalledAt: row.pii_agent_first_installed_at ?? null,

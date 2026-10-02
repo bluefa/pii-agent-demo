@@ -108,7 +108,7 @@ describe('mock 연동 시점', () => {
     const csv = await mockTaskQueue.getIntegrationTimelineCsv(csvQuery);
     const [header, ...rows] = csv.split('\n');
     expect(header).toBe(
-      'target_source_id,service_code,service_name,cloud_provider,confirm_status,created_at,pii_agent_first_installed_at,lead_time_seconds,is_sdu_type,is_china_region',
+      'target_source_id,service_code,service_name,cloud_provider,confirm_status,created_at,pii_agent_first_installed_at,lead_time_seconds,isSduType,isChinaRegion',
     );
     // No pager on a download: every row the filter matched is in the file.
     const page = await read({ ...csvQuery, size: 100, page: 0 });
