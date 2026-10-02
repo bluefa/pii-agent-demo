@@ -27,7 +27,7 @@ export function taskDisplayName(
   return (
     detail?.definition?.display_name ||
     catalog?.get(task.task_definition) ||
-    task.operation ||
+    (task.operation !== 'UNKNOWN' && task.operation) ||
     task.task_definition
   );
 }

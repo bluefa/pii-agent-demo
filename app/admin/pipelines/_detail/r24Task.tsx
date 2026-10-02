@@ -24,7 +24,7 @@ import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon, type IconName } from '@/app/admin/pipelines/_components/icons';
 import { TerraformLogo } from '@/app/admin/pipelines/_components/brandMarks';
-import { definitionMark, operationMark } from '@/app/admin/pipelines/_components/taskMark';
+import { taskMark } from '@/app/admin/pipelines/_components/taskMark';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
 import type { InfraSide } from '@/lib/pipeline/format';
@@ -189,7 +189,7 @@ export function KindMark({
   operation?: TaskOperation | null;
   definition?: string | null;
 }): ReactElement {
-  const op = operationMark(operation) ?? definitionMark(definition);
+  const op = taskMark(operation, definition);
   if (op) {
     return (
       <span className={cn('r24-ticon', op.cls)} title={op.title}>
@@ -382,6 +382,8 @@ const CORNER_ICON: Partial<Record<FlowKey, IconName>> = {
 export interface RunTaskCardProps {
   kind: TaskKind;
   operation?: TaskOperation | null;
+  /** Definition name — picks the mark when `operation` is UNKNOWN. */
+  definition?: string | null;
   name: string;
   desc?: string | null;
   /** PLAN/APPLY/DESTROY tag for terraform jobs; null hides it. */
@@ -399,9 +401,9 @@ export interface RunTaskCardProps {
 }
 
 /** Live-pipeline task card — tile + status corner + status pill (R24 run flow). */
-export function RunTaskCard({ kind, operation, name, desc, action, side, status, seq, retry, onOpen }: RunTaskCardProps): ReactElement {
+export function RunTaskCard({ kind, operation, definition, name, desc, action, side, status, seq, retry, onOpen }: RunTaskCardProps): ReactElement {
   const view = STATUS_VIEW[status];
-  const op = operationMark(operation);
+  const op = taskMark(operation, definition);
   // The frame carries the verdict, on the same status strokes the pipeline
   // 현황 flow uses (TaskFlow `s-*`): green done, red failed + halo, dashed
   // pending, and the black current ring this card already had.

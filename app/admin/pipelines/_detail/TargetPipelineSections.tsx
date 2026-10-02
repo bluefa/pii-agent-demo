@@ -25,6 +25,7 @@ import { StatusPill } from '@/app/admin/pipelines/_components/StatusPill';
 import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { CancelModal } from '@/app/admin/pipelines/_detail/CancelModal';
 import { RestartModal } from '@/app/admin/pipelines/_detail/RestartModal';
+import { useMissingTaskNames } from '@/app/admin/pipelines/_detail/useMissingTaskNames';
 import { detailStyles } from '@/app/admin/pipelines/_detail/detailStyles';
 import { RestartBadge, TypeTile } from '@/app/admin/pipelines/_detail/r24Task';
 import { RequesterTag } from '@/app/admin/pipelines/_detail/RequesterTag';
@@ -103,7 +104,8 @@ export function TargetPipelineSections({
   const [latest, setLatest] = useState<PipelineSummary | null>(null);
   const [latestLoaded, setLatestLoaded] = useState(false);
   const [liveDetail, setLiveDetail] = useState<PipelineDetail | null>(null);
-  const [defs, setDefs] = useState<ReadonlyMap<string, TaskCatalogEntry>>(new Map());
+  // null until the catalog call settles — useMissingTaskNames waits for it.
+  const [defs, setDefs] = useState<ReadonlyMap<string, TaskCatalogEntry> | null>(null);
   const [runsKey, setRunsKey] = useState(0);
   // Repo rule: modal open/close flows go through useModal.
   const restartModal = useModal();
@@ -191,7 +193,8 @@ export function TargetPipelineSections({
         if (!cancelled) setDefs(new Map(res.task_definitions.map((e) => [e.name, e])));
       })
       .catch(() => {
-        /* strip falls back to wire names */
+        // strip falls back to wire names, or to what useMissingTaskNames fetches
+        if (!cancelled) setDefs(new Map());
       });
     return () => {
       cancelled = true;
@@ -206,6 +209,7 @@ export function TargetPipelineSections({
   const totalPages = Math.max(1, history?.totalPages ?? 1);
   const rows = history?.content ?? [];
   const focusDetail = liveDetail && liveDetail.pipeline_id === focusId ? liveDetail : null;
+  const missingNames = useMissingTaskNames(focusDetail?.pipeline_id, focusDetail?.tasks, defs);
   const { table } = opsStyles;
 
   return (
@@ -225,6 +229,7 @@ export function TargetPipelineSections({
               detail={focusDetail}
               sectionTitle="현재 작업"
               defs={defs}
+              taskNames={missingNames}
               onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
               onOpenOrigin={goPipeline}
               onCancel={() => cancelModal.open()}
@@ -240,6 +245,7 @@ export function TargetPipelineSections({
               detail={focusDetail}
               sectionTitle="최근 작업"
               defs={defs}
+              taskNames={missingNames}
               onOpenPipeline={() => goPipeline(focusDetail.pipeline_id)}
               onOpenOrigin={goPipeline}
               onCancel={() => cancelModal.open()}
@@ -405,7 +411,11 @@ export function TargetPipelineSections({
           key={openTask.task_id}
           pipelineId={focusId}
           taskId={openTask.task_id}
-          displayName={defs.get(openTask.task_definition)?.display_name ?? openTask.task_definition}
+          displayName={
+            defs?.get(openTask.task_definition)?.display_name ??
+            missingNames.get(openTask.task_definition) ??
+            openTask.task_definition
+          }
           onClose={() => setOpenTask(null)}
         />
       )}
@@ -435,6 +445,7 @@ export function TargetPipelineSections({
           targetSourceId={targetSourceId}
           pipelineId={focusId}
           provider={provider}
+          taskNames={missingNames}
           showToast={toast.show}
           onStale={() => setRunsKey((k) => k + 1)}
           onStarted={() => setRunsKey((k) => k + 1)}

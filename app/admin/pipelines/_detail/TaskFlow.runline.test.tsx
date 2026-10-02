@@ -64,3 +64,25 @@ describe('TaskFlow — the run row clock', () => {
       .toContain('경과 <span class="nd-run-el-v">7</span>분');
   });
 });
+
+// The same task wore a link on the run card and the condition-gate check here.
+describe('TaskFlow — HTTP_REQUEST marks', () => {
+  const http = (task_definition: string): TaskSummary => ({
+    ...task({ sequence: 7, status: 'READY' }),
+    kind: 'HTTP_REQUEST',
+    operation: 'UNKNOWN',
+    task_definition,
+  });
+
+  it('marks an AWS China install task by its definition', () => {
+    const out = html([http('AWS_SERVICE_ACCOUNT_CREATE_V1')]);
+    expect(out).toContain('title="Service Account 생성"');
+    expect(out).not.toContain('조건 확인');
+  });
+
+  it('falls back to the HTTP link, never the condition check', () => {
+    const out = html([http('SOMETHING_NEW_V1')]);
+    expect(out).toContain('title="HTTP 요청"');
+    expect(out).not.toContain('title="조건 확인(폴링)"');
+  });
+});

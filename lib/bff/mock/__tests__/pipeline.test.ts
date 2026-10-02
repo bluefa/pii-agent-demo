@@ -263,7 +263,7 @@ describe('mockPipeline (in-memory orchestrator)', () => {
     });
 
     it('appends SA create → secret rotation to an AWS China install, and to nothing else', () => {
-      const tail = ['SERVICE_ACCOUNT_CREATE_V1', 'CHINA_SECRET_ROTATION_TRIGGER_V1'];
+      const tail = ['AWS_SERVICE_ACCOUNT_CREATE_V1', 'AWS_CHINA_SECRET_ROTATION_TRIGGER_V1'];
       const china = mockPipeline.preview('1018', 'INSTALL').body as RecipePreview; // 1018 = AWS China
       expect(china.steps.map((s) => s.task_definition).slice(7)).toEqual(tail);
       expect(china.steps.slice(7).every((s) => s.kind === 'HTTP_REQUEST')).toBe(true);

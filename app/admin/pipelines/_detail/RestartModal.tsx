@@ -79,6 +79,8 @@ export interface RestartModalProps {
   pipelineId: number;
   /** Orchestrator wire provider for the task-name catalog; null = wire names. */
   provider: CloudProvider | null;
+  /** Names the caller resolved for definitions the catalog omits (useMissingTaskNames). */
+  taskNames?: ReadonlyMap<string, string>;
   showToast: (message: string) => void;
   /** Fired when the server rejected as stale — the caller refetches its latest. */
   onStale?: () => void;
@@ -95,6 +97,7 @@ export function RestartModal({
   targetSourceId,
   pipelineId,
   provider,
+  taskNames,
   showToast,
   onStale,
   onStarted,
@@ -181,7 +184,7 @@ export function RestartModal({
   if (!open) return null;
 
   const displayName = (definition: string): string =>
-    names.get(definition)?.display_name ?? definition;
+    names.get(definition)?.display_name ?? taskNames?.get(definition) ?? definition;
   const resumeStep = preview ? preview.resume_from_sequence + 1 : 0;
 
   // The ORIGIN chain as one node row: skipped (dim) then the re-run suffix, the

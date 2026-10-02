@@ -114,13 +114,6 @@ const HTTP_RESULT_STORAGE =
   '호출마다 응답 원문을 attempt에 저장한다(기본 1 MiB 상한, 넘으면 truncated로 표시). 성공한 추천 원문은 Task의 입력 행에 '
   + '따로 고정돼 등록 재시도가 같은 원문을 다시 쓴다.';
 
-const CHINA_HTTP_SUCCESS_POLICY =
-  'API를 직접 호출하고 2xx를 받으면 성공이다. 401·403과 계약을 벗어난 응답은 재시도하지 않는다. '
-  + '429·5xx·연결 장애·per-call timeout만 재시도 예산 안에서 다시 호출한다.';
-
-const CHINA_HTTP_RESULT_STORAGE =
-  '호출마다 응답 원문을 attempt에 저장한다(기본 1 MiB 상한, 넘으면 truncated로 표시).';
-
 const tf = (
   name: string,
   provider: CloudProvider,
@@ -313,28 +306,29 @@ const CATALOG_DEFS: CatalogDef[] = [
     resultStorage: HTTP_RESULT_STORAGE,
   },
   // ── HTTP_REQUEST · AWS China install ──
-  // Endpoints and policy text are assumed — neither is in the contract yet.
+  // Names, operation (UNKNOWN), display names and policy text follow the wire sample
+  // (2026-10-02); the endpoints are still assumed.
   {
-    name: 'SERVICE_ACCOUNT_CREATE_V1',
+    name: 'AWS_SERVICE_ACCOUNT_CREATE_V1',
     provider: 'AWS',
-    operation: 'SERVICE_ACCOUNT_CREATE',
+    operation: 'UNKNOWN',
     kind: 'HTTP_REQUEST',
-    displayName: 'Service Account 생성',
-    description: '중국 리전 대상이 쓸 Service Account를 생성한다.',
+    displayName: 'AWS Agent Service Account 생성',
+    description: '대상 AWS target source의 partition(Global/China)에 맞는 payload로 agent GCP service account 생성을 요청한다.',
     statusApi: 'POST /infra/target-sources/{targetSourceId}/service-accounts (실제 API 미확정 — 가정 엔드포인트)',
-    successPolicy: CHINA_HTTP_SUCCESS_POLICY,
-    resultStorage: CHINA_HTTP_RESULT_STORAGE,
+    successPolicy: 'Infra Manager AWS agent service account 생성 API가 201을 반환하면 완료한다.',
+    resultStorage: '현재 HTTP 본문과 metadata는 task_attempt에 보존한다.',
   },
   {
-    name: 'CHINA_SECRET_ROTATION_TRIGGER_V1',
+    name: 'AWS_CHINA_SECRET_ROTATION_TRIGGER_V1',
     provider: 'AWS',
-    operation: 'CHINA_SECRET_ROTATION_TRIGGER',
+    operation: 'UNKNOWN',
     kind: 'HTTP_REQUEST',
-    displayName: 'Secret Key Rotation 실행',
-    description: '생성된 Service Account의 Secret Key rotation을 시작한다.',
+    displayName: 'China Agent Secret 로테이션',
+    description: 'China AWS target의 agent GCP service account key를 새로 발급하고 AWS Secrets Manager에 반영한다. 대상 service account가 없으면 실패한다(온보딩 기능 아님).',
     statusApi: 'POST /infra/target-sources/{targetSourceId}/china/secret-rotation (실제 API 미확정 — 가정 엔드포인트)',
-    successPolicy: CHINA_HTTP_SUCCESS_POLICY,
-    resultStorage: CHINA_HTTP_RESULT_STORAGE,
+    successPolicy: 'Infra Manager China agent secret 로테이션 API가 200을 반환하면 완료한다. 같은 serviceCode의 로테이션이 이미 진행 중이면 409를 CHINA_SECRET_ROTATION_CONFLICT(재시도 가능)로 판정한다.',
+    resultStorage: '현재 HTTP 본문(로테이션 결과 포함)과 metadata는 task_attempt에 보존한다.',
   },
 ];
 
@@ -447,7 +441,7 @@ const findRecipe = (provider: CloudProvider, type: PipelineType): RecipeDef | un
 
 // ponytail: the China tail rides on AWS_INSTALL_V1 rather than a recipe of its own —
 // the backend's recipe name is unknown. Split it into a RecipeDef once that name lands.
-const CHINA_INSTALL_TAIL = ['SERVICE_ACCOUNT_CREATE_V1', 'CHINA_SECRET_ROTATION_TRIGGER_V1'];
+const CHINA_INSTALL_TAIL = ['AWS_SERVICE_ACCOUNT_CREATE_V1', 'AWS_CHINA_SECRET_ROTATION_TRIGGER_V1'];
 
 const stepsFor = (recipe: RecipeDef, targetSourceId: string): string[] => {
   const project = getProjectByTargetSourceId(Number(targetSourceId));

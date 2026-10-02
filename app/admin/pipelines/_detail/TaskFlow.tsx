@@ -27,7 +27,7 @@ import {
 } from 'react';
 import { cn } from '@/lib/theme';
 import { Icon } from '@/app/admin/pipelines/_components/icons';
-import { operationMark } from '@/app/admin/pipelines/_components/taskMark';
+import { taskMark } from '@/app/admin/pipelines/_components/taskMark';
 import { TerraformLogo, providerLogo } from '@/app/admin/pipelines/_components/brandMarks';
 import { JobKindTag } from '@/app/admin/pipelines/_components/JobKindTag';
 import { InfraSideTag } from '@/app/admin/pipelines/_components/InfraSideTag';
@@ -313,7 +313,7 @@ export function TaskFlow({
           // Status stays a stroke/badge signal on the card (owner) — but a border color
           // is silent, so the accessible name is where the verdict gets spelled out.
           const verdict = statusKo(task.status);
-          const opMark = operationMark(task.operation);
+          const opMark = taskMark(task.operation, task.task_definition);
           return (
             <Fragment key={task.task_id}>
               {index > 0 && (
@@ -346,6 +346,12 @@ export function TaskFlow({
                     ) : task.kind === 'TERRAFORM_JOB' ? (
                       <span className="nd-mark" title="Terraform">
                         <TerraformLogo />
+                      </span>
+                    ) : task.kind === 'HTTP_REQUEST' ? (
+                      // Same fallback as KindMark / RunTaskCard — without it an HTTP task
+                      // wore the condition-gate check here and a link everywhere else.
+                      <span className="nd-mark" title="HTTP 요청">
+                        <Icon name="link" strokeWidth={2.2} />
                       </span>
                     ) : (
                       <span className="nd-mark m-cond" title="조건 확인(폴링)">
