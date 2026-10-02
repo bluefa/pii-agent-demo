@@ -32,7 +32,7 @@ export interface MonitoringEvidenceBodyProps {
   /** 1,500행 보드 패널(논리 DB 전체 현황) 진입. */
   onOpenBoard: () => void;
   /** 응답 최상위 `latestTableCountSum` — 논리 DB 마다 가장 최근 성공 실행이 읽은 Table 수의 합. */
-  latestTableCountSum: number;
+  latestTableCountSum: number | null | undefined;
 }
 
 export function MonitoringEvidenceBody({
@@ -90,7 +90,13 @@ export function MonitoringEvidenceBody({
           뜻은 (?) 가 진다: 논리 DB 마다 가장 최근 성공한 DAG 실행이 읽은 Table 수의 합.
           0 은 그대로 0 — 성공 기록이 없어 읽은 Table 이 없다는 사실이다. */}
       <span className="flex items-center gap-1.5 border-l border-[var(--pl-border-strong)] pl-3">
-        최근 성공 Table 수<b className={b.countValue}>{n(latestTableCountSum)}</b>
+        최근 성공 Table 수
+        {/* 값이 없으면(와이어에 필드가 없거나 null) 수 자리에 말로 — 0 으로 지어내지 않는다. */}
+        {latestTableCountSum == null ? (
+          <span className="font-normal">확인 안 됨</span>
+        ) : (
+          <b className={b.countValue}>{n(latestTableCountSum)}</b>
+        )}
         <InfoTooltip
           variant="value"
           content="논리 DB마다 가장 최근에 성공한 DAG 실행이 읽은 Table 수를 모두 더한 값이에요."

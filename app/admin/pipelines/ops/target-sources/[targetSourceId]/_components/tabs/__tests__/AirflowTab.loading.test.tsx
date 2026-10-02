@@ -96,4 +96,28 @@ describe('AirflowTab — 대기 프레임', () => {
     // 응답 최상위 latestTableCountSum 이 카운트 줄에 그대로 선다 — 다시 더한 값이 아니다.
     expect(screen.getByText('최근 성공 Table 수').textContent).toContain('7');
   });
+
+  it('latestTableCount* 필드가 없는 응답(실 BFF 2026-09-28)에도 탭이 서고, 그 자리는 확인 안 됨·대시다', async () => {
+    getConfirmedIntegration.mockReturnValue(new Promise(() => {}));
+    const { latestTableCountSum: _root, ...rest } = DAG;
+    const withoutCounts: DagStatusResponse = {
+      ...rest,
+      agents: DAG.agents.map(({ latestTableCountSum: _agent, ...agent }) => ({
+        ...agent,
+        databaseStatuses: agent.databaseStatuses.map(({ latestTableCount: _db, ...db }) => db),
+      })),
+    };
+    render(
+      <AirflowTab
+        targetSourceId={1642}
+        isIdc={false}
+        dag={{ phase: 'loaded', data: withoutCounts, fetchedAt: '2026-09-02T00:00:00Z' }}
+      />,
+    );
+    await act(async () => {});
+
+    expect(screen.getByText('최근 성공 Table 수').textContent).toContain('확인 안 됨');
+    // 에이전트 표의 Table 수 칸은 대시 — 확정 정보 대기 칸은 자국이라 대시는 이 칸 하나뿐이다.
+    expect(screen.getAllByText('—')).toHaveLength(1);
+  });
 });

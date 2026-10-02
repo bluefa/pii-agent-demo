@@ -525,6 +525,9 @@ DagStatusResponse {
   }]
   latestTableCountSum:  number                  // Σ agents[].latestTableCountSum (BE-computed)
 }
+
+⚠️ All three `latestTableCount*` fields are read as OPTIONAL: the live BFF on 2026-09-28
+answered without them (owner report). Absent or null renders as 「확인 안 됨」 / dash, never 0.
 ```
 
 **2026-09-28 (owner sample):** three `latestTableCount*` fields joined the response. The

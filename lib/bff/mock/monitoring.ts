@@ -189,7 +189,7 @@ const buildScaleAgents = (days: string[]): DagAgentStatus[] =>
 
 const buildResponse = (targetSourceId: number): DagStatusResponse => {
   const base = buildBase(targetSourceId);
-  return { ...base, latestTableCountSum: sumBy(base.agents, (a) => a.latestTableCountSum) };
+  return { ...base, latestTableCountSum: sumBy(base.agents, (a) => a.latestTableCountSum ?? 0) };
 };
 
 const buildBase = (targetSourceId: number): Omit<DagStatusResponse, 'latestTableCountSum'> => {

@@ -454,9 +454,9 @@ export function AgentDagTable({
                       )}
                     </td>
                     {/* 가장 최근 성공 실행이 읽은 Table 수의 합 — BE 가 센 수라 0 도 수다.
-                        대시는 보드의 행 단위 null(읽을 성공 실행 없음)에만 쓴다. */}
+                        값이 없으면(와이어에 필드가 없거나 null) 대시 — 0 으로 지어내지 않는다. */}
                     <td className={cn(CELL, 'font-mono tabular-nums')}>
-                      {agent.latestTableCountSum.toLocaleString('ko-KR')}
+                      {agent.latestTableCountSum == null ? <Dash /> : agent.latestTableCountSum.toLocaleString('ko-KR')}
                     </td>
                     {/* 판정 칸은 낱말 하나다 (오너 2026-08-26) — 수는 옆의 규모 열이
                         전부 진다. 한 칸이 판정과 수를 같이 지면, 분수를 걷어 낸 이유
