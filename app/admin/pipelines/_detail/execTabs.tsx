@@ -123,7 +123,7 @@ export function TerraformExec({
     : null;
   // `definition` is null when the definition name no longer resolves (deleted or
   // renamed) — then the endpoint is simply not named.
-  const statusApi = timedOut ? detail.definition?.status_api.trim() || null : null;
+  const statusApi = timedOut ? detail.definition?.status_api?.trim() || null : null;
   return (
     <>
       <OperatorDescription detail={detail} />

@@ -127,6 +127,7 @@ function SeqFlow({
     key: string;
     kind: TaskKind;
     operation?: TaskOperation | null;
+    definition?: string | null;
     name: string;
     desc?: string | null;
     action?: TerraformAction | null;
@@ -143,6 +144,7 @@ function SeqFlow({
             <R24TaskNode
               kind={s.kind}
               operation={s.operation}
+              definition={s.definition}
               name={s.name}
               desc={s.desc}
               action={s.action}
@@ -470,6 +472,7 @@ export function PreviewModal({
             steps={chosen.map((t) => ({
               key: t.name,
               kind: t.kind,
+              definition: t.name,
               name: t.display_name,
               desc: t.description,
               action: t.terraform_action,
@@ -521,6 +524,7 @@ export function PreviewModal({
                   key: String(s.sequence),
                   kind: s.kind,
                   operation: s.operation,
+                  definition: s.task_definition,
                   name: s.display_name,
                   desc: s.definition?.description,
                   action: s.terraform_action,

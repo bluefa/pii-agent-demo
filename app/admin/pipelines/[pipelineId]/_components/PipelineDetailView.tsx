@@ -15,11 +15,12 @@
  * The header service line (name + code) comes from the reused target-source
  * detail (getRawTargetSourceDetail) — PipelineDetail carries neither field.
  */
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { useMissingTaskNames } from '@/app/admin/pipelines/_detail/useMissingTaskNames';
 import { cn, pipelineStyles } from '@/lib/theme';
 import { passRoutes } from '@/lib/routes';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
@@ -88,7 +89,8 @@ export function PipelineDetailView(): ReactElement {
   const [status, setStatus] = useState<LoadStatus>('loading');
   // Task-definition catalog (one bulk call): display names + descriptions for the
   // flow nodes, so a node needs NO per-task detail to render its name/subtitle.
-  const [catalog, setCatalog] = useState<ReadonlyMap<string, string>>(new Map());
+  // null until the call settles — useMissingTaskNames waits for it.
+  const [catalog, setCatalog] = useState<ReadonlyMap<string, string> | null>(null);
   const [descMap, setDescMap] = useState<ReadonlyMap<string, string>>(new Map());
   // Per-task detail is fetched lazily — only the task the operator opens. `has(id)`
   // distinguishes "not fetched yet" (skeleton) from "fetched, value null" (error).
@@ -147,7 +149,7 @@ export function PipelineDetailView(): ReactElement {
             setCatalog(new Map(res.task_definitions.map((c) => [c.name, c.display_name])));
             setDescMap(new Map(res.task_definitions.map((c) => [c.name, c.description])));
           })
-          .catch(() => {});
+          .catch(() => !cancelled && setCatalog(new Map()));
         // Latest run of the owning target — service identity + restart gate.
         // Degrades silently: no latest ⇒ no restart CTA (server is the authority).
         getLatestPipelineByTarget(d.target_source_id)
@@ -262,9 +264,13 @@ export function PipelineDetailView(): ReactElement {
     };
   }, [detail, svcName]);
 
+  // Catalog names, plus a detail-fetched name for each definition the catalog omits —
+  // so a node is named before it is opened, and stays named when the poll evicts its detail.
+  const missingNames = useMissingTaskNames(detail?.pipeline_id, detail?.tasks, catalog);
+  const names = useMemo(() => new Map([...missingNames, ...(catalog ?? [])]), [missingNames, catalog]);
   const resolveName = useCallback(
-    (t: TaskSummary): string => taskDisplayName(t, detailMap.get(t.task_id), catalog),
-    [detailMap, catalog],
+    (t: TaskSummary): string => taskDisplayName(t, detailMap.get(t.task_id), names),
+    [detailMap, names],
   );
 
   // Retry budget denominator comes from the pipeline detail's current-task fields
@@ -742,6 +748,7 @@ export function PipelineDetailView(): ReactElement {
         targetSourceId={detail.target_source_id}
         pipelineId={detail.pipeline_id}
         provider={detail.cloud_provider}
+        taskNames={missingNames}
         showToast={toast.show}
         onStale={() => setReloadKey((k) => k + 1)}
         onStarted={(created) => router.push(passRoutes.pipelines.pipeline(created.pipeline_id))}

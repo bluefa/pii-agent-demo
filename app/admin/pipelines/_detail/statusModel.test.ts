@@ -49,6 +49,11 @@ describe('taskDisplayName — precedence', () => {
     const noOp = mkTask({ sequence: 0, status: 'READY', task_definition: 'bare_def', operation: null });
     expect(taskDisplayName(noOp, null, null)).toBe('bare_def'); // task_definition
   });
+
+  it('never shows the wire placeholder operation UNKNOWN as a name', () => {
+    const china = mkTask({ sequence: 7, status: 'READY', task_definition: 'AWS_SERVICE_ACCOUNT_CREATE_V1', operation: 'UNKNOWN' });
+    expect(taskDisplayName(china, null, null)).toBe('AWS_SERVICE_ACCOUNT_CREATE_V1');
+  });
 });
 
 describe('retrySuffix', () => {

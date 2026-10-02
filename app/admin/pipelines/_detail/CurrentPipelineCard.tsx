@@ -88,8 +88,10 @@ export interface CurrentPipelineCardProps {
   detail: PipelineDetail;
   /** 현재 작업 (live) | 최근 작업 (terminal) — the section name, inside the card. */
   sectionTitle: string;
-  /** task_definition name → catalog entry (display name + description). */
-  defs: ReadonlyMap<string, TaskCatalogEntry>;
+  /** task_definition name → catalog entry (display name + description); null until loaded. */
+  defs: ReadonlyMap<string, TaskCatalogEntry> | null;
+  /** Names for definitions the catalog omits (useMissingTaskNames). */
+  taskNames?: ReadonlyMap<string, string>;
   onOpenPipeline: () => void;
   /** Opens the ORIGIN run when this one is a restart (restart badge). */
   onOpenOrigin?: (originPipelineId: number) => void;
@@ -114,6 +116,7 @@ export function CurrentPipelineCard({
   detail,
   sectionTitle,
   defs,
+  taskNames,
   onOpenPipeline,
   onOpenOrigin,
   onCancel,
@@ -308,14 +311,15 @@ export function CurrentPipelineCard({
       <div ref={flowRef} className="r24-canvas r24-hscroll !rounded-none !border-x-0 !border-b-0">
         <div className="r24-line">
           {tasks.map((task, i) => {
-            const def = defs.get(task.task_definition);
+            const def = defs?.get(task.task_definition);
             return (
               <Fragment key={task.task_id}>
                 {i > 0 && <FlowArrow />}
                 <RunTaskCard
                   kind={task.kind}
                   operation={task.operation}
-                  name={def?.display_name ?? task.task_definition}
+                  definition={task.task_definition}
+                  name={def?.display_name ?? taskNames?.get(task.task_definition) ?? task.task_definition}
                   desc={task.description ?? def?.description}
                   action={task.terraform_action}
                   side={taskInfraSide(task.task_definition, task.kind)}

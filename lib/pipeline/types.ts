@@ -94,9 +94,10 @@ export type TaskOperation =
   // 값에서 온다(TaskDefinition 의 provider 가 아니다).
   | 'DELETE_CONFIRMED_RESOURCES'
   | 'CONFIRM_RESOURCES_FROM_RECOMMENDATION'
-  // AWS China install only — run in this order after the Terraform steps.
-  | 'SERVICE_ACCOUNT_CREATE'
-  | 'CHINA_SECRET_ROTATION_TRIGGER';
+  // What the wire sends for a task with no operation of its own — the AWS China
+  // install tasks (AWS_SERVICE_ACCOUNT_CREATE_V1, AWS_CHINA_SECRET_ROTATION_TRIGGER_V1)
+  // arrive this way, so only the definition name tells them apart. Never render it.
+  | 'UNKNOWN';
 
 /**
  * Terraform job action, derived server-side from the operation (backend
@@ -234,7 +235,8 @@ export interface TaskDefinitionView {
   display_name: string;
   description: string;
   dispatch_api?: string;
-  status_api: string;
+  /** Absent on the AWS China install HTTP tasks' definition (wire sample 2026-10-02). */
+  status_api?: string;
   result_api?: string;
   success_policy: string;
   result_storage: string;
