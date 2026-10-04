@@ -1211,6 +1211,13 @@ export interface ConfirmedIntegrationResourceInfo {
   idc_source_ips?: string[];
   /** 배정된 NLB 인덱스 (ResourceConfigDto.nlb_index) — 요청 리소스와 같은 이름·같은 값. */
   nlb_index?: number | null;
+  /**
+   * GCP Shared VPC host — the PSC proxy-subnet command's `--project` / `--network`.
+   * Only GCP_SQL rows carry them. BE added these to ResourceConfigDto on 2026-09-16 ahead
+   * of the swagger drop; confirm they land in the next `docs/swagger` refresh.
+   */
+  host_project?: string | null;
+  host_network?: string | null;
 }
 
 export interface ConfirmResourceMetadata {

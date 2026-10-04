@@ -172,7 +172,9 @@ const demoRegion = (
   // themselves as meaningless for IDC looked answered instead.
   if (provider === 'IDC') return null;
   if (provider === 'AWS') return resource.region ?? 'ap-northeast-1';
-  if (provider === 'GCP') return 'asia-northeast3';
+  // 1301's second Cloud SQL sits in us-central1 so the step-4 PSC subnet guide has a
+  // Region still to make next to one already made (lib/mock-gcp.ts PSC_SUBNET_OPEN_ROWS).
+  if (provider === 'GCP') return resource.id === 'gcp-inel-1301-2' ? 'us-central1' : 'asia-northeast3';
   return 'ap-northeast-1';
 };
 
@@ -537,6 +539,8 @@ function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): 
     resource_name: demoResourceName(project.cloudProvider, r),
     port,
     host,
+    // GCP Shared VPC host — what the step-4 PSC proxy-subnet guide reads.
+    ...(project.cloudProvider === 'GCP' ? { host_project: 'acme-net-host-prod', host_network: 'shared-vpc-prod' } : {}),
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration: null,

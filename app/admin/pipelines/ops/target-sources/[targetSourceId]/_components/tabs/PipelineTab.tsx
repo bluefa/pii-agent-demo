@@ -27,6 +27,7 @@ import { usePlToast } from '@/app/admin/pipelines/_components/usePlToast';
 import { InfraStatusHead } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/InfraStatusHead';
 import { PscSubnetGuide } from '@/app/components/features/process-status/gcp/PscSubnetGuide';
 import { usePscSubnetTargets } from '@/app/components/features/process-status/gcp/usePscSubnetTargets';
+import { pendingSubnetResourceIds } from '@/app/components/features/process-status/gcp/psc-subnet';
 import { useInstallCheck } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/useInstallCheck';
 import { useInstallResourceIdentity } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installIdentity';
 import { installStateView } from '@/app/admin/pipelines/ops/target-sources/[targetSourceId]/_components/installState';
@@ -148,7 +149,11 @@ export function PipelineTab({
   const identity = useInstallResourceIdentity(targetSourceId, provider === 'idc' || provider === 'azure');
   // GCP: the subnet commands the service side runs, same rows and same block as the
   // user's step-4 card, so the operator and the owner read one thing.
-  const subnetTargets = usePscSubnetTargets(targetSourceId, provider === 'gcp');
+  const pendingSubnet = useMemo(
+    () => (install.detail ? pendingSubnetResourceIds(install.detail.resources) : undefined),
+    [install.detail],
+  );
+  const subnetTargets = usePscSubnetTargets(targetSourceId, provider === 'gcp', pendingSubnet);
   const installView = useMemo(
     () =>
       installStateView({

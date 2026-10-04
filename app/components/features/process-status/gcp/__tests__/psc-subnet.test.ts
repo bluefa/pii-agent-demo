@@ -4,13 +4,26 @@ import {
   pscSubnetTargets,
   regionAbbr,
 } from '@/app/components/features/process-status/gcp/psc-subnet';
-import type { ResourceSnapshot } from '@/lib/types';
+import type { ConfirmedIntegrationResourceInfo } from '@/lib/types';
 
-const row = (region: string, extra: Partial<NonNullable<ResourceSnapshot['metadata']>> = {}): ResourceSnapshot => ({
+const row = (
+  region: string | null,
+  extra: Partial<ConfirmedIntegrationResourceInfo> = {},
+): ConfirmedIntegrationResourceInfo => ({
   resource_id: `projects/p/instances/${region}-${Math.random()}`,
   resource_type: 'GCP_SQL',
+  database_type: null,
+  database_region: region,
+  resource_name: null,
+  port: null,
+  host: null,
+  oracle_service_id: null,
+  network_interface_id: null,
+  ip_configuration: null,
   credential_id: null,
-  metadata: { region, host_project: 'acme-net-host-prod', host_network: 'shared-vpc-prod', ...extra },
+  host_project: 'acme-net-host-prod',
+  host_network: 'shared-vpc-prod',
+  ...extra,
 });
 
 describe('regionAbbr', () => {
@@ -46,7 +59,16 @@ describe('pscSubnetTargets', () => {
   it('skips a row missing any of the three facts instead of guessing', () => {
     expect(pscSubnetTargets([row('asia-northeast3', { host_project: null })])).toEqual([]);
     expect(pscSubnetTargets([row('asia-northeast3', { host_network: '' })])).toEqual([]);
-    expect(pscSubnetTargets([{ ...row('x'), metadata: { host_project: 'p', host_network: 'n' } }])).toEqual([]);
+    expect(pscSubnetTargets([row(null)])).toEqual([]);
+  });
+
+  it('with pending ids, keeps only the Regions that still have an open subnet cell', () => {
+    const seoul = row('asia-northeast3');
+    const us = row('us-central1');
+    expect(pscSubnetTargets([seoul, us], new Set([us.resource_id])).map((t) => t.region)).toEqual(['us-central1']);
+    expect(pscSubnetTargets([seoul, us], new Set())).toEqual([]);
+    // Not answered yet: nothing hidden.
+    expect(pscSubnetTargets([seoul, us]).map((t) => t.region)).toEqual(['asia-northeast3', 'us-central1']);
   });
 
   it('ignores BigQuery rows — PSC, and so the proxy subnet, is Cloud SQL only', () => {
