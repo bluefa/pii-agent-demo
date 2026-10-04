@@ -20,7 +20,7 @@
     "@tiptap/react": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
     "linkedom": "^0.18.12",
-    "next": "^16.1.4",
+    "next": "^16.3.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "server-only": "^0.0.1",
@@ -36,11 +36,11 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^9",
-    "eslint-config-next": "16.1.4",
+    "eslint-config-next": "16.3.2",
     "jsdom": "^29.0.2",
     "openapi-zod-client": "^1.18.3",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.11"
   }
 }
