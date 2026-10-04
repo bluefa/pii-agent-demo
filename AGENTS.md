@@ -66,6 +66,14 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 - Use tokens/helpers from `lib/theme.ts` and existing UI components.
 - Prefer shared UI components in `app/components/ui`.
 
+### UI Copy
+
+- One sentence carries one fact. Never join two clauses with an em dash (—) or a hyphen in UI text.
+- No implied-context phrasing ("~을 기준으로 등록됩니다"). Name the current state, then say what must happen next and who does it.
+- A disabled control states its reason in the same plain form (tooltip or adjacent text), never a bare greyed-out button.
+- State is text, not colour. A coloured dot alone never expresses a state; use a text tag that names it ("미등록", "등록됨", "다시 입력 필요"), with colour only alongside the words.
+- Full rules and the rejected example: `.claude/skills/frontend-design/SKILL.md` -> Status Copy.
+
 ## 8) API + ADR Guardrails
 
 - `app/api/**` routes must follow `docs/api/**` specs.
